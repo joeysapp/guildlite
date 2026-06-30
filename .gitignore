@@ -1,0 +1,29 @@
+# React and Tests
+node_modules
+.vite
+playwright-report/
+test-results/
+dist/
+
+# Python - Transformers
+venv/
+__pycache__
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Artifacts
+bin/
+*.log
+
+# AI
+.gemini/
+# .claude/ stays ignored (settings.local.json, scheduled_tasks.lock, ..) EXCEPT the
+# committed forge-verify harness — a shared dev tool, not personal scratch. The final
+# /** negation also overrides the blanket *.md above for that skill's SKILL.md.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/forge-verify/
+!.claude/skills/forge-verify/**
