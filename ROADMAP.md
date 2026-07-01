@@ -9,11 +9,9 @@ Instead of a clean-room implementation of the game client, we will leverage the 
 * Asset Pipeline: A hybrid approach. We will use GWCA to read active memory states (e.g., intercepting active rendered models) and combine this with direct `Gw.dat` parsing for a comprehensive model browser.
 * UI System: ImGui (which GWToolbox already uses extensively).
 
-## Technical Considerations
-- The most immediate blocker is ensuring a smooth workflow between the macOS host and the W10 target environment.
--  State of the Game Check: Before deep-diving into DAT parsing, the prior sprint serves as a validation check to see if intercepting the active renderer is easier than DAT decryption
-
-# BUILD REQUIREMENTS
+## Priorities
+- **Addressed in [3a71746](https://github.com/joeysapp/guildlite/commit/3a71746d2ff4545f6913393ec4730aced6bc8dfa):** A smooth workflow between the macOS host and the W10 target environment.
+- State of the Game Check: Before deep-diving into DAT parsing, the prior sprint serves as a validation check to see if intercepting the active renderer is easier than DAT decryption
 
 ### Sprint 1: Development Environment & Foundation
 *Goal: Establish a reliable, repeatable local development pipeline for GWToolbox plugins.*
