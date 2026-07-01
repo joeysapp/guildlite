@@ -1,6 +1,3 @@
-[submodule "creators-kit"]
-	path = creators-kit
-	url = https://github.com/ScreteMonge/creators-kit.git
 [submodule "GWToolboxpp"]
 	path = GWToolboxpp
 	url = https://github.com/gwdevhub/GWToolboxpp.git

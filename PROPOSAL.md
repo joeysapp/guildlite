@@ -33,5 +33,4 @@ Most of the rest of the guildlite mass plan doesn't seem relevant but feel free 
 
 ## References
 - ./GWToolboxpp - Submodule of GWTB with active development and GWCA references
-- ./FULL-ENGINE.md - Initial complete cross platform plan after analyzing GWToolbox
 - ./creators-kit - Model tool for RuneLite (Java, some of above features mentioned)
