@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
+# ------------------------------------------------------------------------------
 # build.sh -- Guildlite plugin: macOS -> Windows -> macOS build pipeline.
-#
-#   Write on macOS -> package the working tree -> build headlessly on Windows
-#   (no Visual Studio GUI) -> VERIFY the DLL is real & fresh before accepting it
-#   -> deploy into the GWToolbox plugin dir -> fetch the DLL + log back for audit.
-#
+# ------------------------------------------------------------------------------
+# Write on macOS -> package the working tree -> build headlessly on Windows
+# (no Visual Studio GUI) -> VERIFY the DLL is real & fresh before accepting it
+# -> deploy into the GWToolbox plugin dir -> fetch the DLL + log back for audit.
+# ------------------------------------------------------------------------------
 # The long CMake/MSBuild build runs DETACHED on Windows (a Scheduled Task) and
 # writes an atomic exit-code marker; this script POLLS with short, keepalive'd ssh
 # connections. A dropped sshd kills at most one poll, never the build -- the fix for
 # "its ssh daemon dropped a good number of those waiting builds".
-#
+# -------------------------------------------------------------------------------
+# Config precedence: CLI flag > env (windows-env.sh) > built-in default.
 # Usage:
 #   ./build.sh                 full run (package, build, verify, deploy, fetch)
 #   ./build.sh -n              dry-run: print every ssh/scp/tar/powershell command
@@ -19,8 +21,7 @@
 #   ./build.sh --doctor        just run the toolchain/reachability audit and exit
 #   ./build.sh --attach <id>   re-attach to an in-flight build's poll loop
 #   ./build.sh -H <user@host> -d <reldir> -p <reldir> -c <cfg>   overrides
-#
-# Config precedence: CLI flag > env (windows-env.sh) > built-in default.
+# ------------------------------------------------------------------------------
 
 set -Eeuo pipefail
 IFS=$'\n\t'
