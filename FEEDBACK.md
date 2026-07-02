@@ -48,6 +48,8 @@ Min vertices: 0
  - AABB is set to 200, same result. Unexpected.
  - Character hides pink hat, more is visible (but not much)
  - User can see red striped gloves but not complete black armor. No setting change gets more rendered.
+ - Slightly changing my settings unexpectedly grabbed a nearby game object (I think me too, but I can't see myself inside of it.)
+   Added pictures and settings for both of these cases above to help - placed at `./feedback-images`
 - If I'm setting to self as target, origin is from the player's head right?
 - This is probably a no, but how hard is reliably getting more of the scene in the export? I think of the radius/selection system being able to intelligently select only a certain area to render, but I realize we're talking polygons here
 
