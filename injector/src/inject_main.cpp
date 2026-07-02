@@ -1,6 +1,10 @@
 // guildlite-inject.exe -- minimal LoadLibrary injector for Guild Wars (Gw.exe, 32-bit).
 //
-//   guildlite-inject [path\to\guildlite.dll] [ProcessName.exe]
+//   guildlite-inject [path\to\payload.dll] [ProcessName.exe]
+//
+// Phase 1 (direct): guildlite-inject guildlite.dll     -- the monolith exporter.
+// Phase 2 (dev loop): guildlite-inject guildlite-stub.dll -- inject ONCE, then hot-reload
+//   guildlite-core.dll over SSH via the control file (no re-injection). See INJECTOR.md.
 //
 // Defaults: guildlite.dll next to this exe; process Gw.exe. GW has no anti-cheat, so the
 // classic VirtualAllocEx + WriteProcessMemory + CreateRemoteThread(LoadLibraryW) is the
@@ -87,6 +91,18 @@ int wmain(int argc, wchar_t** argv)
     if (pids.size() > 1)
         wprintf(L"note: %zu %ls processes; injecting the first (pid %lu). Pass a pid-specific build later.\n",
                 pids.size(), procName, pids[0]);
+
+    // Pre-load gwca.dll (the payload imports it) from the payload's own directory. When we
+    // LoadLibrary the payload by full path, the loader does NOT search the payload's dir for
+    // ITS dependencies, so a gwca.dll sitting next to the payload would be "not found" and the
+    // payload fails to load. Loading it into the target first means the payload's import binds
+    // to the already-mapped module (same name, one instance per process).
+    const auto gwcaPath = dllPath.parent_path() / L"gwca.dll";
+    if (std::filesystem::exists(gwcaPath)) {
+        wprintf(L"pre-loading dependency %ls\n", gwcaPath.c_str());
+        if (!Inject(pids[0], gwcaPath.wstring()))
+            fwprintf(stderr, L"warning: gwca.dll pre-load failed; payload may fail to load\n");
+    }
 
     wprintf(L"injecting %ls -> %ls (pid %lu)\n", dllPath.c_str(), procName, pids[0]);
     const bool ok = Inject(pids[0], dllPath.wstring());

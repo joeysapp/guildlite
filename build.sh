@@ -14,8 +14,10 @@
 # Config precedence: CLI flag > env (windows-env.sh) > built-in default.
 # Usage:
 #   ./build.sh                 full run (package, build, verify, deploy, fetch)
-#   ./build.sh --guildlite     build + install the STANDALONE injector (guildlite.dll +
-#                              guildlite-inject.exe) into Documents/guildlite/  (injector/ tree)
+#   ./build.sh --guildlite     build + install the STANDALONE injector (injector/ tree) into
+#                              Documents/guildlite/: guildlite.dll (Phase-1 monolith),
+#                              guildlite-inject.exe (loader), guildlite-core.dll +
+#                              guildlite-stub.dll (Phase-2 dev loop), and gwca.dll
 #   ./build.sh -n              dry-run: print every ssh/scp/tar/powershell command
 #   ./build.sh --debug         build Debug instead of RelWithDebInfo
 #   ./build.sh --clean         wipe the remote CMake cache first (keeps vcpkg_installed)

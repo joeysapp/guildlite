@@ -1,5 +1,7 @@
 #include "Overlay.h"
 #include "Screenshot.h"
+#include "Exporter.h"
+#include "Game.h"
 #include "Log.h"
 
 #include <d3d9.h>
@@ -10,6 +12,7 @@
 #include <imgui_impl_win32.h>
 
 #include <filesystem>
+#include <string>
 
 // Declared by the Win32 backend (imgui_impl_win32.h) but not in its public prototypes on
 // every version -- forward-declare so the WndProc subclass can forward input to ImGui.
@@ -27,7 +30,9 @@ namespace {
     WNDPROC  g_origWndProc   = nullptr;
     bool     g_imguiReady    = false;
     bool     g_showDemo      = false;
+    bool     g_selfUnload    = true;   // monolith frees itself; the hosted core lets the stub do it
     volatile bool g_unload   = false;
+    volatile bool g_tornDown = false;
     HANDLE   g_unloadEvent   = nullptr;
     unsigned g_frame         = 0;
 
@@ -88,21 +93,27 @@ namespace {
 
     void DrawUI()
     {
-        ImGui::SetNextWindowSize(ImVec2(360, 210), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(360, 220), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_FirstUseEver);
-        if (ImGui::Begin("Guildlite - standalone spike")) {
+        if (ImGui::Begin("Guildlite - overlay")) {
             ImGui::Text("In-game overlay is LIVE (own injector, own D3D9 hook).");
             ImGui::Text("frame %u   %.1f FPS", g_frame, ImGui::GetIO().Framerate);
+            ImGui::Text("GWCA: %s", Game::Ready() ? "ready" : "initialising...");
             ImGui::Separator();
+            ImGui::TextWrapped("The model exporter is the 'Guildlite - Model Exporter' window.");
             ImGui::TextWrapped("F9 / button = screenshot the backbuffer to Documents\\guildlite\\guildlite-shot.png");
-            ImGui::TextWrapped("Over SSH: drop a file 'Documents\\guildlite\\shot.request' and it fires within ~half a second.");
-            ImGui::TextWrapped("INSERT = ImGui demo.   END = unload the overlay.");
+            ImGui::TextWrapped("Over SSH: drop 'Documents\\guildlite\\shot.request' (screenshot) or write verbs\n"
+                               "to 'Documents\\guildlite\\control' (capture / capture-dry / screenshot / demo).");
+            if (g_selfUnload) ImGui::TextWrapped("INSERT = ImGui demo.   END = unload the overlay.");
+            else ImGui::TextWrapped("INSERT = ImGui demo.   (hosted core: reload/unload via the stub's control file.)");
             ImGui::Separator();
             if (ImGui::Button("Screenshot now")) Screenshot::Request();
             ImGui::SameLine();
             if (ImGui::Button("Toggle demo")) g_showDemo = !g_showDemo;
-            ImGui::SameLine();
-            if (ImGui::Button("Unload")) Overlay::RequestUnload();
+            if (g_selfUnload) {
+                ImGui::SameLine();
+                if (ImGui::Button("Unload")) Overlay::RequestUnload();
+            }
         }
         ImGui::End();
         if (g_showDemo) ImGui::ShowDemoWindow(&g_showDemo);
@@ -123,9 +134,9 @@ namespace {
         if (!g_unload) {
             EnsureImGui(dev);
 
-            if (KeyPressed(VK_F9))     Screenshot::Request();
-            if (KeyPressed(VK_INSERT)) g_showDemo = !g_showDemo;
-            if (KeyPressed(VK_END))    Overlay::RequestUnload();
+            if (KeyPressed(VK_F9))                    Screenshot::Request();
+            if (KeyPressed(VK_INSERT))                g_showDemo = !g_showDemo;
+            if (g_selfUnload && KeyPressed(VK_END))   Overlay::RequestUnload();
 
             // SSH-drivable trigger: a 'shot.request' file (checked ~2x/sec so it's cheap).
             if ((g_frame % 30) == 0) {
@@ -140,7 +151,8 @@ namespace {
             ImGui_ImplDX9_NewFrame();
             ImGui_ImplWin32_NewFrame();
             ImGui::NewFrame();
-            DrawUI();
+            DrawUI();             // overlay status strip
+            Exporter::Draw(dev);  // model-exporter window + capture state machine (installs the DIP hook)
             ImGui::Render();
             ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
@@ -153,60 +165,15 @@ namespace {
         return oEndScene(dev);
     }
 
-    bool GrabVTable(void** endScene, void** reset)
+    // The actual teardown, shared by the monolith's watchdog and the hosted Teardown().
+    // Idempotent: guarded by g_tornDown so a double signal can't double-free. Must run
+    // OFF the render thread, after hkEndScene has stopped drawing (g_unload set + drained).
+    void DoTeardown()
     {
-        // A throwaway device just to read the shared IDirect3DDevice9 vtable; hooking those
-        // slots hooks the game's device too (the vtable pointer is per-implementation).
-        IDirect3D9* d3d = Direct3DCreate9(D3D_SDK_VERSION);
-        if (!d3d) { GL_DLLLOG("GrabVTable: Direct3DCreate9 returned null"); return false; }
-
-        // Register a real, thread-owned top-level window. A bare "STATIC" top-level window made
-        // CreateDevice return E_INVALIDARG (0x80070057) -- D3D9 wants a proper device window.
-        WNDCLASSEXW wc{};
-        wc.cbSize = sizeof(wc);
-        wc.lpfnWndProc = DefWindowProcW;
-        wc.hInstance = GetModuleHandleW(nullptr);
-        wc.lpszClassName = L"GuildliteDummyWnd";
-        RegisterClassExW(&wc);
-        const HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW,
-                                          0, 0, 100, 100, nullptr, nullptr, wc.hInstance, nullptr);
-
-        D3DPRESENT_PARAMETERS pp{};
-        pp.Windowed = TRUE;
-        pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-        pp.hDeviceWindow = hwnd;
-
-        IDirect3DDevice9* dev = nullptr;
-        HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd,
-                                       D3DCREATE_SOFTWARE_VERTEXPROCESSING, &pp, &dev);
-        if (FAILED(hr)) {
-            GL_DLLLOG("GrabVTable: HAL hr=0x%08lX hwnd=%p, retrying REF", hr, static_cast<void*>(hwnd));
-            hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_REF, hwnd,
-                                   D3DCREATE_SOFTWARE_VERTEXPROCESSING, &pp, &dev);
-        }
-        GL_DLLLOG("GrabVTable: CreateDevice hr=0x%08lX dev=%p hwnd=%p", hr, static_cast<void*>(dev), static_cast<void*>(hwnd));
-
-        bool ok = false;
-        if (SUCCEEDED(hr) && dev) {
-            void** vtbl = *reinterpret_cast<void***>(dev);
-            *reset    = vtbl[16];   // IDirect3DDevice9::Reset
-            *endScene = vtbl[42];   // IDirect3DDevice9::EndScene
-            ok = true;
-            dev->Release();
-        }
-        if (hwnd) DestroyWindow(hwnd);
-        UnregisterClassW(wc.lpszClassName, wc.hInstance);
-        d3d->Release();
-        return ok;
-    }
-
-    DWORD WINAPI Watchdog(LPVOID)
-    {
-        // Teardown must run OFF the game's render thread (we can't exit that thread). Wait for
-        // the unload signal; hkEndScene already stops rendering once g_unload is set.
-        WaitForSingleObject(g_unloadEvent, INFINITE);
-        Sleep(200);   // let any in-flight hkEndScene call drain
-        MH_DisableHook(MH_ALL_HOOKS);
+        if (g_tornDown) return;
+        g_tornDown = true;
+        Exporter::Shutdown();          // save settings + remove the DIP capture hook + release texture refs
+        MH_DisableHook(MH_ALL_HOOKS);  // EndScene/Reset (and DIP if Capture::Remove missed it)
         MH_Uninitialize();
         if (g_imguiReady) {
             if (g_window && g_origWndProc)
@@ -215,7 +182,18 @@ namespace {
             ImGui_ImplWin32_Shutdown();
             ImGui::DestroyContext();
         }
+        Game::Terminate();             // no-op unless THIS module owns GWCA (the monolith)
+        GL_DLLLOG("DoTeardown: complete");
+    }
+
+    DWORD WINAPI Watchdog(LPVOID)
+    {
+        // Monolith only. Wait for the unload signal, drain, tear down, then free ourselves.
+        WaitForSingleObject(g_unloadEvent, INFINITE);
+        Sleep(200);   // let any in-flight hkEndScene call drain
+        DoTeardown();
         CloseHandle(g_unloadEvent);
+        g_unloadEvent = nullptr;
         FreeLibraryAndExitThread(g_self, 0);
         return 0;   // unreached
     }
@@ -224,25 +202,58 @@ namespace {
 void Overlay::RequestUnload()
 {
     g_unload = true;
-    if (g_unloadEvent) SetEvent(g_unloadEvent);
+    if (g_selfUnload && g_unloadEvent) SetEvent(g_unloadEvent);
+    // Hosted core: rendering stops here; the stub calls Teardown() then FreeLibrary()s us.
 }
 
-void Overlay::Install(HMODULE self)
+void Overlay::Teardown()
 {
-    GL_DLLLOG("Install: begin");
+    // Synchronous teardown for a host (the Phase-2 stub). Runs on the caller's thread,
+    // which is NOT the render thread, so we can drain and tear down in place.
+    g_unload = true;
+    Sleep(200);   // let any in-flight hkEndScene call drain
+    DoTeardown();
+}
+
+void Overlay::Command(const char* verb)
+{
+    if (!verb) return;
+    const std::string v = verb;
+    if (v == "screenshot" || v == "shot")      Screenshot::Request();
+    else if (v == "capture")                    Exporter::Command("capture");
+    else if (v == "capture-dry" || v == "diag") Exporter::Command("capture-dry");
+    else if (v == "demo")                       g_showDemo = !g_showDemo;
+    else if (v == "unload") {
+        if (g_selfUnload) RequestUnload();
+        else GL_DLLLOG("Overlay::Command: 'unload' ignored in hosted mode (stub owns lifecycle)");
+    }
+    else GL_DLLLOG("Overlay::Command: unknown verb '%s'", verb);
+}
+
+void Overlay::Install(HMODULE self, IDirect3DDevice9* device, bool selfUnload)
+{
+    GL_DLLLOG("Install: begin (selfUnload=%d device=%p)", static_cast<int>(selfUnload), static_cast<void*>(device));
     g_self = self;
-    void* pEndScene = nullptr;
-    void* pReset = nullptr;
-    if (!GrabVTable(&pEndScene, &pReset)) { GL_DLLLOG("Install: GrabVTable FAILED -- no overlay"); return; }
+    g_selfUnload = selfUnload;
+    if (!device) { GL_DLLLOG("Install: null device -- no overlay"); return; }
+    // Read the game's own IDirect3DDevice9 vtable and hook it directly. MinHook patches the
+    // target functions' prologues, so hooking these slots hooks every caller (the game).
+    void** vtbl = *reinterpret_cast<void***>(device);
+    void* pReset    = vtbl[16];   // IDirect3DDevice9::Reset
+    void* pEndScene = vtbl[42];   // IDirect3DDevice9::EndScene
     GL_DLLLOG("Install: vtable EndScene=%p Reset=%p", pEndScene, pReset);
     const MH_STATUS mi = MH_Initialize();
-    if (mi != MH_OK) { GL_DLLLOG("Install: MH_Initialize FAILED (%d)", mi); return; }
+    if (mi != MH_OK && mi != MH_ERROR_ALREADY_INITIALIZED) { GL_DLLLOG("Install: MH_Initialize FAILED (%d)", mi); return; }
     const MH_STATUS c1 = MH_CreateHook(pEndScene, &hkEndScene, reinterpret_cast<void**>(&oEndScene));
     const MH_STATUS c2 = MH_CreateHook(pReset,    &hkReset,    reinterpret_cast<void**>(&oReset));
     const MH_STATUS en = MH_EnableHook(MH_ALL_HOOKS);
     GL_DLLLOG("Install: hooks createEndScene=%d createReset=%d enable=%d (0=OK)", c1, c2, en);
 
-    g_unloadEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-    if (const HANDLE t = CreateThread(nullptr, 0, Watchdog, nullptr, 0, nullptr)) CloseHandle(t);
+    Exporter::Init();   // load persisted settings (engine self-init; GWCA is brought up by the entry)
+
+    if (selfUnload) {
+        g_unloadEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        if (const HANDLE t = CreateThread(nullptr, 0, Watchdog, nullptr, 0, nullptr)) CloseHandle(t);
+    }
     GL_DLLLOG("Install: done (waiting for EndScene)");
 }

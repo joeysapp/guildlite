@@ -8,8 +8,8 @@
 
 ## INJECTION ROADMAP in PHASES
 - [x] Injector: Init, ImGui base and info (overlay), screenshots via backbuffers (dev superpower over ssh)
-- [ ] Exporter: Port the 6 files, write the 4 glue modules, wire your control panel. Exporter runs standalone.
-- [ ] Dev Loop: stub + reloadable core + control file - Now you iterate from the Mac over SSH with visual verification, no manual re-injection and restarts
+- [x] Exporter: Port the 6 files, write the 4 glue modules, wire your control panel. Exporter runs standalone. → `injector/src/{Capture,ObjWriter,TextureExport,GameState,GuildliteConfig}` ported; `{Game,Settings,Exporter}` + `Overlay` capture-hook wiring added; `guildlite.dll` monolith.
+- [x] Dev Loop: stub + reloadable core + control file - iterate from the Mac over SSH with visual verification, no manual re-injection and restarts → `guildlite-stub.dll` + `guildlite-core.dll`, control file at `Documents\guildlite\control` (see INJECTOR.md).
 - [ ] Fun: free camera, shared-state, Prop Hunt, weather, etc
 
 ## IMMEDIATE
@@ -19,8 +19,8 @@
  - `./scripts/gwt.sh` - Expectation is this will be useful to control over ssh still? Could we rename to something more descriptive?
  - `./scripts/install_sshd_watchdog.jd1` - Admin-level Windows SSH timeout. Probably needed? Do we install/provide this to anything anywhere?
 - [ ] Rendering complete build with dev loop (1. Screenshot Dev Loop, 2. Animation, Skeleton, Export)
-- [ ] `model-export`: Lift out work done in GWToolbox guildlite plugin (model-export), wire into new 
- - **PROPOSED**: Use new layer/GWCA/ImGui/
+- [x] `model-export`: Lifted out of the GWToolbox guildlite plugin, wired into the standalone injector
+ - **DONE**: new layer over GWCA/ImGui — `injector/src/Exporter.{h,cpp}` drives the ported `Capture`/`ObjWriter`/`TextureExport`/`GameState` on our own D3D9 hook; settings via glaze JSON.
 - [ ] UI and controls prototyping, settings and general setup/installs for others
 * [~] MinHook on the D3D9 vtable
 * [~] ImGui setup

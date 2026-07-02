@@ -29,15 +29,20 @@ The GWToolbox coupling was only 5 seams, all in `plugins/Guildlite/GuildlitePlug
 
 | Seam (plugin, from toolbox) | Standalone replacement | Status |
 |---|---|---|
-| `ToolboxPlugin` base + `ToolboxPluginInstance()` export | plain `DllMain` → worker thread | spike ✔ (`dllmain.cpp`) |
-| `Initialize(ImGuiContext* ctx, …)` hands you ImGui | `CreateContext` + `ImGui_ImplDX9/Win32_Init` yourself | spike ✔ (`Overlay.cpp`) |
-| `Draw(IDirect3DDevice9*)` called per-frame | hook `EndScene` (vtbl 42) + `Reset` (vtbl 16) via MinHook | spike ✔ (`Overlay.cpp`) |
-| GWCA init via `ToolboxPlugin::Initialize` | `GW::Initialize()` in the worker thread | **Phase 1** |
-| `LoadSettings/SaveSettings(folder)` + lifecycle | own settings dir + `FreeLibraryAndExitThread` unload | spike ✔ (unload), Phase 1 (settings) |
+| `ToolboxPlugin` base + `ToolboxPluginInstance()` export | plain `DllMain` → worker thread | ✔ (`dllmain.cpp`) |
+| `Initialize(ImGuiContext* ctx, …)` hands you ImGui | `CreateContext` + `ImGui_ImplDX9/Win32_Init` yourself | ✔ (`Overlay.cpp`) |
+| `Draw(IDirect3DDevice9*)` called per-frame | hook `EndScene` (vtbl 42) + `Reset` (vtbl 16) via MinHook | ✔ (`Overlay.cpp`) |
+| GWCA init via `ToolboxPlugin::Initialize` | `GW::Initialize()`+`EnableHooks()` in the worker thread | ✔ (`Game.cpp`) |
+| `LoadSettings/SaveSettings(folder)` + lifecycle | own settings dir (glaze JSON) + `FreeLibraryAndExitThread` unload | ✔ (`Settings.cpp`, `Overlay.cpp`) |
 
-Everything else — `Capture`, `ObjWriter`, `TextureExport`, `GameState`, and the GWCA reads
-(`GW::Agents::*`, `GW::Render::GetDevice`, `GW::Map::*`, `GW::Chat::WriteChat`) — **lifts over
-unchanged** in Phase 1.
+Everything else — `Capture`, `ObjWriter`, `TextureExport`, `GameState`, `GuildliteConfig`, and the
+GWCA reads (`GW::Agents::*`, `GW::Map::*`, `GW::Chat::WriteChat`) — **lifted over unchanged** in
+Phase 1. The four glue modules that replaced the toolbox seams are `Game` (GWCA lifecycle),
+`Settings` (config persistence), `Exporter` (control panel + capture orchestration, the port of
+`GuildlitePlugin::Draw`/`DrawControlPanel`/`BeginCapture`/`FlushCapture`), and the capture-hook
+wiring inside `Overlay` (the `DrawIndexedPrimitive` hook now installs alongside `EndScene`). Every
+GWCA read is gated on `Game::Ready()` so nothing touches game memory before GWCA has scanned it.
+The device comes from our own `EndScene` hook, so `GW::Render::GetDevice()` is no longer needed.
 
 ## Dev-loop superpowers (why owning the layer matters)
 
@@ -56,25 +61,74 @@ the game"* can't be done over an SSH/session-0 shell. Owning the present hook fi
 
 ## Phases
 
-- **Phase 0 — spike (this commit):** loader + payload that hooks `EndScene`, draws a hello ImGui
-  window, and screenshots the backbuffer (hotkey, button, or `shot.request` file). Proves
-  own-injection + own-overlay + screenshot-over-SSH end to end.
-- **Phase 1 — lift the exporter:** port the 6 portable files, implement `GW::Initialize()` +
-  settings, move the `DrawIndexedPrimitive` capture hook alongside the `EndScene` overlay hook,
-  wire the control panel. Exporter runs standalone.
-- **Phase 2 — the dev loop:** stub + reloadable core + control file. Iterate from the Mac over
-  SSH with visual verification, no manual re-inject.
+- **Phase 0 — spike:** ✔ loader + payload that hooks `EndScene`, draws a hello ImGui window, and
+  screenshots the backbuffer (hotkey, button, or `shot.request` file). Proves own-injection +
+  own-overlay + screenshot-over-SSH end to end.
+- **Phase 1 — lift the exporter:** ✔ ported the portable files (`Capture`, `ObjWriter`,
+  `TextureExport`, `GameState`, `GuildliteConfig`), added the four glue modules (`Game`,
+  `Settings`, `Exporter`, capture-hook wiring in `Overlay`), moved the `DrawIndexedPrimitive`
+  capture hook alongside the `EndScene` overlay hook, and wired the control panel. Builds
+  `guildlite.dll` (monolith) + `guildlite-inject.exe`. Exporter runs standalone.
+- **Phase 2 — the dev loop:** ✔ `guildlite-stub.dll` (inject once, owns GWCA, watches the control
+  file) + `guildlite-core.dll` (the reloadable overlay/exporter). Write `reload` to the control
+  file to hot-swap a freshly-built core; write `capture`/`screenshot`/… to drive it — all over
+  SSH, no re-inject. See **Phase 2 control file** below.
 - **Phase 3 — the fun:** free camera, then shared-state / Prop Hunt off the ROADMAP.
+
+## Phase 2 control file — driving the dev loop over SSH
+
+Inject the stub once (interactive session): `guildlite-inject guildlite-stub.dll`. Thereafter the
+stub watches `Documents\guildlite\control` (~2 Hz) and acts on each line, then deletes the file:
+
+| Verb | Effect |
+|---|---|
+| `reload` | stop the running core, `FreeLibrary` it, load the freshly-built `guildlite-core.dll` |
+| `unload` | stop the core, `GW::Terminate()`, unload the stub itself |
+| `capture` | forward to the core: arm a model export |
+| `capture-dry` | forward to the core: diagnostics only, writes no file |
+| `screenshot` | forward to the core: backbuffer → PNG |
+| `demo` | forward to the core: toggle the ImGui demo |
+| *(anything else)* | forwarded verbatim to the core, so new verbs need no stub rebuild |
+
+The core is loaded from a private **copy** (`core-live\guildlite-core-<n>.dll`) so the next build
+can overwrite the canonical `guildlite-core.dll` while a core is live — the classic hot-reload
+trick. GWCA lives in the **stub** (loaded once, hooks stay put across reloads); only the D3D9
+overlay + exporter reload, so there is no GWCA re-init churn. Write atomically over SSH
+(`control.tmp` → rename `control`) to avoid a torn read. Example:
+`ssh win 'printf "reload\ncapture\n" > Documents/guildlite/control.tmp; mv Documents/guildlite/control.tmp Documents/guildlite/control'`.
 
 ## Build & deploy integration
 
 - `-Kind guildlite` in `tools/build_remote.ps1` configures/builds the `injector/` tree (its own
-  `CMakePresets.json`) instead of `GWToolboxpp/`, builds targets `guildlite` + `guildlite-inject`,
-  verifies each is a valid PE, and installs both to `Documents\guildlite\` (override with
-  `--install-dir` / `GW_TOOLBOX_INSTALL_DIR`). Same verify/fetch/manifest machinery as the plugin.
+  `CMakePresets.json`) instead of `GWToolboxpp/`, builds targets `guildlite`, `guildlite-inject`,
+  `guildlite-core`, `guildlite-stub`, verifies each is a valid PE, and installs them plus the
+  staged **`gwca.dll`** to `Documents\guildlite\` (override with `--install-dir` /
+  `GW_TOOLBOX_INSTALL_DIR`). Same verify/fetch/manifest machinery as the plugin.
 - Deps via the same vcpkg toolchain + baseline as GWToolboxpp (`vcpkg-configuration.json`):
-  **imgui** (dx9 + win32 bindings), **minhook**, **stb**. GWCA/DirectXTex join in Phase 1.
+  **imgui** (dx9 + win32 bindings), **minhook**, **stb**, and **glaze** (the exporter's manifest +
+  our settings; needs the same x86 constexpr/`ZMIJ_USE_SIMD=0` flags, mirrored in the CMake).
+  **GWCA** is the prebuilt import lib + `gwca.dll` from `GWToolboxpp/Dependencies/GWCA` (not a
+  vcpkg port), linked via an `IMPORTED` target and staged next to the payloads by a POST_BUILD
+  copy. DirectXTex is **not** needed — `TextureExport` decodes DXT in software, dependency-free.
 - `injector/{build,bin,vcpkg_installed}` are excluded from the source tarball (`windows-utils.sh`).
+
+## Runtime risks to confirm on the live inject (authored blind on macOS)
+
+Everything below compiles clean in the pipeline; only the interactive inject can confirm runtime.
+
+- **GWCA vs. our D3D hooks.** GWCA uses its own (separate) MinHook inside `gwca.dll`; our overlay
+  uses the payload's MinHook. The plugin's `DrawIndexedPrimitive` hook already coexisted with
+  GWCA+GWToolbox, so DIP is known-safe. New in standalone: we hook `EndScene`/`Reset`. We never
+  attach GWCA's render callback, so GWCA should not be hooking those — but if a future GWCA build
+  does, two MinHooks on one prologue could clash. If the overlay never draws, suspect this.
+- **`gwca.dll` load.** GWToolbox embeds gwca.dll as a resource; we instead deploy it next to the
+  payload and let the import lib load it. If GWToolbox is *also* running, its already-loaded
+  `gwca.dll` (same module name) is what binds — a coexistence case to test later. Standalone
+  (guildlite alone) is the Phase-1/2 target and has no such ambiguity.
+- **Hot-reload teardown.** The core removes its hooks + destroys its ImGui context on
+  `GuildliteCoreStop` before the stub `FreeLibrary`s it; the drain is a `g_unload` flag + 200 ms
+  sleep (same pattern as the spike's self-unload). A reload under heavy render load is the thing
+  to watch.
 
 ## First-build status
 

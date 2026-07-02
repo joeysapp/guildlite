@@ -122,9 +122,16 @@ function Get-BuildItems([string]$kind, [string]$config, [string]$gwtb, [string]$
     }
     if ($kind -eq 'guildlite') {
         $install = if ($installOverride) { Resolve-HomePath $installOverride } else { Join-Path $Profile2 'Documents\guildlite' }
+        # Phase 1: guildlite.dll (monolith) + guildlite-inject.exe (loader).
+        # Phase 2: guildlite-core.dll (reloadable) + guildlite-stub.dll (inject-once host).
+        # gwca.dll is a prebuilt dependency staged next to the payloads by the CMake POST_BUILD;
+        # its Target reuses 'guildlite' only to satisfy --target (cmake dedups the repeat).
         return @(
             @{ Target = 'guildlite';        Name = 'guildlite.dll';        Path = (Join-Path $binDir 'guildlite.dll');        Verify = 'pe'; DeployDir = $install },
-            @{ Target = 'guildlite-inject'; Name = 'guildlite-inject.exe'; Path = (Join-Path $binDir 'guildlite-inject.exe'); Verify = 'pe'; DeployDir = $install }
+            @{ Target = 'guildlite-inject'; Name = 'guildlite-inject.exe'; Path = (Join-Path $binDir 'guildlite-inject.exe'); Verify = 'pe'; DeployDir = $install },
+            @{ Target = 'guildlite-core';   Name = 'guildlite-core.dll';   Path = (Join-Path $binDir 'guildlite-core.dll');   Verify = 'pe'; DeployDir = $install },
+            @{ Target = 'guildlite-stub';   Name = 'guildlite-stub.dll';   Path = (Join-Path $binDir 'guildlite-stub.dll');   Verify = 'pe'; DeployDir = $install },
+            @{ Target = 'guildlite';        Name = 'gwca.dll';             Path = (Join-Path $binDir 'gwca.dll');             Verify = 'pe'; DeployDir = $install }
         )
     }
     return @(

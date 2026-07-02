@@ -4,6 +4,7 @@
   "dependencies": [
     { "name": "imgui", "features": ["dx9-binding", "win32-binding"] },
     "minhook",
-    "stb"
+    "stb",
+    "glaze"
   ]
 }
