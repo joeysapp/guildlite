@@ -1,26 +1,5 @@
 
 
-# BUILD FIRST DEV LOOP
-Using the following suggested template for making critical choices based on prior decisions, the first being a loop to provide a harness to quantify settings versus content over time. 
-
-- [ ] **Rendering: Finalize Remaining Features Using Dev Loop** using the following template loop:
-  0) Use `gw-cmd / Dev Loop` control layer to Take Screenshot of Windows Gw.exe
-  1) Move Screenshot to models/ingame.png
-    A) Pick Random `model-export` Settings From Recommended `model/SETTINGS.md` Settings
-	   OR
-    B) Analyze Image with AI to Determine Best `model-export` Using `models/SETTINGS.md`
-  3) Use `gw-cmd / Dev Loop` to Set Windows Gw.exe Guildlite settings as specified
-  4) Use `gw-cmd / Dev Loop` to Target Self/Other/None (When Testing Area)
-  5) Use `gw-cmd / Dev Loop` to Follow Complete Written Plan Instructions To Export Object
-  6) Move Exported Objectfile(s) to models/object..
-  7) Use Windows 3D Object Viewer to Generate Rendering of Object
-  8) Move Rendering to models/render.png
-  9) Compare `ingame.png` To `render.png`
- 10) Report Findings to models/analysis.txt
- - **GOAL**: Uncovering Bugs/Broken Render Logic
-   
-- **BUG**: Right clicking to move camera does **NOT** work with interjector overlay. Fix.
-
 ## INJECTION ROADMAP in PHASES
 - [x] Injector: Init, ImGui base and info (overlay), screenshots via backbuffers (dev superpower over ssh)
 - [x] Exporter: Port the 6 files, write the 4 glue modules, wire your control panel. Exporter runs standalone. → `injector/src/{Capture,ObjWriter,TextureExport,GameState,GuildliteConfig}` ported; `{Game,Settings,Exporter}` + `Overlay` capture-hook wiring added; `guildlite.dll` monolith.
