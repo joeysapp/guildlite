@@ -1,0 +1,9 @@
+{
+  "name": "guildlite-injector",
+  "version-string": "0.1.0",
+  "dependencies": [
+    { "name": "imgui", "features": ["dx9-binding", "win32-binding"] },
+    "minhook",
+    "stb"
+  ]
+}

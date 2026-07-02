@@ -21,6 +21,8 @@ param(
     [string]$Config   = 'RelWithDebInfo',
     [string]$SrcDir   = 'src/guildlite',
     [string]$PluginDir= 'Documents/GWToolboxpp/plugins',
+    [ValidateSet('plugin','launcher','guildlite')] [string]$Kind = 'plugin',
+    [string]$InstallDir= '',
     [string]$Tarball  = '',
     [string]$VcpkgRoot= '',
     [switch]$Clean,
@@ -47,6 +49,87 @@ function Resolve-PluginDir([string]$hint) {
     $byName = Join-Path $Profile2 "Documents\GWToolboxpp\$env:COMPUTERNAME\plugins"
     if (Test-Path $byName) { return $byName }
     return $p
+}
+# Launcher + main DLL live one level ABOVE the per-machine <COMPUTERNAME> dir:
+# %USERPROFILE%\Documents\GWToolboxpp\{GWToolbox.exe,GWToolboxdll.dll}. Derive that
+# root from the resolved plugin dir (…\GWToolboxpp\<CN>\plugins) unless overridden.
+function Resolve-InstallDir([string]$override, [string]$pluginHint) {
+    if ($override) { return (Resolve-HomePath $override) }
+    # Walk up from the resolved plugin dir to the directory literally named
+    # 'GWToolboxpp' (…\Documents\GWToolboxpp) -- robust whether the plugin dir is
+    # …\GWToolboxpp\<CN>\plugins or the flatter …\GWToolboxpp\plugins.
+    $d = Resolve-PluginDir $pluginHint
+    while ($d -and (Split-Path $d -Leaf) -ne 'GWToolboxpp') {
+        $parent = Split-Path $d -Parent
+        if ([string]::IsNullOrEmpty($parent) -or $parent -eq $d) { $d = ''; break }
+        $d = $parent
+    }
+    if ($d) { return $d }
+    return (Join-Path $Profile2 'Documents\GWToolboxpp')
+}
+# A real PE image starts with 'MZ'. Cheap structural check for the exe + main dll
+# (the plugin gets a stronger exported-symbol check via Test-Export).
+function Test-IsPE([string]$path) {
+    try {
+        $fs = [System.IO.File]::OpenRead($path)
+        try { $b0 = $fs.ReadByte(); $b1 = $fs.ReadByte() } finally { $fs.Dispose() }
+        return ($b0 -eq 0x4D -and $b1 -eq 0x5A)
+    } catch { return $false }
+}
+# Deploy one artifact robustly. Move-Item -Force first; if the target is a running exe
+# or a loaded DLL its file is locked against delete -- but Windows still lets us RENAME
+# it aside (the hot-patch trick GWToolbox's own updater uses), so fall back to
+# rename-to-.old then move the new file in. Returns $true only on real success.
+function Deploy-Artifact([string]$src, [string]$destDir, [string]$destName) {
+    New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+    $target = Join-Path $destDir $destName
+    $tmp = "$target.new"
+    $srcHash = (Get-FileHash $src -Algorithm SHA256).Hash
+    # -ErrorAction Stop is REQUIRED: the worker runs $ErrorActionPreference='Continue', so a plain
+    # Move-Item failure on a locked target is NON-terminating -- it slips past try/catch, skips the
+    # rename-aside fallback, and still falls through to success. That is the silent no-op-on-lock.
+    # Stop makes it throw so the fallback runs; the hash check below reports the truth regardless.
+    Copy-Item $src $tmp -Force -ErrorAction Stop
+    try {
+        Move-Item $tmp $target -Force -ErrorAction Stop
+    } catch {
+        # Target is a running exe / loaded dll: locked against overwrite, but NTFS still lets us
+        # RENAME it aside, then move the new file into the freed name.
+        $old = "$target.old"
+        Remove-Item $old -Force -ErrorAction SilentlyContinue
+        try {
+            if (Test-Path $target) { Move-Item $target $old -Force -ErrorAction Stop }
+            Move-Item $tmp $target -Force -ErrorAction Stop
+            Remove-Item $old -Force -ErrorAction SilentlyContinue   # best-effort; a loaded .old lingers until restart
+        } catch {
+            Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+    }
+    # Never trust the move -- confirm the deployed bytes match the source, or report failure.
+    if (-not (Test-Path $target)) { return $false }
+    return ((Get-FileHash $target -Algorithm SHA256).Hash -eq $srcHash)
+}
+# The (target, artifact, verify-kind, deploy-dir) set to build/verify/deploy for a Kind.
+function Get-BuildItems([string]$kind, [string]$config, [string]$gwtb, [string]$pluginHint, [string]$installOverride) {
+    $binDir = Join-Path $gwtb (Join-Path 'bin' $config)
+    if ($kind -eq 'launcher') {
+        $install = Resolve-InstallDir $installOverride $pluginHint
+        return @(
+            @{ Target = 'GWToolboxdll'; Name = 'GWToolboxdll.dll'; Path = (Join-Path $binDir 'GWToolboxdll.dll'); Verify = 'pe'; DeployDir = $install },
+            @{ Target = 'GWToolbox';    Name = 'GWToolbox.exe';    Path = (Join-Path $binDir 'GWToolbox.exe');    Verify = 'pe'; DeployDir = $install }
+        )
+    }
+    if ($kind -eq 'guildlite') {
+        $install = if ($installOverride) { Resolve-HomePath $installOverride } else { Join-Path $Profile2 'Documents\guildlite' }
+        return @(
+            @{ Target = 'guildlite';        Name = 'guildlite.dll';        Path = (Join-Path $binDir 'guildlite.dll');        Verify = 'pe'; DeployDir = $install },
+            @{ Target = 'guildlite-inject'; Name = 'guildlite-inject.exe'; Path = (Join-Path $binDir 'guildlite-inject.exe'); Verify = 'pe'; DeployDir = $install }
+        )
+    }
+    return @(
+        @{ Target = 'Guildlite'; Name = 'Guildlite.dll'; Path = (Join-Path $binDir 'Guildlite.dll'); Verify = 'export:ToolboxPluginInstance'; DeployDir = (Resolve-PluginDir $pluginHint) }
+    )
 }
 function Run-Dir([string]$id) { Join-Path (Join-Path $Profile2 '.guildlite') $id }
 function Write-Marker([string]$dir, [string]$name, [string]$value) {
@@ -126,7 +209,7 @@ if ($Mode -eq 'Launch') {
     $nodeployArg = if ($NoDeploy) { '-NoDeploy' } else { '' }
     $cmd = @"
 @echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%USERPROFILE%\build_remote.ps1" -Mode Worker -RunId $RunId -Config $Config -SrcDir "$SrcDir" -PluginDir "$PluginDir" -Tarball "$Tarball" $cleanArg $nodeployArg
+powershell -NoProfile -ExecutionPolicy Bypass -File "%USERPROFILE%\build_remote.ps1" -Mode Worker -RunId $RunId -Config $Config -SrcDir "$SrcDir" -PluginDir "$PluginDir" -Kind $Kind -InstallDir "$InstallDir" -Tarball "$Tarball" $cleanArg $nodeployArg
 "@
     $runCmd = Join-Path $runDir 'run.cmd'
     Set-Content -Path $runCmd -Value $cmd -Encoding ASCII
@@ -160,7 +243,12 @@ if ($Mode -eq 'Status') {
         "SHA256=$(Read-Marker $runDir 'build.sha256')"
         "DLL=$(Read-Marker $runDir 'build.dllpath')"
         "DLLMTIME=$(Read-Marker $runDir 'build.dllmtime')"
+        "KIND=$(Read-Marker $runDir 'build.kind')"
         "STARTED=$(Read-Marker $runDir 'build.started')"
+        $manifest = Join-Path $runDir 'build.manifest'
+        if (Test-Path $manifest) {
+            foreach ($line in (Get-Content $manifest)) { if ($line -match '\S') { "FILE=$line" } }
+        }
     } else {
         "STATUS=RUNNING"
         "STARTED=$(Read-Marker $runDir 'build.started')"
@@ -191,7 +279,8 @@ try {
     if (-not $vcpkg) { throw "VCPKG_ROOT not resolvable" }
     $env:VCPKG_ROOT = $vcpkg
     $srcRoot = Resolve-HomePath $SrcDir
-    $gwtb    = Join-Path $srcRoot 'GWToolboxpp'
+    # plugin/launcher build the GWToolboxpp tree; guildlite builds our standalone injector/ tree.
+    $gwtb    = if ($Kind -eq 'guildlite') { Join-Path $srcRoot 'injector' } else { Join-Path $srcRoot 'GWToolboxpp' }
 
     Log "run $RunId  config=$Config  cmake=$cmake  vcpkg=$vcpkg"
 
@@ -205,7 +294,7 @@ try {
             if ($LASTEXITCODE -ne 0) { throw "tar extraction failed ($LASTEXITCODE)" }
         } else { Log "WARNING: tarball $tp not found; building existing tree" }
     }
-    if (-not (Test-Path $gwtb)) { throw "GWToolboxpp not found at $gwtb" }
+    if (-not (Test-Path $gwtb)) { throw "project source not found at $gwtb (Kind=$Kind)" }
     Set-Location $gwtb
 
     # 2. optional cache wipe (surgical: keeps vcpkg_installed so deps aren't rebuilt).
@@ -226,58 +315,67 @@ try {
     }
     if ($LASTEXITCODE -ne 0) { throw "cmake configure failed ($LASTEXITCODE)" }
 
-    # 4. build just the plugin, all cores.
-    Log "build: cmake --build build --config $Config --parallel --target Guildlite"
-    & $cmake --build build --config $Config --parallel --target Guildlite 2>&1 | Out-File -FilePath $log -Append -Encoding utf8
+    # 4. build the target(s) for this Kind, all cores. plugin -> Guildlite; launcher ->
+    #    GWToolboxdll (main injected DLL) + GWToolbox.exe (the v4.7 launcher, updater neutered).
+    Write-Marker $runDir 'build.kind' $Kind
+    $items = Get-BuildItems $Kind $Config $gwtb $PluginDir $InstallDir
+    $targetArgs = @(); foreach ($it in $items) { $targetArgs += @('--target', $it.Target) }
+    Log "build: cmake --build build --config $Config --parallel $($targetArgs -join ' ')"
+    & $cmake --build build --config $Config --parallel @targetArgs 2>&1 | Out-File -FilePath $log -Append -Encoding utf8
     $exitCode = $LASTEXITCODE
     Log "cmake --build exit=$exitCode"
 
-    # 5. verify BEFORE accepting: cmake exit 0 + DLL exists + exports the entry point.
-    $dll = Join-Path $gwtb (Join-Path 'bin' (Join-Path $Config 'Guildlite.dll'))
+    # 5. verify BEFORE accepting: cmake exit 0 + each artifact exists + passes its check
+    #    (plugin exports the entry point; exe/main-dll are valid PE images). Copy each
+    #    accepted artifact (+ pdb) into the run dir, hash it, and record a manifest line.
     $verify = 'FAIL:unknown'
-    if ($exitCode -eq 0) {
-        if (-not (Test-Path $dll)) {
-            $verify = 'FAIL:dll-missing'
-        } elseif (-not (Test-Export $dll 'ToolboxPluginInstance')) {
-            $verify = 'FAIL:no-export'
-        } else {
-            $verify = 'PASS'
-            $mtime = [DateTimeOffset]::new((Get-Item $dll).LastWriteTimeUtc).ToUnixTimeSeconds()
-            Write-Marker $runDir 'build.dllmtime' "$mtime"
-            Write-Marker $runDir 'build.dllpath'  "$dll"
-            # mtime < build start just means an incremental no-op (nothing changed);
-            # cmake exit 0 already proves the DLL is current, so note it -- don't fail.
-            if ($mtime -lt $started) { Log "note: DLL unchanged since last build (incremental no-op)" }
-            Copy-Item $dll (Join-Path $runDir 'Guildlite.dll') -Force
-            $pdb = [System.IO.Path]::ChangeExtension($dll, 'pdb')
-            if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $runDir 'Guildlite.pdb') -Force }
-            $hash = (Get-FileHash $dll -Algorithm SHA256).Hash.ToLower()
-            Write-Marker $runDir 'build.sha256' $hash
-            Log "verify: PASS  sha256=$hash"
-        }
-    } else {
+    $manifestLines = @()
+    if ($exitCode -ne 0) {
         $verify = "FAIL:build-exit-$exitCode"
+    } else {
+        $verify = 'PASS'
+        foreach ($it in $items) {
+            if (-not (Test-Path $it.Path)) { $verify = "FAIL:missing-$($it.Name)"; break }
+            if ($it.Verify -like 'export:*') {
+                if (-not (Test-Export $it.Path ($it.Verify.Substring(7)))) { $verify = "FAIL:no-export-$($it.Name)"; break }
+            } elseif ($it.Verify -eq 'pe' -and -not (Test-IsPE $it.Path)) {
+                $verify = "FAIL:not-pe-$($it.Name)"; break
+            }
+            $mtime = [DateTimeOffset]::new((Get-Item $it.Path).LastWriteTimeUtc).ToUnixTimeSeconds()
+            if ($mtime -lt $started) { Log "note: $($it.Name) unchanged since last build (incremental no-op)" }
+            Copy-Item $it.Path (Join-Path $runDir $it.Name) -Force
+            $pdb = [System.IO.Path]::ChangeExtension($it.Path, 'pdb')
+            if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $runDir ([System.IO.Path]::GetFileName($pdb))) -Force }
+            $hash = (Get-FileHash $it.Path -Algorithm SHA256).Hash.ToLower()
+            $manifestLines += "$($it.Name) $hash $($it.DeployDir)"
+            if ($manifestLines.Count -eq 1) {
+                Write-Marker $runDir 'build.sha256'   $hash
+                Write-Marker $runDir 'build.dllpath'  $it.Path
+                Write-Marker $runDir 'build.dllmtime' "$mtime"
+            }
+            Log "verify: $($it.Name) OK  sha256=$hash"
+        }
+    }
+    if ($manifestLines.Count -gt 0) {
+        Set-Content -Path (Join-Path $runDir 'build.manifest') -Value ($manifestLines -join "`n") -Encoding ASCII
     }
     Write-Marker $runDir 'build.verify' $verify
     if ($verify -ne 'PASS') { Log "verify: $verify" }
 
-    # 6. deploy (Windows-local copy where GW loads it). .new + rename dodges the
-    #    sharing-violation when GWToolbox has the old DLL locked.
+    # 6. deploy each accepted artifact where GW / the launcher loads it (Windows-local).
+    #    Deploy-Artifact dodges the sharing violation from a running exe / loaded dll.
     $deployed = '0'
     if ($verify -eq 'PASS' -and -not $NoDeploy) {
-        $plugin = Resolve-PluginDir $PluginDir
-        New-Item -ItemType Directory -Force -Path $plugin | Out-Null
-        $target = Join-Path $plugin 'Guildlite.dll'
-        $tmp    = "$target.new"
-        try {
-            Copy-Item $dll $tmp -Force
-            Move-Item $tmp $target -Force
-            $deployed = '1'
-            Log "deployed -> $target"
-        } catch {
-            Remove-Item $tmp -Force -ErrorAction SilentlyContinue
-            Log "deploy FAILED (is GWToolbox running and holding Guildlite.dll?): $($_.Exception.Message)"
+        $allok = $true
+        foreach ($it in $items) {
+            if (Deploy-Artifact $it.Path $it.DeployDir $it.Name) {
+                Log "deployed -> $(Join-Path $it.DeployDir $it.Name)"
+            } else {
+                $allok = $false
+                Log "deploy FAILED for $($it.Name) (locked? is GW / GWToolbox running and holding it?)"
+            }
         }
+        if ($allok) { $deployed = '1' }
     }
     Write-Marker $runDir 'build.deployed' $deployed
 }

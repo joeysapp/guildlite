@@ -1,43 +1,52 @@
-# Comprehensive Build Plan & Sprints
-Based on the strategic pivot outlined, this project transitions from building a full standalone Rust-based cross-platform client (as described in `FULL-ENGINE.md`) to creating a powerful C++ plugin for GWToolbox++ (GWTB) using the Guild Wars Client API (GWCA). 
+# ROADMAP
 
-The primary goal is to fill a specific tooling void: in-game model/texture extraction, manipulation, and scene compositing.
+- (!!) Propose a structure for lightweight injector systems structures to copmparse and contrast
+ - (imo: less is more)
+- (!!!!) Dev loop and hot reload with AI eval of both text and images
+- (!!!!) Doing this on a LIVE gameserver with friends - ToS worth checking? Fairly certain the entire playerbase is doing a lot worse than what is planned here
+- (!) Have not coded in clang in longtime; care about speed/defs/, low friction to introduce new globals and tools
 
-## High-Level Architecture (The Plugin Approach)
-Instead of a clean-room implementation of the game client, we will leverage the existing active GW client.
-* Core Engine & Renderer: Handled entirely by the official Guild Wars client and GWCA.
-* Asset Pipeline: A hybrid approach. We will use GWCA to read active memory states (e.g., intercepting active rendered models) and combine this with direct `Gw.dat` parsing for a comprehensive model browser.
-* UI System: ImGui (which GWToolbox already uses extensively).
+## INJECTION ROADMAP in PHASES
+- [x] Injector: Init, ImGui base and info (overlay), screenshots via backbuffers (dev superpower over ssh)
+- [ ] Exporter: Port the 6 files, write the 4 glue modules, wire your control panel. Exporter runs standalone.
+- [ ] Dev Loop: stub + reloadable core + control file - Now you iterate from the Mac over SSH with visual verification, no manual re-injection and restarts
+- [ ] Fun: free camera, shared-state, Prop Hunt, weather, etc
 
-## Priorities
-- **Addressed in [3a71746](https://github.com/joeysapp/guildlite/commit/3a71746d2ff4545f6913393ec4730aced6bc8dfa):** A smooth workflow between the macOS host and the W10 target environment.
-
-- The current three states (model extraction, DAT extraction) require a high level of human-or-visual verification. Claude has a build verify-forge harness but other agents and network-based checks do not. While we do not want to be tightly coupled, the active `topic-get` serer running at foxy.local:8080 (requires token or localhost) has full rendering capabilities. Consider the reality of [construct mesh+texture map] -> [render object to 2D canvas with forge API] -> [post to image classifier/judgement].
-
-- State of the Game Check: Before deep-diving into DAT parsing, the prior sprint serves as a validation check to see if intercepting the active renderer is easier than DAT decryption
-
-- Work and treat objects and meshes as primitive as possible - there is a likely possibility where we begin to import other objects to use from other games, etc. if possible!
+## IMMEDIATE
+- [ ] Clarify if below items are necessary oro have been invalidated by Injector pivot:
+ - `./build.sh` - What is this used for now? Debug scripts
+ - `./scripts/build_remote.ps1` - ? Still used to send build states back over SSH from Windows  ?
+ - `./scripts/gwt.sh` - Expectation is this will be useful to control over ssh still? Could we rename to something more descriptive?
+ - `./scripts/install_sshd_watchdog.jd1` - Admin-level Windows SSH timeout. Probably needed? Do we install/provide this to anything anywhere?
+- [ ] Rendering complete build with dev loop (1. Screenshot Dev Loop, 2. Animation, Skeleton, Export)
+- [ ] `model-export`: Lift out work done in GWToolbox guildlite plugin (model-export), wire into new 
+ - **PROPOSED**: Use new layer/GWCA/ImGui/
+- [ ] UI and controls prototyping, settings and general setup/installs for others
+* [~] MinHook on the D3D9 vtable
+* [~] ImGui setup
+ * [ ] Ensure is not intercepting mouse right clicks, cannot rotate camera after injection.. but after unload
+* [~] Per-Frame Rendering
+* [ ] SSH Setup
+ * Complete and safe reload flow for live/hot reloading
+ * GWCA - Controls, errors, logs, * all surfaced over SSH
+ *  [~] tools/gwt.sh — Used as crutch - worth keeping? Rename to ssh? 
+* [x] Unload injector, reloadable
+* [~] Plan for config power items e.g.: commands, hotkeys, user templates, shortcuts, etc
+* [ ] Remove GWToolboxpp references from own toolchains
 
 ---
 
-# COMPLETED
+# UI/UX
+## Control and Settings
+*Goal: Prototype out some ImGui items vs. a fully customizable theme for every button**
 
-Below is an ordered list detailing what has been built, what is currently being built, immediate next steps and future projected builds.
+* [ ] Design and build with AI feedback via screenshots
+* [ ] Settings saved to where?  What settings? When do we delete them?
 
-### Development Environment & Foundation - Complete
-*Goal: Establish a reliable, repeatable local development pipeline for GWToolbox plugins.*
+---
 
-* [x] Clone the `GWToolboxpp` submodule and configure the C++ build environment (Visual Studio on Windows, or evaluate cross-compilation if developing on macOS).
-* [x] Establish a deployment pipeline to compile and hot-load (or easily inject) the plugin into a running GW client for rapid iteration.
-* [x] Build a "Hello World" plugin with a basic ImGui window to validate the pipeline.
-* [x] Prototype a basic actionable interface (e.g., a button that prints the player's current `model_id` and position to the console using GWCA) to serve as an A/B test baseline.
-
-### Windows, macOS and Linux Interactivity - Complete
-*Goal: Compose a macOS-to-Windows-and-back set of tools for use in compiling, triaging errors and future test verifications dev to prod.*
-
-* [x] Install Visual Studio Community 2026, Desktop Development for C++, reliably get base GWToolbox built and running.
-* [x] Strengthen Windows remote accessibility. Nearly inaccessible at times, especially in PowerShell itself.
-* [x] A comprehensive build script that functionally builds a working plugin, that can be dropped into any given GWToolbox/plugin directory. 
+# Rendering
+## Completed build context into current and future tasks (bring model-exporter in ASAP)
 
 ### Basic Model Extraction — DONE
 *Goal: Hook into the game state for plain, uncolored 3D models.*
@@ -53,58 +62,27 @@ Below is an ordered list detailing what has been built, what is currently being 
 * [x] Update the exporter to include UV coordinate mappings (`.mtl` generation) paired with extracted textures.
 * [~] Map the armor and weapon systems. → per-slot equipment `model_file_id`s + dyes recorded to the manifest via `AgentLiving::equip`. *Per-slot geometry isolation / re-equipping is future DAT work; see Scope/Filter for isolating a worn item from a whole-body grab.*
 
-## BUILD
-
-### UI/UX - Control and Settings — DONE
-*Goal: Provide a comprehensive control/settings panel with upcoming NEXT/ROADMAP entries planned for.*
-
-* [x] Replace the Snapshot button with a first-class floating control panel.
-* [x] Build an interface for model extraction of current player OR selected object:
-  - [x] Base: Source (player/target), export path (defaults to `<GWToolbox settings>/guildlite/`)
-  - [x] Detail: Base (no textures) / Advanced (textures + UVs + manifest)
-  - [~] Armor / Weapons: recorded to manifest; per-slot geometry gating is future DAT work
-  - [~] Animation: live pose captured + state ids logged; scalar/frame export is future
-  - [x] Export button + live status/stats + Scope/Filter for isolating a single model
-
-### Verification tooling — DONE (new, per ROADMAP's strong recommendation)
-* [x] `tools/obj_render.py` — stdlib-only OBJ→PNG software renderer for stepwise visual/AI verification. `--up {none,x,y,z}` reorients a raw grab (use `--up z` for GW Z-up).
-* [x] `tools/gwt.sh` — SSH harness onto the live client: `state`/`ls`/`fetch`/`shot`/`cmd`/`render`/`loop`.
-
-### MVP hardening — DONE (this sprint: exports are now viewable & upright)
-*Diagnosed from real exports: the "invisible" grab was a compact character at the origin plus 3 stray 8-vertex effect quads at ~(18694,11381,-2715) that blew the bounds to 18711×11402×2729 — a per-chunk extent filter cannot catch them (small but far). And a raw grab is Z-up, so DCC/OS viewers (Y-up) show it lying on its side.*
-* [x] **Locality trim** (`Config::trim_outliers`, MAD-based, default on): drops far-placed fliers → box collapses to a human silhouette (~33×37×88). Adaptive, so terrain grabs are barely touched.
-* [x] **Up-axis remap** (`Config::up_axis`, default Z→Y, head up): exports stand upright; kills the "~90°" rotation.
-* [x] **Manifest v2** (`0.3.0`): echoes the full effective settings + per-chunk centers + a `probe[]` block; now written for Base too. This is the "JSON of settings + output" idea — it carries counts/AABB/centers, not a duplicate of the vertices.
-* [x] **Texture UX**: `.mtl` uses a white base + `map_d` (alpha cutouts); README documents the TGA→PNG / Blender workflow. (Extractor was already correct; macOS Quick Look just renders 32-bit TGA poorly.)
-
-### Per-agent isolation — CALIBRATED & IMPLEMENTED (needs in-game multi-agent confirm)
-*The real feature. GW skins in a vertex shader so all agents overlap at the origin; the isolation key is the agent world transform in the VS constant registers. GWToolbox's `GameWorldCompositor` confirms GW's layout: view c0–c3, projection c4–c7 → the world/bone transform is beyond c7.*
-* [x] **GuildliteProbe seed** (`Config::probe_shader_constants`): dumps `c0..c95` of the first skinned draws + their centers to the manifest.
-* [x] **Calibrated** (map 481 target probe, 2026-07-01): the skinned bone palette is at **c62..c94** as row-major `[3x3 | translation.w]` triples; the translation equals the agent's GWCA `(pos_x,pos_y,pos_z)` at **scale 1.0, axes identical** (root c92..c94 matched the target to **1.6 units**).
-* [x] **Isolate** (`Config::isolate_by_bone`, default off): the hook scans the palette registers and keeps a skinned draw only if some bone-triple's translation is within `isolate_tolerance` (~250u) of the Source agent's GWCA position. Validated offline: matches all of the target's draws, rejects a decoy 600u away. Scans a range, not a fixed offset, so it survives shader changes.
-
-## RECEIVE FEEDBACK ON BUILD AND APPLICATION STATE
-
-* [~] **Confirm in a crowd**: capture in an outpost with `isolate_by_bone` on + Source=Target → should yield just the targeted agent. Combine with the extent filter to also drop non-skinned terrain.
- - Feedback received in `./FEEDBACK.md` (+ `./feedback-images`): several tune issues and UI/UX suggestions. Triaged in `./MODEL-EXPORT-SETTINGS.md`.
- - Confirmed live on map 251 (2026-07-02): isolation matched (`iso=17–22` dropped), so the map-481 bone-palette calibration generalizes. The `iso=` diagnostic (`draws_skipped_isolation`) makes it visible per capture (iso>0 matched; iso=0 → re-Probe).
-   - **WARN**: This means you cannot export stationary character models too
-* [x] **Assess performance**: feedback triaged; fixes shipped across this session. Isolation fixes: **Require skinned mesh** (`require_skinned`, blend-weight test — drops static props/buildings that sit *within* isolate tolerance, the "grabbed a nearby object" bug); **Drop flat draws** (`filter_min_thickness` — removes billboard/HUD quads when the world renders depth-test-off); the **`iso=`** counter; Center-radius decoupled from Trim (was silently dead when Trim was off); a refreshable **Diagnostics** panel (source pos/box, post-trim AABB+volume, dry-run Refresh); Probe made session-only; and rewritten in-panel help. Also diagnosed: some setups draw the 3D world depth-test-off, so Exclude-2D discards the world. Full write-up: `./MODEL-EXPORT-SETTINGS.md`.
- - Next, feedback-driven: (1) validate/auto-detect the bone-palette register window across maps (held on 251; confirm more); (2) skinned-vs-static discrimination — **done** (`require_skinned`); (3) **goal-based export picker** — one "What are you exporting?" mode (My character / One in a crowd / A building / Whole scene) that sets require_skinned/isolate/drop-flat under the hood, so users never reason about the filter matrix (MVP2, per feedback — "helpers for this-not-that-only-when-X"); (4) held-item handling (rigid weapons are XYZ, so require_skinned drops them); (5) multi-frame/angle merge toward "more of the scene."
-* [~] **Ideate GuildliteProbe MVP**: We likely will finalize the first plugin with human eyes - the complex nature of the model exporter system surfaced a very real need for an image harness to verify builds with and the very real need to disable and reenable remote dlls. Both of these actions cannot be completed through SSH to interactive sessions - as such an internal plugin is proposed as Probe suite of tools within Guildlite, defined in `WHAT'S AFTER` below.
-* [ ] **Receive feedback for publishing**: Receive feedback from recipients of beta dll to finalize the plugin internally, package as standalone `Model Export` tool and PR to GWToolbox. 
+### Render Issues to Remedy with Screenshots
+*Goal: Addressing feedback of model export bugs*
+* [x] Locality trimming via MAD, fix common up-axis rotated models, surface manifest v2 for audit and  debug
+* [x] Up-axis remap, default Z->Y, head up: exports stand upright; kills the "~90°" rotation.
+* [x] Texture UX: `.mtl` uses a white base + `map_d` (alpha cutouts); README documents the TGA→PNG / Blender workflow. (Extractor was already correct; macOS Quick Look just renders 32-bit TGA poorly.)
+- [ ] *The real feature. GW skins in a vertex shader so all agents overlap at the origin; the isolation key is the agent world transform in the VS constant registers. 
+* [ ] GWToolbox's `GameWorldCompositor` confirms GW's layout: view c0–c3, projection c4–c7 → the world/bone transform is beyond c7.*
+* [x] Isolate (`Config::isolate_by_bone`, default off): the hook scans the palette registers and keeps a skinned draw only if some bone-triple's translation is within `isolate_tolerance` (~250u) of the Source agent's GWCA position. Validated offline: matches all of the target's draws, rejects a decoy 600u away. Scans a range, not a fixed offset, so it survives shader changes.
+* [ ] Info surface - Config::probe_shader_constants: dumps `c0..c95` of the first skinned draws + their centers to the manifest.
+* [ ] Skinned vs. bone renders - needs significant work after injection and model-export moving over
+* [~] tools/obj_render.py — Used to verify rendering before AI shots - worth keeping?
+- [ ] Armor / Weapons: recorded to manifest; per-slot geometry gating is future DAT work
+- [ ] Animation: live pose captured + state ids logged; scalar/frame export is future
 
 ----
 
-# WHAT'S AFTER
+# FUTURE ROADMAP / IDEAS
 
-## Guildelite -> (GuildliteProbe, GuildliteControl, ...)
-*Goal: Complete first model-export dll, distribute to users for feedback.*
-*Goal: Publish first plugin*
-*Goal: Generalize GWToolbox tools and dlls - network disable/enable of dlls in build.sh, tests on builds for expected results*
-*Goal: Integrate GWLauncher into personal and Guildlite flows*
-
-# ROADMAP IDEAS
+### [NEW] Installation for friends - verify/instructions
+### [NEW] /chest command
+### [NEW] Investigate texmod difficulty or any red flags
 
 ### Client-Side Free Camera
 *Goal: Break client renderer away from character / skeleton and allow camera flying around rendered map.*

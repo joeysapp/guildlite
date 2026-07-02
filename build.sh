@@ -14,10 +14,14 @@
 # Config precedence: CLI flag > env (windows-env.sh) > built-in default.
 # Usage:
 #   ./build.sh                 full run (package, build, verify, deploy, fetch)
+#   ./build.sh --guildlite     build + install the STANDALONE injector (guildlite.dll +
+#                              guildlite-inject.exe) into Documents/guildlite/  (injector/ tree)
 #   ./build.sh -n              dry-run: print every ssh/scp/tar/powershell command
 #   ./build.sh --debug         build Debug instead of RelWithDebInfo
 #   ./build.sh --clean         wipe the remote CMake cache first (keeps vcpkg_installed)
 #   ./build.sh --no-deploy     build + verify + fetch, but don't drop into the plugin dir
+#   ./build.sh --launcher      build + install our OWN GWToolbox.exe + GWToolboxdll.dll
+#                              (updater neutered) into Documents/GWToolboxpp/ -- not the plugin
 #   ./build.sh --doctor        just run the toolchain/reachability audit and exit
 #   ./build.sh --attach <id>   re-attach to an in-flight build's poll loop
 #   ./build.sh -H <user@host> -d <reldir> -p <reldir> -c <cfg>   overrides
@@ -63,6 +67,7 @@ HOST="${GUILDLITE_REMOTE:-${WINDOWS_HOST:-guildlite-win}}"
 REMOTE_DIR="${GUILDLITE_REMOTE_DIR:-src/guildlite}"
 PLUGIN_DIR="${GW_TOOLBOX_PLUGIN_DIR:-Documents/GWToolboxpp/plugins}"
 CONFIG="${GUILDLITE_CONFIG:-RelWithDebInfo}"
+KIND="plugin"; INSTALL_DIR="${GW_TOOLBOX_INSTALL_DIR:-}"
 VERBOSE=""; DRY_RUN=""; CLEAN=""; NO_DEPLOY=""; DOCTOR_ONLY=""
 ATTACH=""; TIMEOUT="3600"
 export VERBOSE DRY_RUN   # read by the win-* helpers
@@ -77,12 +82,15 @@ while [ $# -gt 0 ]; do
         --release)       CONFIG="Release";         shift ;;
         --clean)         CLEAN="1";                shift ;;
         --no-deploy)     NO_DEPLOY="1";            shift ;;
+        --launcher|--exe) KIND="launcher";         shift ;;
+        --guildlite)     KIND="guildlite";         shift ;;
+        --install-dir)   INSTALL_DIR="$2"; shift 2 ;;
         --doctor)        DOCTOR_ONLY="1";          shift ;;
         --attach)        ATTACH="$2";     shift 2 ;;
         --timeout)       TIMEOUT="$2";    shift 2 ;;
         -v|--verbose)    VERBOSE="1";              shift ;;
         -n|--dry-run)    DRY_RUN="1";              shift ;;
-        -h|--help)       sed -n '2,25p' "$0"; exit 0 ;;
+        -h|--help)       sed -n '2,29p' "$0"; exit 0 ;;
         *)               die "unknown option: $1 (try --help)" ;;
     esac
 done
@@ -108,10 +116,10 @@ launch() {
     local clean_flag="" nodeploy_flag=""
     [ -n "$CLEAN" ]     && clean_flag="-Clean"
     [ -n "$NO_DEPLOY" ] && nodeploy_flag="-NoDeploy"
-    win_log "launching detached build (run-id $RUNID) ..."
+    win_log "launching detached build (run-id $RUNID, kind=$KIND) ..."
     win-ssh "$HOST" "powershell -NoProfile -ExecutionPolicy Bypass -File build_remote.ps1 \
 -Mode Launch -RunId $RUNID -Config $CONFIG -SrcDir $REMOTE_DIR -PluginDir $PLUGIN_DIR \
--Tarball guildlite-src.tar.gz $clean_flag $nodeploy_flag" \
+-Kind $KIND -InstallDir \"$INSTALL_DIR\" -Tarball guildlite-src.tar.gz $clean_flag $nodeploy_flag" \
         || die "failed to launch remote build"
     win_ok "build launched; polling (timeout ${TIMEOUT}s) ..."
 }
@@ -150,12 +158,14 @@ poll() {
 # gate acceptance on exit-code + remote verify, then fetch + re-hash locally.
 verify_and_fetch() {
     [ -n "$DRY_RUN" ] && { win_warn "dry-run: skipping verify/fetch"; return 0; }
-    local exitcode verify sha remote_dll deployed
+    local exitcode verify sha remote_dll deployed kind files
     exitcode="$(printf '%s\n' "$STATUS_OUT" | sed -n 's/^EXITCODE=//p')"
     verify="$(  printf '%s\n' "$STATUS_OUT" | sed -n 's/^VERIFY=//p')"
     sha="$(     printf '%s\n' "$STATUS_OUT" | sed -n 's/^SHA256=//p')"
     remote_dll="$(printf '%s\n' "$STATUS_OUT" | sed -n 's/^DLL=//p')"
     deployed="$(printf '%s\n' "$STATUS_OUT" | sed -n 's/^DEPLOYED=//p')"
+    kind="$(    printf '%s\n' "$STATUS_OUT" | sed -n 's/^KIND=//p')"
+    files="$(   printf '%s\n' "$STATUS_OUT" | sed -n 's/^FILE=//p')"
 
     local dst="$ARTIFACTS/$RUNID"
     win-fetch "$HOST" ".guildlite/$RUNID/build.log" "$dst/build.log" 2>/dev/null || true
@@ -169,24 +179,44 @@ verify_and_fetch() {
         die "artifact verification failed on Windows: ${verify:-<none>}"
     fi
 
-    # Pull the DLL (+ pdb) back and confirm transfer integrity against the remote hash.
-    win-fetch "$HOST" ".guildlite/$RUNID/Guildlite.dll" "$dst/Guildlite.dll" \
-        || die "failed to fetch DLL"
-    win-fetch "$HOST" ".guildlite/$RUNID/Guildlite.pdb" "$dst/Guildlite.pdb" 2>/dev/null || true
-    if [ -n "$sha" ]; then
-        local local_sha; local_sha="$(shasum -a 256 "$dst/Guildlite.dll" | cut -d' ' -f1)"
-        [ "$local_sha" = "$sha" ] || die "sha256 mismatch after fetch (remote $sha, local $local_sha)"
-        win_ok "sha256 verified: $sha"
+    # Pull each built artifact (+ pdb) back and confirm transfer integrity against the
+    # remote per-file hash. The worker emits one `FILE=<name> <sha256> <deploydir>` line
+    # per artifact; fall back to the single-DLL layout for pre-manifest / --attach runs.
+    [ -n "$files" ] || files="Guildlite.dll $sha $PLUGIN_DIR"
+    local any=0 name fsha fdir pdb local_sha
+    while IFS=' ' read -r name fsha fdir; do
+        [ -n "$name" ] || continue
+        any=1
+        win-fetch "$HOST" ".guildlite/$RUNID/$name" "$dst/$name" || die "failed to fetch $name"
+        pdb="${name%.*}.pdb"
+        win-fetch "$HOST" ".guildlite/$RUNID/$pdb" "$dst/$pdb" 2>/dev/null || true
+        if [ -n "$fsha" ]; then
+            local_sha="$(shasum -a 256 "$dst/$name" | cut -d' ' -f1)"
+            [ "$local_sha" = "$fsha" ] || die "sha256 mismatch after fetch of $name (remote $fsha, local $local_sha)"
+            win_ok "sha256 verified: $name"
+        else
+            win_ok "fetched: $name (no remote hash)"
+        fi
+        if [ -n "$NO_DEPLOY" ]; then
+            win_warn "--no-deploy: $name not installed"
+        elif [ "$deployed" = "1" ]; then
+            win_ok "installed: $name -> $fdir"
+        else
+            win_warn "$name NOT deployed (worker reported DEPLOYED=$deployed) -- check build.log"
+        fi
+    done <<EOF
+$files
+EOF
+    [ "$any" = "1" ] || die "no artifacts in manifest to fetch"
+    win_ok "artifacts in $dst/"
+    [ -n "$remote_dll" ] && win_ok "remote source: $remote_dll"
+    if [ -z "$NO_DEPLOY" ] && [ "$deployed" != "1" ]; then
+        die "deploy FAILED on $HOST (worker reported DEPLOYED=$deployed) -- target likely locked/loaded (close GW or whatever holds it), then rebuild. See build.log"
     fi
-    win_ok "DLL accepted: $dst/Guildlite.dll"
-    win_ok "remote source: $remote_dll"
-    if [ -n "$NO_DEPLOY" ]; then
-        win_warn "--no-deploy: not installed into the plugin dir"
-    elif [ "$deployed" = "1" ]; then
-        win_ok "deployed into $PLUGIN_DIR on $HOST (restart GWToolbox to load)"
-    else
-        win_warn "not deployed (worker reported DEPLOYED=$deployed) -- check build.log"
+    if [ "$kind" = "launcher" ] || [ "$kind" = "guildlite" ] || [ "$deployed" = "1" ]; then
+        win_warn "restart GWToolbox / Guild Wars to load the new binaries (or re-inject, for guildlite)"
     fi
+    return 0
 }
 
 # --- main ---------------------------------------------------------------------
