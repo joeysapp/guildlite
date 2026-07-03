@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# gwt.sh -- Guildlite <-> GWToolbox audit harness over SSH.
+# gwt.sh -- Guildlite <-> GWToolbox audit harness over SSH.  ** DEPRECATED **
+# ------------------------------------------------------------------------------
+# DEPRECATED (GWToolbox-plugin era). For the standalone injector use:
+#   tools/gw-ctl.sh   -- send control-file verbs (capture / profile / set / reload ...)
+#   tools/gw-loop.sh  -- one-shot capture loop (profile -> capture -> fetch -> render)
+# Kept only for its SendKeys `cmd`/`keys` slash-command driving; everything else is
+# superseded. Its default export dir also points at the old GWToolbox tree.
 # ------------------------------------------------------------------------------
 # A thin shim onto the live Windows GW client (`ssh bob@bobmobile.local`) for
 # planning, driving and VERIFYING model exports without sitting at the machine:
@@ -171,6 +177,7 @@ cmd_loop() {
 
 main() {
     local sub="${1:-help}"; shift || true
+    log "DEPRECATED: gw-cmd.sh is the GWToolbox-era harness -- prefer gw-ctl.sh (verbs) / gw-loop.sh (capture loop)."
     case "$sub" in
         state)  cmd_state ;;
         ls)     cmd_ls "${1:-12}" ;;

@@ -84,11 +84,12 @@ python3 - "$DEST/$stem.json" "$DEST" "profile=$PROFILE target=$TARGET ${SETS[*]:
 import json, sys, os
 d = json.load(open(sys.argv[1])); dest = sys.argv[2]; cfg = sys.argv[3]
 st = d.get('settings', {})
-line = ("captured=%s iso=%s filtered=%s 2d=%s trimmed=%s chunks=%s | "
-        "iso_by_bone=%s req_skinned=%s max_ext=%s | %s") % (
-    d.get('draws_captured'), d.get('draws_skipped_isolation'), d.get('draws_skipped_filtered'),
-    d.get('draws_2d_skipped'), d.get('draws_trimmed'), len(d.get('chunks', [])),
-    st.get('isolate_by_bone'), st.get('require_skinned'), st.get('filter_max_extent'), cfg.strip())
+line = ("captured=%s effect=%s iso=%s filtered=%s 2d=%s trimmed=%s chunks=%s | "
+        "drop_effects=%s req_skinned=%s max_ext=%s | %s") % (
+    d.get('draws_captured'), d.get('draws_skipped_effect'), d.get('draws_skipped_isolation'),
+    d.get('draws_skipped_filtered'), d.get('draws_2d_skipped'), d.get('draws_trimmed'),
+    len(d.get('chunks', [])),
+    st.get('drop_effects'), st.get('require_skinned'), st.get('filter_max_extent'), cfg.strip())
 print("[gw-loop] " + line)
 with open(os.path.join(dest, "analysis.log"), "a") as f:
     f.write("%s  %s\n" % (d.get('timestamp', ''), line))
