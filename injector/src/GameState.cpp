@@ -25,6 +25,10 @@ struct ManifestChunk {
     bool has_vertex_shader = false;
     bool is_skinned = false;
     bool alpha_blend = false;
+    int src_blend = 0;      // D3DRS_SRCBLEND at draw time (D3DBLEND_*)
+    int dest_blend = 0;     // D3DRS_DESTBLEND; additive/screen effects use ONE/INVSRCCOLOR
+    bool is_effect = false; // additive/screen effect plane (drop_effects target). Recorded even
+                            // when drop_effects is off, so the cull rule can be verified/tuned.
     bool has_uv = false;
     bool has_normal = false;
     std::string texture_file;
@@ -60,6 +64,7 @@ struct ManifestSettings {
     float filter_min_thickness = 0.f;
     bool require_texture = false;
     bool require_skinned = false;
+    bool drop_effects = false;
     bool probe_shader_constants = false;
     bool isolate_by_bone = false;
     float isolate_tolerance = 0.f;
@@ -98,6 +103,7 @@ struct Manifest {
     uint32_t draws_skipped_unreadable = 0;
     uint32_t draws_skipped_filtered = 0;
     uint32_t draws_skipped_isolation = 0;
+    uint32_t draws_skipped_effect = 0;
     uint32_t draws_trimmed = 0;
     uint32_t vertices = 0;
     uint32_t triangles = 0;
@@ -245,6 +251,7 @@ namespace GameState {
         m.draws_skipped_unreadable = stats.draws_skipped_unreadable;
         m.draws_skipped_filtered = stats.draws_skipped_filtered;
         m.draws_skipped_isolation = stats.draws_skipped_isolation;
+        m.draws_skipped_effect = stats.draws_skipped_effect;
         m.draws_trimmed = stats.draws_trimmed;
         m.vertices = stats.vertices;
         m.triangles = stats.triangles;
@@ -292,6 +299,7 @@ namespace GameState {
         m.settings.filter_min_thickness = cfg.filter_min_thickness;
         m.settings.require_texture = cfg.require_texture;
         m.settings.require_skinned = cfg.require_skinned;
+        m.settings.drop_effects = cfg.drop_effects;
         m.settings.probe_shader_constants = cfg.probe_shader_constants;
         m.settings.isolate_by_bone = cfg.isolate_by_bone;
         m.settings.isolate_tolerance = cfg.isolate_tolerance;
@@ -307,6 +315,9 @@ namespace GameState {
             mc.has_vertex_shader = c.has_vertex_shader;
             mc.is_skinned = c.is_skinned;
             mc.alpha_blend = c.alpha_blend;
+            mc.src_blend = c.src_blend;
+            mc.dest_blend = c.dest_blend;
+            mc.is_effect = c.is_effect;
             mc.has_uv = !c.uvs.empty();
             mc.has_normal = !c.normals.empty();
             mc.texture_file = c.texture_file;

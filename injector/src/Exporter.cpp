@@ -113,6 +113,7 @@ namespace {
         const float fv = static_cast<float>(std::atof(val.c_str()));
         if      (key == "isolate_by_bone")        { if (isb) g_config.isolate_by_bone = b; }
         else if (key == "require_skinned")        { if (isb) g_config.require_skinned = b; }
+        else if (key == "drop_effects")           { if (isb) g_config.drop_effects = b; }
         else if (key == "require_texture")        { if (isb) g_config.require_texture = b; }
         else if (key == "exclude_2d")             { if (isb) g_config.exclude_2d = b; }
         else if (key == "dedupe")                 { if (isb) g_config.dedupe = b; }
@@ -150,6 +151,7 @@ namespace {
             g_config.isolate_by_bone = false;
             g_config.require_skinned = true;
             g_config.require_texture = false;
+            g_config.drop_effects = true;         // kill enchant/aura/glow black panels
             g_config.filter_max_extent = 150.f;   // drops the 600-1300u structures
             g_config.filter_min_thickness = 1.5f; // drops HUD billboards
             g_config.filter_center_radius = 0.f;
@@ -158,12 +160,32 @@ namespace {
             g_config.dedupe = true;
             g_config.target = (name == "clean-target") ? TargetSource::Target : TargetSource::Player;
         }
+        else if (name == "clean-solo" || name == "clean-solo-target") {
+            // Solo self-capture -- you are ALONE in the instance (private district, empty
+            // explorable, guild hall). No crowd to isolate and no need to skin-gate (which
+            // also blocks static props/attachments), so instead: drop terrain by extent, HUD
+            // billboards by thickness, and the additive effect planes by blend mode. What's
+            // left is one clean body. Pair with removing armor in-game for a bare-skin base.
+            g_config.scope = CaptureScope::Filtered;
+            g_config.isolate_by_bone = false;
+            g_config.require_skinned = false;     // solo => no other characters to exclude
+            g_config.require_texture = false;
+            g_config.drop_effects = true;         // kill enchant/aura/glow black panels
+            g_config.filter_max_extent = 150.f;   // drop terrain/structure-sized meshes
+            g_config.filter_min_thickness = 1.5f; // drop HUD billboards/decals
+            g_config.filter_center_radius = 0.f;
+            g_config.trim_outliers = true;
+            g_config.exclude_2d = true;
+            g_config.dedupe = true;
+            g_config.target = (name == "clean-solo-target") ? TargetSource::Target : TargetSource::Player;
+        }
         else if (name == "raw") {
             // Whole scene, drop nothing but exact-duplicate redraws -- the diagnostic baseline.
             g_config.scope = CaptureScope::WholeScene;
             g_config.isolate_by_bone = false;
             g_config.require_skinned = false;
             g_config.require_texture = false;
+            g_config.drop_effects = false;
             g_config.filter_max_extent = 0.f;
             g_config.filter_min_thickness = 0.f;
             g_config.trim_outliers = false;
@@ -418,6 +440,12 @@ namespace {
                                     "static geometry even when it sits right next to you, which isolation\n"
                                     "cannot. For a solo self-capture this alone gives just your body.\n"
                                     "Trade-off: also drops rigidly-attached items (some weapons).");
+                ImGui::Checkbox("Drop effect planes (auras/glows -> black panels)", &g_config.drop_effects);
+                ImGui::TextDisabled("Drops additive/screen 'effect' draws -- enchant auras, glows, weapon\n"
+                                    "trails. Their black texture background is invisible in-game but exports\n"
+                                    "as a solid black panel stuck to the model. Detected from the blend mode,\n"
+                                    "so legit cutouts (hair/cape/feather) are kept. Turn ON with require-\n"
+                                    "skinned OFF for a clean solo body -- this is the 'clean-solo' profile.");
             }
         }
 
@@ -502,10 +530,10 @@ namespace {
                 ImGui::Text("siblings [tris]: DP=%u[%u]  DPUP=%u[%u]  DIPUP=%u[%u]",
                             last_stats.dp_calls, last_stats.dp_tris, last_stats.dpup_calls,
                             last_stats.dpup_tris, last_stats.dipup_calls, last_stats.dipup_tris);
-                ImGui::Text("skipped: 2d=%u  unreadable=%u  filtered=%u  iso=%u  trimmed=%u",
+                ImGui::Text("skipped: 2d=%u  unreadable=%u  filtered=%u  effect=%u  iso=%u  trimmed=%u",
                             last_stats.draws_2d_skipped, last_stats.draws_skipped_unreadable,
-                            last_stats.draws_skipped_filtered, last_stats.draws_skipped_isolation,
-                            last_stats.draws_trimmed);
+                            last_stats.draws_skipped_filtered, last_stats.draws_skipped_effect,
+                            last_stats.draws_skipped_isolation, last_stats.draws_trimmed);
                 ImGui::Text("verts=%u  tris=%u  textures=%u",
                             last_stats.vertices, last_stats.triangles, last_stats.unique_textures);
                 if (has_last_aabb) {

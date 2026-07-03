@@ -1,4 +1,4 @@
-# PLUGIN TO STANDALONE TOOL ROADMAP
+# INJECTOR-RELATED ROADMAP ITEMS AND BACKGROUND
 
 The plan (and current spike) for graduating Guildlite from a **GWToolbox plugin** into a
 **standalone tool** we own end to end: our own injector, our own D3D9/ImGui overlay, built

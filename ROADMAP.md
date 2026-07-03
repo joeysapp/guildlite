@@ -1,36 +1,17 @@
-
-
-# BUILD FIRST DEV LOOP
-Using the following suggested template for making critical choices based on prior decisions, the first being a loop to provide a harness to quantify settings versus content over time. 
-
-- [ ] **Rendering: Finalize Remaining Features Using Dev Loop** using the following template loop:
-  0) Use `gw-cmd / Dev Loop` control layer to Take Screenshot of Windows Gw.exe
-  1) Move Screenshot to models/ingame.png
-    A) Pick Random `model-export` Settings From Recommended `model/SETTINGS.md` Settings
-	   OR
-    B) Analyze Image with AI to Determine Best `model-export` Using `models/SETTINGS.md`
-  3) Use `gw-cmd / Dev Loop` to Set Windows Gw.exe Guildlite settings as specified
-  4) Use `gw-cmd / Dev Loop` to Target Self/Other/None (When Testing Area)
-  5) Use `gw-cmd / Dev Loop` to Follow Complete Written Plan Instructions To Export Object
-  6) Move Exported Objectfile(s) to models/object..
-  7) Use Windows 3D Object Viewer to Generate Rendering of Object
-  8) Move Rendering to models/render.png
-  9) Compare `ingame.png` To `render.png`
- 10) Report Findings to models/analysis.txt
- - **GOAL**: Uncovering Bugs/Broken Render Logic
-   
-- **BUG**: Right clicking to move camera does **NOT** work with interjector overlay. Fix.
-
 ## INJECTION ROADMAP in PHASES
 - [x] Injector: Init, ImGui base and info (overlay), screenshots via backbuffers (dev superpower over ssh)
 - [x] Exporter: Port the 6 files, write the 4 glue modules, wire your control panel. Exporter runs standalone. → `injector/src/{Capture,ObjWriter,TextureExport,GameState,GuildliteConfig}` ported; `{Game,Settings,Exporter}` + `Overlay` capture-hook wiring added; `guildlite.dll` monolith.
-- [~] Dev Loop: stub + reloadable core + control file - iterate from the Mac over SSH with visual verification, no manual re-injection and restarts → `guildlite-stub.dll` + `guildlite-core.dll`, control file at `Documents\guildlite\control` (see INJECTOR.md). Applies to any dev concept with in-game verification..
-- [~] Fun: free camera, shared-state, Prop Hunt, weather, etc
+- [~] Dev Loop: stub + reloadable core + control file - iterate from the Mac over SSH with visual verification, no manual re-injection and restarts → `guildlite-stub.dll` + `guildlite-core.dll`, control file at `Documents\guildlite\control` (see INJECTOR.md). Applies to any dev concept with in-game verification. Potential Metal build for Gw.exe-less GUI work and remote control of other Guildlite clients over SSH (using stub and tools.)
+- [ ] Fun: free camera, shared-state, Prop Hunt, weather, etc
 
 ---
 
 # Rendering
-## Completed build context into current and future tasks (bring model-exporter in ASAP)
+## IMMEDIATE TODOS
+- [ ] Investigate new ModelMod reference submodule to leapfrog/assist current state (manual/visual analysis of exports).
+ - **NOTE**: The tool currently is built to work with GW2 and GW1 and uses DX11. The developers have an 'old' branch/previous-main system that uses DX9. It may be worth investigating/trawling for more relevant reference code.
+- [ ] Use the human-sorted last batch of `dev-tool` results for meaningfully-classified and described renders - active goal ATM is reliably exporting a single, complete target with no noise.
+ - [ ] Are we missing face normals in our calcs?
 
 ### Basic Model Extraction — DONE
 *Goal: Hook into the game state for plain, uncolored 3D models.*
@@ -40,24 +21,20 @@ Using the following suggested template for making critical choices based on prio
 
 ### Advanced Model Extraction — DONE (live-render path); DAT path still future
 *Goal: Complete the first model extraction feature with textures, components, animation and any model/skeleton information.*
-
+ - Recently discovered not all rendering systems are the same e.g.:
+  - A significant amount of model 'activate layer' (on top of the character, an entity itself that may or may not be visible) Windows 3D App Viewer
+* [~] Investigate common misses on renders and determine causors - entire torso and bodies missing, slices of clothing, faces, more
 * [x] Texture extractor to standard formats (PNG/**TGA**). → `TextureExport.{h,cpp}`, dependency-free: uncompressed convert + software **DXT1/3/5** decode + GPU `StretchRect` readback fallback. *Reads the live bound textures, not the DAT — the DAT texture-format research remains for the DAT Tool.*
  GWCA; true skeletal/animation-frame export needs the DAT/memory work (deferred, honestly noted in-manifest).*
 * [x] Update the exporter to include UV coordinate mappings (`.mtl` generation) paired with extracted textures.
-
-### Render Issues to Remedy with Screenshots
-*Goal: Addressing feedback of model export bugs*
-* [x] Locality trimming via MAD, fix common up-axis rotated models, surface manifest v2 for audit and  debug
-* [x] Up-axis remap, default Z->Y, head up: exports stand upright; kills the "~90°" rotation.
-* [x] Texture UX: `.mtl` uses a white base + `map_d` (alpha cutouts); README documents the TGA→PNG / Blender workflow. (Extractor was already correct; macOS Quick Look just renders 32-bit TGA poorly.)
-- [x] model-export: Lifted out of the GWToolbox guildlite plugin, wired into the standalone injector
- - **DONE**: new layer over GWCA/ImGui — injector/src/Exporter.{h,cpp} drives the ported Capture/ObjWriter/TextureExport/GameState on our own D3D9 hook; settings via glaze JSON.
 
 ### Character Vertex Colored Skins AND Animations,
 * [~] Map the armor and weapon systems: per-slot equipment, model_file_ids, dyes recorded to the manifest via AgentLiving::equip 
 * [~] Research character state, skeleton, animation structures. → animation/model **state ids** + equipment identity read via GWCA and logged to the manifest. *Skeleton/bone geometry is not in
 - [ ] **Are GW character skins in a vertex shader so all agents overlap at the origin?**
-* [ ] Skinned vs. bone renders - needs significant work after injection and model-export moving over
+* [ ] Rendering system seems _GOOD_ but bad about certain really important things, like:
+ - The ability to press a button and get your target/scene reliably without having to double check
+   - Some workaround potentially wildly move like intercepting/MiTM movement packets while trying to get a photo of yourself or placing relative
 - [ ] Armor / Weapons: recorded to manifest; per-slot geometry gating is future DAT work
 - [ ] Animation: live pose captured + state ids logged; scalar/frame export is future
 
@@ -65,9 +42,8 @@ Using the following suggested template for making critical choices based on prio
 
 # FUTURE ROADMAP / IDEAS
 
-### [NEW] Installation for friends - verify/instructions
-### [NEW] /chest command
-### [NEW] Investigate texmod difficulty or any red flags
+### /chest command
+### Investigate TexMod Integration
 
 ### Client-Side Free Camera
 *Goal: Break client renderer away from character / skeleton and allow camera flying around rendered map.*

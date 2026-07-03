@@ -1,3 +1,6 @@
 [submodule "GWToolboxpp"]
 	path = GWToolboxpp
 	url = https://github.com/joeysapp/GWToolboxpp.git
+[submodule "modelmod"]
+	path = modelmod
+	url = https://github.com/jmquigs/modelmod

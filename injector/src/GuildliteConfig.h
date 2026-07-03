@@ -86,6 +86,16 @@ namespace Guildlite {
         // also drops rigidly-attached items (some weapons); they stay in the manifest.
         bool require_skinned = false;
 
+        // Drop additive/"screen" effect draws -- enchant auras, glows, weapon trails, the
+        // sparkle a buff puts on a character. GW blends these onto the framebuffer with an
+        // additive dest factor (DEST=ONE or INVSRCCOLOR), so their black texture background
+        // is invisible in-game; a mesh export has no such blending, so they render as solid
+        // black panels stuck to the model. Detected from the live D3D blend state (is_effect),
+        // so it is pose- and skin-independent. The definitive fix for the "black panels on my
+        // capture" class, and the piece that lets require_skinned be turned OFF (so static
+        // props/attachments survive) without the effects coming back. 0 = keep them.
+        bool drop_effects = false;
+
         // --- post-capture cleanup (all scopes) --------------------------------
         // GW draws a few effect/billboard quads at large world coordinates while
         // every character sits at the origin; per-chunk extent filtering can't

@@ -62,7 +62,36 @@ namespace {
 
     LRESULT CALLBACK HookWndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
     {
-        if (g_imguiReady) ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp);
+        if (g_imguiReady) {
+            ImGuiIO& io = ImGui::GetIO();
+            switch (msg) {
+            // Mouse BUTTONS + WHEEL: only involve ImGui when the cursor is over an overlay
+            // window; otherwise route straight to the game WITHOUT touching ImGui. ImGui's
+            // handler calls SetCapture() on button-down, and that stolen capture was breaking
+            // GW's own mouse-capture interactions -- right-drag camera look and ArenaNet UI
+            // header clicks. Swallowing when the overlay wants the mouse also stops the game
+            // from double-processing a scroll (the "pane scrolls AND camera zooms" bug).
+            case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_LBUTTONDBLCLK:
+            case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_RBUTTONDBLCLK:
+            case WM_MBUTTONDOWN: case WM_MBUTTONUP: case WM_MBUTTONDBLCLK:
+            case WM_XBUTTONDOWN: case WM_XBUTTONUP: case WM_XBUTTONDBLCLK:
+            case WM_MOUSEWHEEL:  case WM_MOUSEHWHEEL:
+                if (io.WantCaptureMouse) {
+                    ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp);
+                    return TRUE;   // consumed by the overlay -- do not forward to the game
+                }
+                break;             // over the game world -- fall through untouched (no SetCapture)
+            // Keys: let ImGui observe, but swallow from the game only while a text field wants them.
+            case WM_KEYDOWN: case WM_KEYUP: case WM_SYSKEYDOWN: case WM_SYSKEYUP: case WM_CHAR:
+                ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp);
+                if (io.WantCaptureKeyboard) return TRUE;
+                break;
+            // Everything else (WM_MOUSEMOVE for hover, WM_SETCURSOR, ...): observe + always forward.
+            default:
+                ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp);
+                break;
+            }
+        }
         return CallWindowProcW(g_origWndProc, hWnd, msg, wp, lp);
     }
 

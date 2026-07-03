@@ -458,6 +458,12 @@ namespace {
             device->GetRenderState(D3DRS_ZENABLE, &zenable);
             DWORD ablend = FALSE; // alpha-blend on => cutout/translucent piece (texture alpha = opacity)
             device->GetRenderState(D3DRS_ALPHABLENDENABLE, &ablend);
+            // Blend factors distinguish an additive/screen EFFECT plane (DEST=ONE/INVSRCCOLOR,
+            // black bg invisible in-game -> black panel on export) from a legit alpha cutout
+            // (DEST=INVSRCALPHA). Recorded per draw and used by drop_effects.
+            DWORD sblend = D3DBLEND_ONE, dblend = D3DBLEND_ZERO;
+            device->GetRenderState(D3DRS_SRCBLEND, &sblend);
+            device->GetRenderState(D3DRS_DESTBLEND, &dblend);
 
             // Per-draw diagnostic log (Increment 1): record the disposition of EVERY
             // triangle-list draw so a never-captured mesh's killer is nameable in one grab.
@@ -518,7 +524,19 @@ namespace {
                                           chunk.aabb_max[1] - chunk.aabb_min[1],
                                           chunk.aabb_max[2] - chunk.aabb_min[2]};
                     chunk.alpha_blend = (ablend != FALSE);
+                    chunk.src_blend = static_cast<int>(sblend);
+                    chunk.dest_blend = static_cast<int>(dblend);
+                    // Additive (DEST=ONE) or screen (DEST=INVSRCCOLOR) blending => an effect
+                    // plane (aura/glow/enchant/trail), not model geometry. Legit cutouts
+                    // (hair/cape/feather) use DEST=INVSRCALPHA and are left alone.
+                    chunk.is_effect = (ablend != FALSE) &&
+                        (dblend == D3DBLEND_ONE || dblend == D3DBLEND_INVSRCCOLOR);
                     bool keep = PassesFilter(g_engine.cfg, chunk, NumVertices, primCount);
+                    bool effect_drop = false;
+                    if (keep && g_engine.cfg.drop_effects && chunk.is_effect) {
+                        keep = false; // additive/screen effect plane -- renders as a black panel
+                        effect_drop = true;
+                    }
                     bool isolation_drop = false;
                     if (keep && g_engine.cfg.isolate_by_bone && g_engine.cfg.has_match_pos &&
                         chunk.has_vertex_shader && !BoneMatchesTarget(device, g_engine.cfg)) {
@@ -548,9 +566,10 @@ namespace {
                         g_engine.chunks.push_back(std::move(chunk));
                     }
                     else {
-                        if (isolation_drop) g_engine.stats.draws_skipped_isolation++;
+                        if (effect_drop) g_engine.stats.draws_skipped_effect++;
+                        else if (isolation_drop) g_engine.stats.draws_skipped_isolation++;
                         else g_engine.stats.draws_skipped_filtered++;
-                        pushLog(isolation_drop ? "iso" : "filtered", ext);
+                        pushLog(effect_drop ? "effect" : (isolation_drop ? "iso" : "filtered"), ext);
                         if (chunk.texture_ptr) static_cast<IDirect3DTexture9*>(chunk.texture_ptr)->Release();
                     }
                 }

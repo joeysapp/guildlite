@@ -40,6 +40,13 @@ namespace Guildlite {
                                   // cutout/translucent piece (hair, cape, feathers), so its
                                   // texture alpha IS opacity. Opaque draws (body/armor) put a
                                   // GLOSS mask in alpha, so map_d must NOT be emitted for them.
+        int src_blend = 0;   // D3DRS_SRCBLEND at draw time (D3DBLEND_*); 0 = not recorded
+        int dest_blend = 0;  // D3DRS_DESTBLEND at draw time
+        bool is_effect = false; // alpha-blended with an ADDITIVE/SCREEN dest factor (DEST=ONE or
+                                // INVSRCCOLOR) -> an effect plane (aura/glow/enchant/trail). Its
+                                // black texture background is invisible in-game but exports as a
+                                // solid black panel. Legit cutouts use DEST=INVSRCALPHA and are
+                                // NOT flagged. drop_effects culls these.
 
         // Stage-0 texture identity. texture_file is filled in later by TextureExport.
         void* texture_ptr = nullptr;
@@ -60,6 +67,7 @@ namespace Guildlite {
         uint32_t draws_skipped_unreadable = 0; // WRITEONLY / unlockable buffers
         uint32_t draws_skipped_filtered = 0;   // rejected by the Filtered heuristics
         uint32_t draws_skipped_isolation = 0;  // skinned, but bone-palette matched a different agent
+        uint32_t draws_skipped_effect = 0;     // additive/screen effect planes dropped by drop_effects
         uint32_t draws_trimmed = 0;            // dropped post-capture as locality outliers
         uint32_t vertices = 0;
         uint32_t triangles = 0;
