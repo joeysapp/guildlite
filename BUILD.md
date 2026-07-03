@@ -1,36 +1,28 @@
-# BUILD
+OBInvestigate the layer injected into the Guild Wars DX9 client and (if possible) build a Metal-compatible build into ./build.sh that creates a Mac GUI application to use the tool without a Guild Wars client. 
 
-## **DRAFT, WORKING ON OWN FLOWS** COMPLETE MODEL EXPORT 
-* End goal here is to export and catalogue all of the content, assets and art in the game for personal creative use. A rendering layer using GWAC is outputting one-to-one 3D models with the caveat of two or three severe handicaps through the vertex shaders GW uses such as: Capturing flow requires serious work per model, Models are almost never complete with (WORKING ON), No working animations/skeletons for float-based sizes (No model is alike in practical planning), (GOOD) stationery NPCs and objects seem doable, Dyes and customization a distance priority. The most meanningful priority items to complete:
- 1. **COMPLETE MODEL CAPTURE**
-  - Can start with: by self, as wself in complete solitary - rendering engine too infrequent and unreliably at this point
-  - Make as EASY AS POSSIBLE with NO finnicky circling or anything more than target-and-click.
-  - **IDEA**: It MAY BE NECESSARY TO BEGIN MODEL CAPTURES/BUILDS IN A NAKED STATE - IDEALLY WITH DESSOUS REMOVED TO BASE KEN DOLL LAYER. Otherwise it seems far too easy for a ray or skeleton bone to case off a piece of armor or weapon resulting in an incomplete capture. **NOTE**: The term in code is "BareSkin"  or NakedCharacter I can't recall? The completely naked entitty is comical to me now beginning to understand how hard rendering with clothes on is.
- 2. Animation - Blender and Personal creative engine. IOnly worked with OSRS Content (OBJs, nothing as complex as this. Excited to get to this stage.)
+The intent is both developmental (build/test ImGui functionality) and functional. A primary use case: GUI control of injected Windows clients from macOS GUI. Stub injection and ideated 'dual-threaded' concepts could allow for reliable, live reloading of code and more.
 
-**WARN**: IT IS HIGHLY LIKELY THE DEV-TOOLS HARNESS IS TOO NEW FOR AUTOMATED QUALITY, SOLO MODEL CAPTURES. AS A RESULT, THE FOLLOWING MANUAL/BOTTED SPECIFIC REQUESTS ARE LISTED AS WELL.**
- 
-----
+Consider fully the project state and focus on lightweight development/testing. We currently have a one-liner to reboot a dll, but nothing more:
+```
+# Reboot
+printf 'reboot\ncapture\n' > /tmp/gl-control; scp -q /tmp/gl-control guildlite-win:Documents/guildlite/control
 
-## MULTI-STATE COMPLETE MODEL EXPORTS 
-Use the Guildlite model xport tool in the injector to provide the following **COMPLETE** models, verifed via via Blender tooling from enough angles to visible confirm model was captured comprehensively. IF POSSIBLE, REQUEST TO CAPTURE POSES. UNSURE HOW TO USE ANIMATIONSYET, CANNOT FIND RESTING POSE. LFG HELP IF KNOWEDGABLE, CODING Blender CONTROLS INTO OWN TOOL
-- Any Female Elementalist
- - In: CharacterNude (noo armor. First stationary, then any emotes in full if possible)
- - In: Chaos Gloves, (any is fine, naked is best for composability)
-- **Any and All Female Professions, Tonics States, Minifigures and Mobs**
- - In: CharacterNude (posing, any and all animations)
- - In: CharacterNude, Any and All Equiptment 
- - In: Any and All Armors, (no equiptment)
- 
----
+# Turn off
+printf 'off\ncapture\n' > /tmp/gl-control; scp -q /tmp/gl-control guildlite-win:Documents/guildlite/control
 
-# TOOLS AND REFERENCED CONSUMERS
-* guildlite/tools/blender_render.py - Render objects using high-fidelityy Blender configurations with successfully exported models
-* guildlite/tools/dev-loop - Useful to audit AI while running complex tasks.
-* **../topic-get/src/frontend/forge** - Multi-doomain art compositor, 3D fields, 3D->2D, rasters and **FUTURE** Upgrading 3js renderers to handle +MTLs
-* **../topic-get/internal/forge** - Internal domain interop, graph editing and **FUTURE** Planning Researching reality Guild Wars animations, bones, skeletons nodes, bringing in timer-based content as a result
- - **NOTE**: Seems like associating /binding skeletons and timestamps to a rendering flow like seen here (10 seconds): [**topic-get - OSRS Runescape Objects Warping Through Time**](https://youtu.be/8CabITKIsSA)
+# Turn on - not sure if core is providing this
+printf 'on\ncapture\n' > /tmp/gl-control; scp -q /tmp/gl-control guildlite-win:Documents/guildlite/control
+```
+
+# OPEN QUESTION
+The Metal-GUI control from macOS was generally confirmed but an open idea/lower priority, but high interest and same ask: what about the exact same for iOS? In past experience this would expand the macOS build to an xcodeproj build no? An Apple Developer account to boot to iPhone?
+
+Between a "no, not possible" and "yes, but harder" - am open to discussion. Complete macOS user and walled-garden user - the Linux space for Guild Wars is being opened but have seen no tooling or even mention of macOS. Admittedly this 'headless'/Guild Wars-less Guildlite surface will be more for development at first, it seems like a fun iOS experiment if it wouldn't be a headache/not worth the effort.
+
+**Background: developing on the go, desktop/Windows computer is at home and did not set tunneling up - as a result, none of the gw-tool/Gw.exe tests and verifications will work and is OK.**
 
 
-# RESEARCH AND BUILD TO ACQUIRE CREATIVE RESOURCES FOR TOPIC-GET
-Using the knowledge gained from dev-loop, read above and below asks to provide rendered models base f for creative content. Research at length IF and HOW aninmations coulcould be provided in data formm/instructions for Blender/track setups and finally, a correction and reguidance to to instead use a **~20 minute model setter and cleanroom generator to get near-source quality content.** The perfect scenario here would be 
+## NEXT BUILD
+- Review ModelMod submodule for relevant information and potential breakthroughs for current model-export work (reliable, clean, target exports in a single snapshot button) [NOTE: Submodule checked out to main with DX11 code, may need to search GH release notes for last known DX9 build.]
+ - Background: Last state of model exporting (first tooling provided by the Guildlite dll) was using A/B analysis and review of settings (./renders/MODEL-EXPORT-SETTINGS.md) There has been progress made and a classified and manually-confirmed models+renders+settings is in progress at ./RENDER-FEEDBACK (classifying output from `dev-tool` runs, an AI-driven visual inspection tool intended for general usage in Guildlite development.)
+ - Before `dev-tool` work is continued it seems prudent to consider the ModelMod DX9 prior work for relevant help. It may be tertiary information for us - is there a chance we've gone about exporting wrong with vertex-shader approach instead of DAT exporing/otherwise? The model-exporter is certainly robust and promising (actual rendering) but if we can do exporting easier, consider that as a leapfrog. Consider that the "solo export" current goal could be done simply, then we pivot our renderer to be game-world/full renderer and export tool (all under the same hood.) Investigate.

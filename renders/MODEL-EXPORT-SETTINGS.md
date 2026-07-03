@@ -106,6 +106,29 @@ capture, this alone gives just your body — no isolation needed.** Trade-off: r
 attached items (some weapons) are `XYZ` too and get dropped; they remain in the
 manifest's equipment list. The manifest now records `is_skinned` per chunk.
 
+**Caveat — it is a class filter, not an isolation filter, and not a foundation.**
+`require_skinned` answers "is this a character?" not "is this *my* character?": in a
+crowd it keeps the *whole crowd* (everyone is skinned), and it structurally **drops every
+static prop/object/scenery mesh** — exactly the stationary content that is otherwise the
+easiest to capture. Use it as a convenience toggle when you are already solo and want the
+terrain gone, not as the thing a clean capture is built on. For solo self-capture prefer
+the `clean-solo` recipe below (require-skinned OFF + `drop_effects`), which leaves static
+attachments intact and does not pretend the crowd problem away.
+
+### Drop effect planes (`drop_effects`)  ← the black-panel killer
+Drops **additive/"screen" effect draws** — enchant auras, glows, weapon trails, buff
+sparkles. GW blends these onto the framebuffer with an additive destination factor
+(`DEST=ONE` or `INVSRCCOLOR`), so their **black texture background is invisible in-game**.
+A mesh export has no such blending, so every one of them lands as a **solid black panel**
+stuck to the model (the forearm/shoulder slabs you saw on every armored capture; a pure
+grab of nothing-but-these is the "black rectangles with a glowing core" case). Detected
+from the live D3D blend mode (`is_effect`), so it is pose- and skin-independent, and it
+**keeps legit alpha cutouts** (hair/cape/feather use `DEST=INVSRCALPHA`). The manifest now
+records `src_blend`/`dest_blend`/`is_effect` per chunk even when the filter is off, so the
+rule can be verified/tuned from one capture. This is THE fix for "black panels on my model,"
+and the piece that lets `require_skinned` be turned off without the effects flooding back.
+Watch it work via the **`effect=` counter** in Diagnostics.
+
 ### Isolate to Source agent (`isolate_by_bone`)  ← the real isolation
 Keeps a **skinned** draw only if one of its bone-palette registers holds a **world
 position within Match tolerance** of the Source agent's GWCA position. This is the
@@ -230,16 +253,20 @@ Max AABB extent: ~25  (heads/faces are small; bodies + terrain exceed it)
 Isolate: off          Match/Radius: n/a
 ```
 
-**Just me (solo self-capture) — the simple, reliable path now:**
+**Solo clean self-capture — `profile clean-solo` (the reliable path):**
 ```
+Be ALONE in the instance (private district / empty explorable / guild hall), then:
 Source: Player                 Scope: Filtered
-Require skinned mesh: ON        ← drops the world, props and the nearby building
-Drop flat draws < thickness: 1.5   ← drops HUD billboards if your world is Z-off
-Trim outlier fliers: on
-Exclude 2D/UI: on, unless you see 2d=big/captured=0 — then turn it OFF.
-→ Refresh; want captured ≈ a dozen chunks, model AABB ~40×64×80 (a person).
-  Isolation is NOT needed here — require-skinned already leaves only your body.
+Require skinned mesh: OFF       ← solo => no crowd to exclude; keeps static attachments too
+Drop effect planes: ON         ← kills the additive black panels (auras/glows)
+Max AABB extent: 150           ← drops terrain/structure-sized meshes (no skin-gate now)
+Drop flat draws < thickness: 1.5   ← drops HUD billboards
+Trim outlier fliers: on        Exclude 2D/UI: on (OFF if 2d=big/captured=0)
+→ Refresh; want captured ≈ a dozen chunks, model AABB ~40×64×80, and effect= > 0
+  (proof the black panels were dropped). Remove armor in-game first for a bare-skin base.
 ```
+The old `require_skinned: ON` recipe still works when you specifically want *only* skinned
+body and no static attachments, but it is no longer the default — see the caveat above.
 
 **One agent out of a crowd — add isolation on top:**
 ```
