@@ -97,6 +97,36 @@ overlay + exporter reload, so there is no GWCA re-init churn. Write atomically o
 (`control.tmp` → rename `control`) to avoid a torn read. Example:
 `ssh win 'printf "reload\ncapture\n" > Documents/guildlite/control.tmp; mv Documents/guildlite/control.tmp Documents/guildlite/control'`.
 
+## macOS control console (Gw.exe-less) — `gui/`
+
+A native **ImGui + Metal** app (`gui/`, built with `./build.sh --macos`) that is a *better
+producer* for the same control channel — the GUI replacement for the `scp … control`
+one-liners. It needs no Guild Wars client and no Windows box to build or run: it drives
+injected clients remotely and doubles as an ImGui sandbox for UI dev on the go.
+
+- **Stack:** SDL2 (window/input) + Metal (`imgui_impl_sdl2` + `imgui_impl_metal`), Dear ImGui
+  vendored at `third_party/imgui` (submodule). SDL2 was already `brew`-installed; nothing else
+  to add. Chosen over GLFW/Cocoa because **SDL2 also runs on iOS** — see below.
+- **Seams (why it's clean):** `ControlConsole` / `Transport` / `Proc` are portable C++; only
+  `main.mm` is platform code. `ITransport` has a `MockTransport` (offline — logs what it would
+  send, for pure UI dev) and an `SshTransport` (`scp` the payload to `<host>:control`, exactly
+  the proven one-liner). ssh runs on a worker thread, so a dead host fails after
+  `ConnectTimeout` instead of freezing the window.
+- **Verbs:** the panel emits the exact vocabulary the stub/core already understand
+  (`reload`/`reboot`/`off`/`on`/`unload`, `capture`/`capture-dry`/`screenshot`/`demo`,
+  `profile clean-*`, and free-text `set <k> <v>` / `target target`). "also send capture"
+  mirrors the `reboot\ncapture` habit.
+- **Build:** `./build.sh --macos [--run] [--selftest] [--debug] [--clean]` →
+  `tools/build_macos_gui.sh` (local CMake; no vcpkg/SSH). **Pins Apple's clang via `xcrun`** —
+  Homebrew LLVM's libc++ can't resolve the macOS SDK (`mbstate_t`/`pthread`), and we need
+  Apple's Obj-C++/Metal toolchain anyway; the script auto-cleans a cache configured with a
+  different compiler. `Guildlite --selftest` renders headlessly (hidden window, 3 frames) and
+  prints `GUILDLITE-GUI SELFTEST OK`, so the pipeline can verify it with no display.
+- **iOS:** feasible ("yes, but harder"). Metal + SDL2 both run on iOS so `ControlConsole`
+  recompiles; the work is an xcodeproj + signing and a new `Transport` (iOS can't spawn `ssh`
+  → libssh2/relay). Everything above the `Transport`/`Proc` seam is already iOS-ready. See
+  `gui/README.md`.
+
 ## Build & deploy integration
 
 - `-Kind guildlite` in `tools/build_remote.ps1` configures/builds the `injector/` tree (its own

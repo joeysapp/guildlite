@@ -1,7 +1,7 @@
 ## INJECTION ROADMAP in PHASES
 - [x] Injector: Init, ImGui base and info (overlay), screenshots via backbuffers (dev superpower over ssh)
 - [x] Exporter: Port the 6 files, write the 4 glue modules, wire your control panel. Exporter runs standalone. → `injector/src/{Capture,ObjWriter,TextureExport,GameState,GuildliteConfig}` ported; `{Game,Settings,Exporter}` + `Overlay` capture-hook wiring added; `guildlite.dll` monolith.
-- [~] Dev Loop: stub + reloadable core + control file - iterate from the Mac over SSH with visual verification, no manual re-injection and restarts → `guildlite-stub.dll` + `guildlite-core.dll`, control file at `Documents\guildlite\control` (see INJECTOR.md). Applies to any dev concept with in-game verification. Potential Metal build for Gw.exe-less GUI work and remote control of other Guildlite clients over SSH (using stub and tools.)
+- [~] Dev Loop: stub + reloadable core + control file - iterate from the Mac over SSH with visual verification, no manual re-injection and restarts → `guildlite-stub.dll` + `guildlite-core.dll`, control file at `Documents\guildlite\control` (see INJECTOR.md). Applies to any dev concept with in-game verification. → **macOS Metal control console shipped** (`gui/`, `./build.sh --macos`): SDL2+Metal ImGui app, no Gw.exe needed, drives injected clients over SSH via the same control-file verbs; portable C++ seams (`ControlConsole`/`Transport`/`Proc`) leave an iOS build a re-skin + new transport. See INJECTOR.md "macOS control console".
 - [ ] Fun: free camera, shared-state, Prop Hunt, weather, etc
 
 ---

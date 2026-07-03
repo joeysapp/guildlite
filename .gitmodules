@@ -4,3 +4,6 @@
 [submodule "modelmod"]
 	path = modelmod
 	url = https://github.com/jmquigs/modelmod
+[submodule "third_party/imgui"]
+	path = third_party/imgui
+	url = https://github.com/ocornut/imgui

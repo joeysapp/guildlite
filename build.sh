@@ -14,6 +14,9 @@
 # Config precedence: CLI flag > env (windows-env.sh) > built-in default.
 # Usage:
 #   ./build.sh                 full run (package, build, verify, deploy, fetch)
+#   ./build.sh --macos [--run] build the LOCAL macOS SDL2+Metal control GUI (gui/ tree) --
+#                              no Windows box / SSH pipeline needed; --run launches it,
+#                              --selftest verifies it headless. See gui/README.md
 #   ./build.sh --guildlite     build + install the STANDALONE injector (injector/ tree) into
 #                              Documents/guildlite/: guildlite.dll (Phase-1 monolith),
 #                              guildlite-inject.exe (loader), guildlite-core.dll +
@@ -48,6 +51,16 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
             -SrcDir "$SCRIPT_DIR" -PluginDir "${GW_TOOLBOX_PLUGIN_DIR:-Documents/GWToolboxpp/plugins}"
         ;;
 esac
+
+# --- native-on-macOS GUI shortcut --------------------------------------------
+# `./build.sh --macos` builds the local SDL2+Metal ImGui control console (gui/ tree) with
+# ONLY local tools -- no Windows box, no SSH pipeline, no vcpkg. Handled here, BEFORE we
+# source the windows-* helpers, so it works on a Mac with none of that cross-build setup.
+for _a in "$@"; do
+    case "$_a" in
+        --macos|--gui) exec "$SCRIPT_DIR/tools/build_macos_gui.sh" "$@" ;;
+    esac
+done
 
 # --- source env + helpers (auto-sourced interactively; explicit here for bash) --
 [ -f "$HOME/etc/term/windows-env.sh" ] && . "$HOME/etc/term/windows-env.sh"
@@ -92,7 +105,7 @@ while [ $# -gt 0 ]; do
         --timeout)       TIMEOUT="$2";    shift 2 ;;
         -v|--verbose)    VERBOSE="1";              shift ;;
         -n|--dry-run)    DRY_RUN="1";              shift ;;
-        -h|--help)       sed -n '2,29p' "$0"; exit 0 ;;
+        -h|--help)       sed -n '2,32p' "$0"; exit 0 ;;
         *)               die "unknown option: $1 (try --help)" ;;
     esac
 done

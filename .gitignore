@@ -1,6 +1,14 @@
-output
+# OS
 .DS_Store
+~#~
 
+# Build artifacts
+output
+gui/build
+gui/.cache
+imgui.ini
+
+# tmp
 renders
 RENDER-FEEDBACK
 
