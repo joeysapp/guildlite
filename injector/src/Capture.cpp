@@ -161,6 +161,7 @@ namespace {
         std::vector<MeshChunk> chunks;
         std::set<DrawKey> seen;
         std::vector<ProbeSample> probes;
+        std::vector<DrawLogEntry> draw_log; // per-draw disposition when cfg.log_draws
         CaptureStats stats;
 
         void ResetData()
@@ -174,9 +175,12 @@ namespace {
             chunks.clear();
             seen.clear();
             probes.clear();
+            draw_log.clear();
             stats = CaptureStats{};
         }
     };
+
+    constexpr size_t kDrawLogMax = 1500; // safety cap so a pathological frame can't OOM the log
 
     constexpr size_t kProbeMaxSamples = 6; // enough distinct agents to solve the isolation register
 
@@ -185,6 +189,42 @@ namespace {
     typedef HRESULT(__stdcall* DIP_t)(IDirect3DDevice9*, D3DPRIMITIVETYPE, INT, UINT, UINT, UINT, UINT);
     DIP_t g_original_dip = nullptr;
     void* g_dip_target = nullptr; // vtable[82]; the address MinHook enable/disable/remove operate on
+
+    // Sibling draw entry points, hooked as COUNTERS ONLY in Increment 0 (no geometry
+    // decode). If the missing skin body is issued through one of these instead of
+    // DrawIndexedPrimitive, it is invisible to today's capture; counting them (and the
+    // triangle-typed subset) reveals the path so it can be decoded in Increment 1.
+    typedef HRESULT(__stdcall* DP_t)(IDirect3DDevice9*, D3DPRIMITIVETYPE, UINT, UINT);
+    typedef HRESULT(__stdcall* DPUP_t)(IDirect3DDevice9*, D3DPRIMITIVETYPE, UINT, const void*, UINT);
+    typedef HRESULT(__stdcall* DIPUP_t)(IDirect3DDevice9*, D3DPRIMITIVETYPE, UINT, UINT, UINT,
+                                        const void*, D3DFORMAT, const void*, UINT);
+    DP_t g_original_dp = nullptr;
+    DPUP_t g_original_dpup = nullptr;
+    DIPUP_t g_original_dipup = nullptr;
+    void* g_dp_target = nullptr;    // vtable[81] DrawPrimitive
+    void* g_dpup_target = nullptr;  // vtable[83] DrawPrimitiveUP
+    void* g_dipup_target = nullptr; // vtable[84] DrawIndexedPrimitiveUP
+
+    inline bool IsTriangleType(D3DPRIMITIVETYPE t)
+    {
+        return t == D3DPT_TRIANGLELIST || t == D3DPT_TRIANGLESTRIP || t == D3DPT_TRIANGLEFAN;
+    }
+
+    // Cheaply (no vertex-buffer lock) determine whether the current draw is skinned and
+    // whether a stage-0 texture is bound -- for logging draws we drop before ReadChunk
+    // (the 2D/dedup paths), so their diagnostic entry still carries these signals.
+    bool PeekSkinnedTextured(IDirect3DDevice9* device, bool& has_tex)
+    {
+        has_tex = false;
+        IDirect3DBaseTexture9* t = nullptr;
+        if (SUCCEEDED(device->GetTexture(0, &t)) && t) { has_tex = true; t->Release(); }
+        DWORD fvf = 0;
+        device->GetFVF(&fvf);
+        VertexLayout layout;
+        if (fvf != 0) { DecodeFromFVF(fvf, layout); }
+        else { DecodeFromDeclaration(device, layout); }
+        return layout.has_blend;
+    }
 
     // Read the stage-0 texture into `chunk`, taking one ref we release in ResetData.
     void GrabTexture(IDirect3DDevice9* device, MeshChunk& chunk)
@@ -401,6 +441,12 @@ namespace {
     {
         if (g_engine.armed) {
             g_engine.stats.hook_calls++; // any primitive: proves MinHook installed our hook
+            switch (Type) {              // draw-path census (Increment 0)
+                case D3DPT_TRIANGLELIST:  g_engine.stats.dip_trianglelist++;  break;
+                case D3DPT_TRIANGLESTRIP: g_engine.stats.dip_trianglestrip++; break;
+                case D3DPT_TRIANGLEFAN:   g_engine.stats.dip_trianglefan++;   break;
+                default:                  g_engine.stats.dip_other++;         break;
+            }
         }
         if (g_engine.armed && Type == D3DPT_TRIANGLELIST && NumVertices > 0 && primCount > 0) {
             // Capture only depth-tested (3D world) draws by default. GW's HUD, the in-game
@@ -410,8 +456,32 @@ namespace {
             // exists in case some GW world geometry is (unexpectedly) not depth-tested.
             DWORD zenable = D3DZB_TRUE;
             device->GetRenderState(D3DRS_ZENABLE, &zenable);
+            DWORD ablend = FALSE; // alpha-blend on => cutout/translucent piece (texture alpha = opacity)
+            device->GetRenderState(D3DRS_ALPHABLENDENABLE, &ablend);
+
+            // Per-draw diagnostic log (Increment 1): record the disposition of EVERY
+            // triangle-list draw so a never-captured mesh's killer is nameable in one grab.
+            const bool logging = g_engine.cfg.log_draws && g_engine.draw_log.size() < kDrawLogMax;
+            const bool lz = (zenable != D3DZB_FALSE);
+            bool lskin = false, lhastex = false;
+            if (logging) { lskin = PeekSkinnedTextured(device, lhastex); }
+            const auto pushLog = [&](const char* reason, const float* ext) {
+                if (!logging) return;
+                DrawLogEntry e;
+                e.seq = g_engine.stats.hook_calls;
+                e.prims = primCount;
+                e.verts = NumVertices;
+                e.is_skinned = lskin;
+                e.has_texture = lhastex;
+                e.z_enabled = lz;
+                if (ext) { e.ext[0] = ext[0]; e.ext[1] = ext[1]; e.ext[2] = ext[2]; }
+                e.reason = reason;
+                g_engine.draw_log.push_back(std::move(e));
+            };
+
             if (g_engine.cfg.exclude_2d && zenable == D3DZB_FALSE) {
                 g_engine.stats.draws_2d_skipped++;
+                pushLog("skip_2d", nullptr);
                 return g_original_dip(device, Type, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
             }
 
@@ -444,6 +514,10 @@ namespace {
                     GrabTexture(device, chunk);
                 }
                 if (ReadChunk(device, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount, chunk)) {
+                    const float ext[3] = {chunk.aabb_max[0] - chunk.aabb_min[0],
+                                          chunk.aabb_max[1] - chunk.aabb_min[1],
+                                          chunk.aabb_max[2] - chunk.aabb_min[2]};
+                    chunk.alpha_blend = (ablend != FALSE);
                     bool keep = PassesFilter(g_engine.cfg, chunk, NumVertices, primCount);
                     bool isolation_drop = false;
                     if (keep && g_engine.cfg.isolate_by_bone && g_engine.cfg.has_match_pos &&
@@ -470,21 +544,60 @@ namespace {
                                 g_engine.probes.push_back(std::move(ps));
                             }
                         }
+                        pushLog("captured", ext);
                         g_engine.chunks.push_back(std::move(chunk));
                     }
                     else {
                         if (isolation_drop) g_engine.stats.draws_skipped_isolation++;
                         else g_engine.stats.draws_skipped_filtered++;
+                        pushLog(isolation_drop ? "iso" : "filtered", ext);
                         if (chunk.texture_ptr) static_cast<IDirect3DTexture9*>(chunk.texture_ptr)->Release();
                     }
                 }
                 else {
                     g_engine.stats.draws_skipped_unreadable++;
+                    pushLog("unreadable", nullptr);
                     if (chunk.texture_ptr) static_cast<IDirect3DTexture9*>(chunk.texture_ptr)->Release();
                 }
             }
+            else {
+                pushLog("dedup", nullptr);
+            }
         }
         return g_original_dip(device, Type, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+    }
+
+    // --- sibling entry points: count-only (Increment 0) -----------------------
+    HRESULT __stdcall DP_Hook(IDirect3DDevice9* device, D3DPRIMITIVETYPE Type, UINT StartVertex, UINT PrimitiveCount)
+    {
+        if (g_engine.armed) {
+            g_engine.stats.dp_calls++;
+            if (IsTriangleType(Type)) g_engine.stats.dp_tris++;
+        }
+        return g_original_dp(device, Type, StartVertex, PrimitiveCount);
+    }
+
+    HRESULT __stdcall DPUP_Hook(IDirect3DDevice9* device, D3DPRIMITIVETYPE Type, UINT PrimitiveCount,
+                                const void* pVertexStreamZeroData, UINT VertexStreamZeroStride)
+    {
+        if (g_engine.armed) {
+            g_engine.stats.dpup_calls++;
+            if (IsTriangleType(Type)) g_engine.stats.dpup_tris++;
+        }
+        return g_original_dpup(device, Type, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
+    }
+
+    HRESULT __stdcall DIPUP_Hook(IDirect3DDevice9* device, D3DPRIMITIVETYPE Type, UINT MinVertexIndex,
+                                 UINT NumVertices, UINT PrimitiveCount, const void* pIndexData,
+                                 D3DFORMAT IndexDataFormat, const void* pVertexStreamZeroData,
+                                 UINT VertexStreamZeroStride)
+    {
+        if (g_engine.armed) {
+            g_engine.stats.dipup_calls++;
+            if (IsTriangleType(Type)) g_engine.stats.dipup_tris++;
+        }
+        return g_original_dipup(device, Type, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData,
+                                IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
     }
 
 } // namespace
@@ -515,6 +628,26 @@ namespace Capture {
             g_dip_target = nullptr;
             return false;
         }
+        // Sibling entry points -- best-effort counters (Increment 0). A failure here
+        // must never break the primary DIP capture, so we null the target and move on.
+        g_dp_target = vtable[81];
+        if (MH_CreateHook(g_dp_target, reinterpret_cast<void*>(&DP_Hook),
+                          reinterpret_cast<void**>(&g_original_dp)) != MH_OK ||
+            MH_EnableHook(g_dp_target) != MH_OK) {
+            g_dp_target = nullptr;
+        }
+        g_dpup_target = vtable[83];
+        if (MH_CreateHook(g_dpup_target, reinterpret_cast<void*>(&DPUP_Hook),
+                          reinterpret_cast<void**>(&g_original_dpup)) != MH_OK ||
+            MH_EnableHook(g_dpup_target) != MH_OK) {
+            g_dpup_target = nullptr;
+        }
+        g_dipup_target = vtable[84];
+        if (MH_CreateHook(g_dipup_target, reinterpret_cast<void*>(&DIPUP_Hook),
+                          reinterpret_cast<void**>(&g_original_dipup)) != MH_OK ||
+            MH_EnableHook(g_dipup_target) != MH_OK) {
+            g_dipup_target = nullptr;
+        }
         g_engine.installed = true;
         return true;
     }
@@ -530,6 +663,9 @@ namespace Capture {
             MH_RemoveHook(g_dip_target);
             g_dip_target = nullptr;
         }
+        if (g_dp_target)    { MH_DisableHook(g_dp_target);    MH_RemoveHook(g_dp_target);    g_dp_target = nullptr; }
+        if (g_dpup_target)  { MH_DisableHook(g_dpup_target);  MH_RemoveHook(g_dpup_target);  g_dpup_target = nullptr; }
+        if (g_dipup_target) { MH_DisableHook(g_dipup_target); MH_RemoveHook(g_dipup_target); g_dipup_target = nullptr; }
         g_engine.ResetData();
         g_engine.installed = false;
     }
@@ -644,6 +780,7 @@ namespace Capture {
 
     std::vector<MeshChunk>& Chunks() { return g_engine.chunks; }
     const std::vector<ProbeSample>& ProbeSamples() { return g_engine.probes; }
+    const std::vector<DrawLogEntry>& DrawLog() { return g_engine.draw_log; }
     const CaptureStats& Stats() { return g_engine.stats; }
 
 } // namespace Capture

@@ -1,9 +1,0 @@
-# Guildlite materials
-newmtl mat_target_pn2_map155_20260702_085206_tex0
-Ka 0.0 0.0 0.0
-Kd 1.0 1.0 1.0
-d 1.0
-illum 2
-map_Kd target_pn2_map155_20260702-085206_tex0.tga
-map_d target_pn2_map155_20260702-085206_tex0.tga
-

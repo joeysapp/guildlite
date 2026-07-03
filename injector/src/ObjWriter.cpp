@@ -6,6 +6,7 @@
 #include <cstring>
 #include <fstream>
 #include <map>
+#include <set>
 
 namespace Guildlite {
 namespace {
@@ -149,17 +150,32 @@ namespace ObjWriter {
         out.close();
 
         if (!materials.empty()) {
+            // GW stores opacity in a texture's alpha ONLY for alpha-blended cutout draws
+            // (hair, capes, feathers). Opaque body/armor draws pack a GLOSS mask in that
+            // same alpha, so emitting map_d for them wrongly renders them translucent/black.
+            // Emit map_d only for textures a blended draw actually used.
+            std::set<std::string> cutout_tex;
+            for (const auto& c : chunks) {
+                if (c.alpha_blend && !c.texture_file.empty()) {
+                    cutout_tex.insert(c.texture_file);
+                }
+            }
             std::ofstream mtl(mtl_path, std::ios::binary | std::ios::trunc);
             if (mtl.is_open()) {
                 mtl << "# Guildlite materials\n";
                 for (const auto& [tex, name] : materials) {
                     mtl << "newmtl " << name << "\n";
-                    mtl << "Ka 0.0 0.0 0.0\n";
-                    mtl << "Kd 1.0 1.0 1.0\n"; // white base so the texture shows unmodulated
+                    mtl << "Ka 0.02 0.02 0.02\n";
+                    mtl << "Kd 1.0 1.0 1.0\n";     // white base so the texture shows unmodulated
+                    mtl << "Ks 0.30 0.30 0.30\n";  // modest spec so lit renders read as 3D, not flat
+                    mtl << "Ns 24.0\n";
                     mtl << "d 1.0\n";
                     mtl << "illum 2\n";
                     mtl << "map_Kd " << tex << "\n";
-                    mtl << "map_d " << tex << "\n\n"; // TGA alpha as opacity (hair/cape cutouts)
+                    if (cutout_tex.count(tex)) {
+                        mtl << "map_d " << tex << "\n"; // alpha = opacity, cutout pieces only
+                    }
+                    mtl << "\n";
                 }
             }
         }

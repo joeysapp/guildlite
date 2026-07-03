@@ -116,6 +116,14 @@ namespace Guildlite {
         // world->render scale, the data needed for true per-agent isolation.
         bool probe_shader_constants = false;
 
+        // Diagnostic (Increment 1): log EVERY triangle-list draw's disposition -- kept, or
+        // which stage dropped it (2d/dedup/filtered/iso/unreadable) -- with its skinned/
+        // textured flags and model-space extents, into the manifest draw_log[]. Lets a
+        // never-captured mesh (the bare-skin body) be identified and its killer named from
+        // ONE capture. Session-only (not persisted). Off by default (bloats the manifest +
+        // costs a per-draw peek); turn on for a diagnostic grab with `set log_draws true`.
+        bool log_draws = false;
+
         // --- per-agent isolation (the real filter) ----------------------------
         // Calibrated 2026-07-01: GW's skinned bone palette lives around c62..c94 as
         // row-major [3x3 | translation.w] triples; the translation equals the

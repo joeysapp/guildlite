@@ -36,6 +36,10 @@ namespace Guildlite {
         bool has_vertex_shader = false;
         bool is_skinned = false; // vertex format carries bone blend weights/indices ->
                                  // an animated character mesh, not static world geometry
+        bool alpha_blend = false; // D3DRS_ALPHABLENDENABLE was on -> GW draws this as a
+                                  // cutout/translucent piece (hair, cape, feathers), so its
+                                  // texture alpha IS opacity. Opaque draws (body/armor) put a
+                                  // GLOSS mask in alpha, so map_d must NOT be emitted for them.
 
         // Stage-0 texture identity. texture_file is filled in later by TextureExport.
         void* texture_ptr = nullptr;
@@ -60,6 +64,20 @@ namespace Guildlite {
         uint32_t vertices = 0;
         uint32_t triangles = 0;
         uint32_t unique_textures = 0;
+
+        // --- Increment 0: draw-path census (which entry point/primitive type do
+        // draws actually use?). The bare-skin body is never captured; if GW draws
+        // it as a strip/fan, or via a sibling *UP entry point, the TRIANGLELIST-only
+        // DrawIndexedPrimitive capture drops it with no trace. These counters (armed
+        // frame only) make that visible so the skin-body path can be found in ONE
+        // capture. Counters only -- the sibling entry points are not decoded yet.
+        uint32_t dip_trianglelist = 0;  // DrawIndexedPrimitive Type==TRIANGLELIST (the path we decode)
+        uint32_t dip_trianglestrip = 0; // Type==TRIANGLESTRIP (candidate skin-body path)
+        uint32_t dip_trianglefan = 0;   // Type==TRIANGLEFAN   (candidate skin-body path)
+        uint32_t dip_other = 0;         // points/lines
+        uint32_t dp_calls = 0,    dp_tris = 0;    // DrawPrimitive (vtbl 81): total, triangle-typed
+        uint32_t dpup_calls = 0,  dpup_tris = 0;  // DrawPrimitiveUP (vtbl 83)
+        uint32_t dipup_calls = 0, dipup_tris = 0; // DrawIndexedPrimitiveUP (vtbl 84)
     };
 
     // Registers c0..c(kProbeRegCount-1) captured for a skinned draw when
@@ -72,6 +90,21 @@ namespace Guildlite {
         uint32_t draw_index = 0;
         float center[3] = {0.f, 0.f, 0.f}; // model-local AABB center of the probed draw
         std::vector<float> regs;           // kProbeRegCount * 4 floats (row-major c0..cN)
+    };
+
+    // One triangle-list draw's disposition in the armed frame (Config::log_draws).
+    // reason = captured | skip_2d | dedup | filtered | iso | unreadable. ext is the
+    // model-space AABB size, populated only when the draw was actually read (0 for
+    // draws dropped before ReadChunk). Used to find which stage kills the skin body.
+    struct DrawLogEntry {
+        uint32_t seq = 0;   // hook_calls index -- draw order within the frame
+        uint32_t prims = 0;
+        uint32_t verts = 0;
+        bool is_skinned = false;  // vertex format carries bone blend weights
+        bool has_texture = false; // a stage-0 texture is bound
+        bool z_enabled = false;   // depth test on (false => a 2D/UI-classed draw)
+        float ext[3] = {0.f, 0.f, 0.f};
+        std::string reason;
     };
 
     enum class CaptureState {
@@ -105,6 +138,7 @@ namespace Guildlite {
 
         std::vector<MeshChunk>& Chunks();
         const std::vector<ProbeSample>& ProbeSamples();
+        const std::vector<DrawLogEntry>& DrawLog();
         const CaptureStats& Stats();
     }
 

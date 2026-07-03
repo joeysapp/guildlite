@@ -227,7 +227,9 @@ void Overlay::Command(const char* verb)
         if (g_selfUnload) RequestUnload();
         else GL_DLLLOG("Overlay::Command: 'unload' ignored in hosted mode (stub owns lifecycle)");
     }
-    else GL_DLLLOG("Overlay::Command: unknown verb '%s'", verb);
+    // Everything else (set/target/profile/...) is forwarded to the exporter, which
+    // tokenises and handles it. Keeps new control verbs a one-file change in Exporter.
+    else Exporter::Command(verb);
 }
 
 void Overlay::Install(HMODULE self, IDirect3DDevice9* device, bool selfUnload)

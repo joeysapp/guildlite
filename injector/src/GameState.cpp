@@ -24,6 +24,7 @@ struct ManifestChunk {
     uint32_t fvf = 0;
     bool has_vertex_shader = false;
     bool is_skinned = false;
+    bool alpha_blend = false;
     bool has_uv = false;
     bool has_normal = false;
     std::string texture_file;
@@ -73,6 +74,18 @@ struct ManifestProbe {
     std::vector<float> regs;   // row-major float4 per register
 };
 
+// One triangle-list draw's disposition in the armed frame (Config::log_draws).
+struct ManifestDrawLog {
+    uint32_t seq = 0;
+    uint32_t prims = 0;
+    uint32_t verts = 0;
+    bool is_skinned = false;
+    bool has_texture = false;
+    bool z_enabled = false;
+    std::vector<float> ext; // model-space AABB size; empty/0 if dropped before ReadChunk
+    std::string reason;     // captured|skip_2d|dedup|filtered|iso|unreadable
+};
+
 struct Manifest {
     std::string tool = "guildlite";
     std::string version = "0.3.0";
@@ -89,12 +102,26 @@ struct Manifest {
     uint32_t vertices = 0;
     uint32_t triangles = 0;
     uint32_t unique_textures = 0;
+    // Increment 0 draw-path census -- see diag_note. Makes visible where the never-
+    // captured bare-skin body actually goes (strip/fan, or a sibling *UP entry point).
+    uint32_t hook_calls = 0;
+    uint32_t draws_2d_skipped = 0;
+    uint32_t dip_trianglelist = 0;
+    uint32_t dip_trianglestrip = 0;
+    uint32_t dip_trianglefan = 0;
+    uint32_t dip_other = 0;
+    uint32_t dp_calls = 0,    dp_tris = 0;
+    uint32_t dpup_calls = 0,  dpup_tris = 0;
+    uint32_t dipup_calls = 0, dipup_tris = 0;
+    std::string diag_note;
     std::string pose_note;
     std::string probe_note;
     ManifestSettings settings;
     GameStateSnapshot subject;
     std::vector<ManifestChunk> chunks;
     std::vector<ManifestProbe> probe;
+    std::string draw_log_note;
+    std::vector<ManifestDrawLog> draw_log;
 };
 
 namespace {
@@ -205,7 +232,8 @@ namespace GameState {
 
     std::string BuildManifest(const GameStateSnapshot& snap, const std::vector<MeshChunk>& chunks,
                               const Config& cfg, const CaptureStats& stats, const std::string& timestamp,
-                              const std::vector<ProbeSample>& probes)
+                              const std::vector<ProbeSample>& probes,
+                              const std::vector<DrawLogEntry>& draw_log)
     {
         Manifest m;
         m.timestamp = timestamp;
@@ -221,6 +249,21 @@ namespace GameState {
         m.vertices = stats.vertices;
         m.triangles = stats.triangles;
         m.unique_textures = stats.unique_textures;
+        m.hook_calls = stats.hook_calls;
+        m.draws_2d_skipped = stats.draws_2d_skipped;
+        m.dip_trianglelist = stats.dip_trianglelist;
+        m.dip_trianglestrip = stats.dip_trianglestrip;
+        m.dip_trianglefan = stats.dip_trianglefan;
+        m.dip_other = stats.dip_other;
+        m.dp_calls = stats.dp_calls;       m.dp_tris = stats.dp_tris;
+        m.dpup_calls = stats.dpup_calls;   m.dpup_tris = stats.dpup_tris;
+        m.dipup_calls = stats.dipup_calls; m.dipup_tris = stats.dipup_tris;
+        m.diag_note = "Draw-path census for the armed frame. hook_calls = every DrawIndexedPrimitive "
+                      "(vtbl 82) call; dip_* split those by primitive type (only dip_trianglelist is "
+                      "decoded/captured today). dp_/dpup_/dipup_* count the sibling entry points "
+                      "DrawPrimitive(81)/DrawPrimitiveUP(83)/DrawIndexedPrimitiveUP(84), with _tris = the "
+                      "triangle-typed subset -- these are NOT decoded yet. A large dip_trianglestrip/fan or "
+                      "*_tris count is where the never-captured bare-skin body is going.";
         m.pose_note = "Live grab is the current bind/animation pose only; GW skins in a vertex shader "
                       "and GWCA exposes no skeleton. model_state/animation_id record the pose for provenance.";
         m.probe_note = "probe[].regs lists the first 96 vertex-shader constant registers c0..c95 (see each "
@@ -263,6 +306,7 @@ namespace GameState {
             mc.fvf = c.fvf;
             mc.has_vertex_shader = c.has_vertex_shader;
             mc.is_skinned = c.is_skinned;
+            mc.alpha_blend = c.alpha_blend;
             mc.has_uv = !c.uvs.empty();
             mc.has_normal = !c.normals.empty();
             mc.texture_file = c.texture_file;
@@ -285,6 +329,27 @@ namespace GameState {
             mp.reg_count = static_cast<int>(p.regs.size() / 4);
             mp.regs = p.regs;
             m.probe.push_back(std::move(mp));
+        }
+
+        m.draw_log_note = "Per-draw disposition of every triangle-list DrawIndexedPrimitive in the armed "
+                          "frame (Config.log_draws). reason: captured | skip_2d (depth-test off, dropped by "
+                          "exclude_2d) | dedup | filtered (size/extent/texture/skinned heuristic) | iso "
+                          "(bone-palette didn't match the isolate target) | unreadable. is_skinned/has_texture "
+                          "are the character-vs-scenery signals; ext is model-space AABB size (present only "
+                          "when the draw was read). The bare-skin body is a skinned, textured, tall-ext draw -- "
+                          "find it here and read its reason to see which stage drops it.";
+        m.draw_log.reserve(draw_log.size());
+        for (const auto& e : draw_log) {
+            ManifestDrawLog md;
+            md.seq = e.seq;
+            md.prims = e.prims;
+            md.verts = e.verts;
+            md.is_skinned = e.is_skinned;
+            md.has_texture = e.has_texture;
+            md.z_enabled = e.z_enabled;
+            md.ext = {e.ext[0], e.ext[1], e.ext[2]};
+            md.reason = e.reason;
+            m.draw_log.push_back(std::move(md));
         }
 
         return glz::write<glz::opts{.prettify = true}>(m).value_or(std::string{});

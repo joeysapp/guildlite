@@ -23,9 +23,12 @@
 #include <d3d9.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <map>
+#include <sstream>
 #include <string>
+#include <vector>
 
 using namespace Guildlite;
 
@@ -87,6 +90,88 @@ namespace {
             return std::filesystem::path(g_config.export_dir);
         }
         return Settings::Dir(); // <Documents>\guildlite
+    }
+
+    // --- remote control plane (Increment 2): `set <key> <value>` / `profile <name>` ---
+    // Mutates the single live g_config, which every capture snapshots at BeginCapture, so a
+    // change takes effect on the next `capture`; persisted immediately so it also survives a
+    // core `reload`. Runs on the stub poll thread; g_config is otherwise touched by the render
+    // thread (panel + BeginCapture), but scalar writes are atomic on x86 and this is a
+    // single-user dev tool -- acceptable without locking.
+    bool ParseBool(const std::string& s, bool& out)
+    {
+        if (s == "1" || s == "true" || s == "on" || s == "yes")  { out = true;  return true; }
+        if (s == "0" || s == "false" || s == "off" || s == "no") { out = false; return true; }
+        return false;
+    }
+
+    void SetConfig(const std::string& key, const std::string& val)
+    {
+        bool b = false;
+        const bool isb = ParseBool(val, b);
+        const int   iv = std::atoi(val.c_str());
+        const float fv = static_cast<float>(std::atof(val.c_str()));
+        if      (key == "isolate_by_bone")        { if (isb) g_config.isolate_by_bone = b; }
+        else if (key == "require_skinned")        { if (isb) g_config.require_skinned = b; }
+        else if (key == "require_texture")        { if (isb) g_config.require_texture = b; }
+        else if (key == "exclude_2d")             { if (isb) g_config.exclude_2d = b; }
+        else if (key == "dedupe")                 { if (isb) g_config.dedupe = b; }
+        else if (key == "trim_outliers")          { if (isb) g_config.trim_outliers = b; }
+        else if (key == "export_normals")         { if (isb) g_config.export_normals = b; }
+        else if (key == "export_uvs")             { if (isb) g_config.export_uvs = b; }
+        else if (key == "export_textures")        { if (isb) g_config.export_textures = b; }
+        else if (key == "log_draws")              { if (isb) g_config.log_draws = b; }
+        else if (key == "probe_shader_constants") { if (isb) g_config.probe_shader_constants = b; }
+        else if (key == "filter_max_extent")      { g_config.filter_max_extent = fv; }
+        else if (key == "filter_min_thickness")   { g_config.filter_min_thickness = fv; }
+        else if (key == "filter_center_radius")   { g_config.filter_center_radius = fv; }
+        else if (key == "isolate_tolerance")      { g_config.isolate_tolerance = fv; }
+        else if (key == "trim_k")                 { g_config.trim_k = fv; }
+        else if (key == "filter_min_prims")       { g_config.filter_min_prims = iv; }
+        else if (key == "filter_max_prims")       { g_config.filter_max_prims = iv; }
+        else if (key == "filter_min_verts")       { g_config.filter_min_verts = iv; }
+        else if (key == "up_axis")                { g_config.up_axis = iv; }
+        else if (key == "scope")  { g_config.scope  = (val == "filtered" || val == "1") ? CaptureScope::Filtered : CaptureScope::WholeScene; }
+        else if (key == "target") { g_config.target = (val == "target"   || val == "1") ? TargetSource::Target  : TargetSource::Player; }
+        else if (key == "detail") { g_config.detail = (val == "advanced" || val == "1") ? DetailLevel::Advanced : DetailLevel::Base; }
+        else if (key == "format") { g_config.format = (val == "stl"      || val == "1") ? OutputFormat::STL     : OutputFormat::OBJ; }
+        else { GL_DLLLOG("Exporter::Set: unknown key '%s'", key.c_str()); return; }
+        Settings::Save(g_config);
+        GL_DLLLOG("Exporter::Set: %s = %s", key.c_str(), val.c_str());
+    }
+
+    void ApplyProfile(const std::string& name)
+    {
+        if (name == "clean-self" || name == "clean-target") {
+            // The reproducible character recipe: NO iso (its bone-match drops the tall body
+            // meshes -- proven via draw_log); require_skinned is the deterministic,
+            // pose-independent "a character, not scenery" filter used instead.
+            g_config.scope = CaptureScope::Filtered;
+            g_config.isolate_by_bone = false;
+            g_config.require_skinned = true;
+            g_config.require_texture = false;
+            g_config.filter_max_extent = 150.f;   // drops the 600-1300u structures
+            g_config.filter_min_thickness = 1.5f; // drops HUD billboards
+            g_config.filter_center_radius = 0.f;
+            g_config.trim_outliers = true;
+            g_config.exclude_2d = true;
+            g_config.dedupe = true;
+            g_config.target = (name == "clean-target") ? TargetSource::Target : TargetSource::Player;
+        }
+        else if (name == "raw") {
+            // Whole scene, drop nothing but exact-duplicate redraws -- the diagnostic baseline.
+            g_config.scope = CaptureScope::WholeScene;
+            g_config.isolate_by_bone = false;
+            g_config.require_skinned = false;
+            g_config.require_texture = false;
+            g_config.filter_max_extent = 0.f;
+            g_config.filter_min_thickness = 0.f;
+            g_config.trim_outliers = false;
+            g_config.exclude_2d = false;
+        }
+        else { GL_DLLLOG("Exporter::ApplyProfile: unknown profile '%s'", name.c_str()); return; }
+        Settings::Save(g_config);
+        GL_DLLLOG("Exporter::ApplyProfile: %s applied", name.c_str());
     }
 
     // --- capture (was BeginCapture/FlushCapture) ---------------------------
@@ -192,7 +277,7 @@ namespace {
         // Manifest is a cheap, vertex-free audit sidecar; write it for Base too.
         if (pending_cfg.write_manifest) {
             const std::string json = GameState::BuildManifest(pending_snapshot, chunks, pending_cfg, stats, ts,
-                                                              Capture::ProbeSamples());
+                                                              Capture::ProbeSamples(), Capture::DrawLog());
             std::ofstream mf(dir / (stem + L".json"), std::ios::binary | std::ios::trunc);
             mf << json;
         }
@@ -411,6 +496,12 @@ namespace {
                 ImGui::Separator();
                 ImGui::Text("hook_calls=%u  seen=%u  captured=%u",
                             last_stats.hook_calls, last_stats.draws_seen, last_stats.draws_captured);
+                ImGui::Text("DIP by type: list=%u  strip=%u  fan=%u  other=%u",
+                            last_stats.dip_trianglelist, last_stats.dip_trianglestrip,
+                            last_stats.dip_trianglefan, last_stats.dip_other);
+                ImGui::Text("siblings [tris]: DP=%u[%u]  DPUP=%u[%u]  DIPUP=%u[%u]",
+                            last_stats.dp_calls, last_stats.dp_tris, last_stats.dpup_calls,
+                            last_stats.dpup_tris, last_stats.dipup_calls, last_stats.dipup_tris);
                 ImGui::Text("skipped: 2d=%u  unreadable=%u  filtered=%u  iso=%u  trimmed=%u",
                             last_stats.draws_2d_skipped, last_stats.draws_skipped_unreadable,
                             last_stats.draws_skipped_filtered, last_stats.draws_skipped_isolation,
@@ -517,21 +608,30 @@ namespace Exporter {
         if (!verb) {
             return;
         }
-        const std::string v = verb;
+        std::vector<std::string> tok;
+        {
+            std::istringstream is(verb);
+            std::string t;
+            while (is >> t) tok.push_back(t);
+        }
+        if (tok.empty()) {
+            return;
+        }
+        const std::string& cmd = tok[0];
+        if (cmd == "set" && tok.size() >= 3)     { SetConfig(tok[1], tok[2]); return; }
+        if (cmd == "target" && tok.size() >= 2)  { SetConfig("target", tok[1]); return; }
+        if (cmd == "profile" && tok.size() >= 2) { ApplyProfile(tok[1]); return; }
+        // Capture verbs -- guarded so they no-op during a map load or an in-flight grab.
         // Short-circuit protects GetInstanceType() from being called before GWCA is up.
         const bool loading = !Game::Ready() || GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading;
-        if (v == "capture") {
-            if (!capture_in_flight && !loading) {
-                BeginCapture(false);
-            }
+        if (cmd == "capture") {
+            if (!capture_in_flight && !loading) BeginCapture(false);
         }
-        else if (v == "capture-dry") {
-            if (!capture_in_flight && !loading) {
-                BeginCapture(true);
-            }
+        else if (cmd == "capture-dry") {
+            if (!capture_in_flight && !loading) BeginCapture(true);
         }
         else {
-            GL_DLLLOG("Exporter::Command: unknown verb '%s'", verb);
+            GL_DLLLOG("Exporter::Command: unhandled verb '%s'", verb);
         }
     }
 

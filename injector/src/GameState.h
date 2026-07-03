@@ -63,7 +63,8 @@ namespace Guildlite {
         std::wstring SuggestStem(const GameStateSnapshot& snap);
         std::string BuildManifest(const GameStateSnapshot& snap, const std::vector<MeshChunk>& chunks,
                                   const Config& cfg, const CaptureStats& stats, const std::string& timestamp,
-                                  const std::vector<ProbeSample>& probes);
+                                  const std::vector<ProbeSample>& probes,
+                                  const std::vector<DrawLogEntry>& draw_log);
     }
 
 } // namespace Guildlite
