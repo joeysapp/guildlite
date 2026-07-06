@@ -48,7 +48,9 @@ namespace {
     volatile bool pick_on_req = false, pick_off_req = false, pick_toggle_req = false;
     volatile int  pick_cycle_req = 0;
     volatile int  pick_skinned_req = 0; // 0 none, 1 on, 2 off
+    volatile int  pick_2d_req = 0;      // 0 none, 1 on, 2 off
     volatile bool pick_mark_req = false, pick_clear_req = false;
+    volatile bool pick_marktarget_req = false;
     volatile bool pick_snap_req = false;
 
     std::string status_line = "Ready.";
@@ -242,9 +244,25 @@ namespace {
         pending_cfg.has_match_pos = false;   // the pick is the filter; isolation not needed
         pending_cfg.trim_outliers = false;   // export exactly the marked draws, trim nothing
         pending_cfg.filter_center_radius = 0.f;
+        pending_cfg.exclude_2d = false;      // a marked draw may be depth-test-off (e.g. armor)
         Capture::ArmSelected(pending_cfg);
         capture_in_flight = true;
         status_line = "Snapping selected draw...";
+    }
+
+    // Mark every draw skinned to the Source agent's skeleton in one action (a whole
+    // character, regardless of draw order), via the bone-palette isolation signal. Uses the
+    // same calibration isolate_by_bone does; if it marks nothing on a given map the palette
+    // layout differs there -- fall back to manual marking. Then Snap exports the set.
+    void PickMarkTarget()
+    {
+        if (!Game::Ready()) { status_line = "GWCA not ready."; return; }
+        if (!Capture::PickActive()) { status_line = "Enable Pick mode first."; return; }
+        const GameStateSnapshot s = GameState::Gather(g_config.target);
+        if (!s.valid) { status_line = "No source agent to group by (choose Player, or target one)."; return; }
+        const float pos[3] = {s.pos_x, s.pos_y, s.pos_z};
+        Capture::PickMarkMatching(pos, g_config.isolate_tolerance);
+        status_line = "Marking all of the source's pieces (bone-palette match)...";
     }
 
     void FlushCapture(IDirect3DDevice9* device)
@@ -392,6 +410,21 @@ namespace {
                 }
                 ImGui::SameLine();
                 ImGui::TextDisabled("cuts scene draws to just characters (turn off for effects/props)");
+                bool include_2d = Capture::PickInclude2D();
+                if (ImGui::Checkbox("Include depth-test-off draws", &include_2d)) {
+                    Capture::PickSetInclude2D(include_2d);
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("reveals armor GW draws z-off (also brings the HUD in; pair with Skinned only)");
+
+                // One-click whole-character grouping: mark all of the Source's skinned pieces
+                // at once (bone-palette match), sidestepping the scattered draw order.
+                ImGui::BeginDisabled(!gw_ready);
+                if (ImGui::Button("Mark whole character (Source's pieces)")) PickMarkTarget();
+                ImGui::EndDisabled();
+                ImGui::SameLine();
+                ImGui::TextDisabled("bone-palette match; if 0 get marked, re-Probe/widen tolerance");
+
                 const int n = Capture::PickCount();
                 const int sel = Capture::PickIndex();
                 const int marked = Capture::PickMarkedCount();
@@ -699,8 +732,10 @@ namespace Exporter {
         if (pick_toggle_req) { pick_toggle_req = false; Capture::PickSetActive(!Capture::PickActive()); }
         if (pick_cycle_req)  { const int d = pick_cycle_req; pick_cycle_req = 0; Capture::PickCycle(d); }
         if (pick_skinned_req) { Capture::PickSetSkinnedOnly(pick_skinned_req == 1); pick_skinned_req = 0; }
+        if (pick_2d_req)     { Capture::PickSetInclude2D(pick_2d_req == 1); pick_2d_req = 0; }
         if (pick_mark_req)   { pick_mark_req = false;  Capture::PickToggleMark(); }
         if (pick_clear_req)  { pick_clear_req = false; Capture::PickClearMarks(); }
+        if (pick_marktarget_req) { pick_marktarget_req = false; PickMarkTarget(); }
         if (pick_snap_req)   { pick_snap_req = false; PickSnap(); }
         Capture::PickCommit();
 
@@ -768,8 +803,10 @@ namespace Exporter {
             else if (a == "next")   pick_cycle_req += 1;
             else if (a == "prev")   pick_cycle_req -= 1;
             else if (a == "skinned") { pick_skinned_req = (tok.size() >= 3 && (tok[2] == "off" || tok[2] == "0")) ? 2 : 1; }
+            else if (a == "2d")      { pick_2d_req = (tok.size() >= 3 && (tok[2] == "off" || tok[2] == "0")) ? 2 : 1; }
             else if (a == "mark")    pick_mark_req = true;
             else if (a == "clear" || a == "unmark") pick_clear_req = true;
+            else if (a == "target" || a == "character") pick_marktarget_req = true;
             else GL_DLLLOG("Exporter::Command: unknown pick arg '%s'", a.c_str());
             return;
         }

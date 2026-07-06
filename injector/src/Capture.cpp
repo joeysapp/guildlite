@@ -219,6 +219,7 @@ namespace {
         // --- pick mode (persists across captures; independent of `armed`) ------
         bool pick_active = false;
         bool pick_skinned_only = false;       // list/cycle only skinned (character) draws
+        bool pick_include_2d = false;         // also list depth-test-off draws (armor, HUD, ...)
         std::vector<PickEntry> pick_list;     // all pickable draws this session
         std::map<DrawKey, size_t> pick_index; // draw signature -> index into pick_list
         std::vector<size_t> pick_filtered;    // indices into pick_list passing the filter (UI view)
@@ -227,6 +228,15 @@ namespace {
         std::set<DrawKey> pick_marked;         // draws marked for export (multi-select)
         unsigned pick_frame = 0;
         IDirect3DTexture9* pick_highlight = nullptr; // solid green tint, lazily created
+
+        // "Mark all of target": one-shot pass that marks every skinned draw whose bone
+        // palette matches a seeded world position (the isolation signal), collecting a whole
+        // agent at once regardless of list order. pending -> armed -> consumed over 2 frames
+        // (armed in PickCommit, matched by next frame's hook), so it's stable across threads.
+        bool pick_mark_pending = false;
+        bool pick_mark_armed = false;
+        float pick_mark_pos[3] = {0.f, 0.f, 0.f};
+        float pick_mark_tol = 250.f;
 
         // selected-draw capture: set by ArmSelected, honoured in the armed hook path.
         bool capture_selected = false;
@@ -528,22 +538,27 @@ namespace {
     // (.w of 3 consecutive VS registers) is within tolerance of the target's GWCA
     // position. Scanning a range (not a fixed offset) survives shader differences;
     // requiring all three .w near the target in 3D makes a spurious match unlikely.
-    bool BoneMatchesTarget(IDirect3DDevice9* device, const Config& cfg)
+    bool BoneMatchesPos(IDirect3DDevice9* device, const float pos[3], float tol)
     {
         float regs[kProbeRegCount * 4];
         if (FAILED(device->GetVertexShaderConstantF(0, regs, static_cast<UINT>(kProbeRegCount)))) {
             return false;
         }
-        const float tol2 = cfg.isolate_tolerance * cfg.isolate_tolerance;
+        const float tol2 = tol * tol;
         for (int r = 0; r + 2 < kProbeRegCount; ++r) {
-            const float dx = regs[r * 4 + 3] - cfg.match_pos[0];
-            const float dy = regs[(r + 1) * 4 + 3] - cfg.match_pos[1];
-            const float dz = regs[(r + 2) * 4 + 3] - cfg.match_pos[2];
+            const float dx = regs[r * 4 + 3] - pos[0];
+            const float dy = regs[(r + 1) * 4 + 3] - pos[1];
+            const float dz = regs[(r + 2) * 4 + 3] - pos[2];
             if (dx * dx + dy * dy + dz * dz <= tol2) {
                 return true;
             }
         }
         return false;
+    }
+
+    bool BoneMatchesTarget(IDirect3DDevice9* device, const Config& cfg)
+    {
+        return BoneMatchesPos(device, cfg.match_pos, cfg.isolate_tolerance);
     }
 
     // Lazily create the solid-green 2x2 tint we swap onto the picked draw's stage-0
@@ -769,7 +784,9 @@ namespace {
         if (g_engine.pick_active && Type == D3DPT_TRIANGLELIST && NumVertices > 0 && primCount > 0) {
             DWORD zenable = D3DZB_TRUE;
             device->GetRenderState(D3DRS_ZENABLE, &zenable);
-            if (zenable != D3DZB_FALSE) {
+            // Depth-tested world draws by default; opt in to z-off draws to reach geometry GW
+            // renders with the depth test off (e.g. some armor) at the cost of HUD/UI noise.
+            if (g_engine.pick_include_2d || zenable != D3DZB_FALSE) {
                 IDirect3DVertexBuffer9* pvb = nullptr;
                 IDirect3DIndexBuffer9* pib = nullptr;
                 UINT pso = 0, pst = 0;
@@ -781,6 +798,15 @@ namespace {
                 if (pvb) pvb->Release();
                 if (pib) pib->Release();
                 PickRecord(device, pk, NumVertices, primCount);
+                // "Mark all of target": auto-mark skinned draws whose bone palette matches the
+                // seeded agent position (one-shot pass, armed for this frame by PickCommit).
+                if (g_engine.pick_mark_armed) {
+                    const auto pit = g_engine.pick_index.find(pk);
+                    if (pit != g_engine.pick_index.end() && g_engine.pick_list[pit->second].skinned &&
+                        BoneMatchesPos(device, g_engine.pick_mark_pos, g_engine.pick_mark_tol)) {
+                        g_engine.pick_marked.insert(pk);
+                    }
+                }
                 const bool highlight = ((g_engine.pick_has_sel && pk == g_engine.pick_sel) ||
                                         g_engine.pick_marked.count(pk) != 0);
                 if (highlight && g_engine.pick_highlight) {
@@ -1054,11 +1080,25 @@ namespace Capture {
                 g_engine.pick_filtered.push_back(i);
             }
         }
+        // Arm the "mark all of target" pass for exactly the next frame's hook.
+        g_engine.pick_mark_armed = g_engine.pick_mark_pending;
+        g_engine.pick_mark_pending = false;
         g_engine.pick_frame++;
+    }
+
+    void PickMarkMatching(const float* pos, float tol)
+    {
+        g_engine.pick_mark_pos[0] = pos[0];
+        g_engine.pick_mark_pos[1] = pos[1];
+        g_engine.pick_mark_pos[2] = pos[2];
+        g_engine.pick_mark_tol = (tol > 0.f) ? tol : 250.f;
+        g_engine.pick_mark_pending = true; // consumed by PickCommit -> next frame's hook
     }
 
     void PickSetSkinnedOnly(bool on) { g_engine.pick_skinned_only = on; }
     bool PickSkinnedOnly() { return g_engine.pick_skinned_only; }
+    void PickSetInclude2D(bool on) { g_engine.pick_include_2d = on; }
+    bool PickInclude2D() { return g_engine.pick_include_2d; }
 
     int PickCount() { return static_cast<int>(g_engine.pick_filtered.size()); }
 

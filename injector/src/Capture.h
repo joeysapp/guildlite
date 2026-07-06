@@ -163,6 +163,8 @@ namespace Guildlite {
         bool PickActive();
         void PickSetSkinnedOnly(bool on); // list/cycle only skinned (character) draws
         bool PickSkinnedOnly();
+        void PickSetInclude2D(bool on);   // also list depth-test-off draws (armor / HUD)
+        bool PickInclude2D();
         void PickCommit();           // once per frame: age out despawned draws
         void PickCycle(int delta);   // move the selection within the pickable list
         void PickSelect(int index);  // select an explicit row
@@ -178,6 +180,10 @@ namespace Guildlite {
         void PickClearMarks();
         int  PickMarkedCount();
         bool PickRowMarked(int index);
+        // Mark every skinned draw whose bone palette matches pos (world units) within tol --
+        // one action grabs a whole agent's pieces regardless of draw order. Seeded from the
+        // chosen Source's GWCA position by the exporter (see Config isolation calibration).
+        void PickMarkMatching(const float* pos, float tol);
         void ArmSelected(const Config& cfg); // snap the marked set (or the cursor if none marked)
 
         // Call once per plugin Draw (after the world pass). Advances the little
