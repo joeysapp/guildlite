@@ -12,3 +12,8 @@ imgui.ini
 renders
 RENDER-FEEDBACK
 
+# session scratch / SSH verification pulls
+scratch-verify
+gl-loop
+guildlite-exports
+
