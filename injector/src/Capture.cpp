@@ -7,6 +7,7 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <map>
 #include <set>
 #include <utility>
 #include <vector>
@@ -181,6 +182,24 @@ namespace {
             if (prim != o.prim) return prim < o.prim;
             return minv < o.minv;
         }
+        bool operator==(const DrawKey& o) const
+        {
+            return vb == o.vb && ib == o.ib && base == o.base &&
+                   start == o.start && prim == o.prim && minv == o.minv;
+        }
+    };
+
+    // One entry in the live pick list: a stable draw signature (same object => same
+    // vb/ib/range each frame) plus the metadata the UI shows and a last-seen frame for
+    // ageing out despawned/culled draws.
+    struct PickEntry {
+        DrawKey key{};
+        uint32_t verts = 0;
+        uint32_t tris = 0;
+        int tex_w = 0;
+        int tex_h = 0;
+        bool skinned = false;
+        unsigned last_seen = 0;
     };
 
     // ---------------------------------------------------------------- engine
@@ -196,6 +215,22 @@ namespace {
         std::vector<ProbeSample> probes;
         std::vector<DrawLogEntry> draw_log; // per-draw disposition when cfg.log_draws
         CaptureStats stats;
+
+        // --- pick mode (persists across captures; independent of `armed`) ------
+        bool pick_active = false;
+        bool pick_skinned_only = false;       // list/cycle only skinned (character) draws
+        std::vector<PickEntry> pick_list;     // all pickable draws this session
+        std::map<DrawKey, size_t> pick_index; // draw signature -> index into pick_list
+        std::vector<size_t> pick_filtered;    // indices into pick_list passing the filter (UI view)
+        DrawKey pick_sel{};                    // navigation cursor (green preview)
+        bool pick_has_sel = false;
+        std::set<DrawKey> pick_marked;         // draws marked for export (multi-select)
+        unsigned pick_frame = 0;
+        IDirect3DTexture9* pick_highlight = nullptr; // solid green tint, lazily created
+
+        // selected-draw capture: set by ArmSelected, honoured in the armed hook path.
+        bool capture_selected = false;
+        std::set<DrawKey> capture_set;         // the draw signatures a pick-snap keeps
 
         void ResetData()
         {
@@ -216,6 +251,9 @@ namespace {
     constexpr size_t kDrawLogMax = 1500; // safety cap so a pathological frame can't OOM the log
 
     constexpr size_t kProbeMaxSamples = 6; // enough distinct agents to solve the isolation register
+
+    constexpr size_t kPickListMax = 1024;  // cap on the live pick list (unique draw signatures)
+    constexpr unsigned kPickAgeFrames = 120; // drop a pick entry unseen for this many frames
 
     Engine g_engine;
 
@@ -508,6 +546,64 @@ namespace {
         return false;
     }
 
+    // Lazily create the solid-green 2x2 tint we swap onto the picked draw's stage-0
+    // texture to highlight it in-game. MANAGED pool so it survives a device Reset.
+    void EnsurePickHighlight(IDirect3DDevice9* device)
+    {
+        if (g_engine.pick_highlight || !device) {
+            return;
+        }
+        IDirect3DTexture9* tex = nullptr;
+        if (FAILED(device->CreateTexture(2, 2, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr)) || !tex) {
+            return;
+        }
+        D3DLOCKED_RECT lr{};
+        if (SUCCEEDED(tex->LockRect(0, &lr, nullptr, 0))) {
+            for (int y = 0; y < 2; ++y) {
+                uint32_t* row = reinterpret_cast<uint32_t*>(static_cast<uint8_t*>(lr.pBits) + y * lr.Pitch);
+                for (int x = 0; x < 2; ++x) row[x] = 0xFF00FF00u; // opaque green, ARGB
+            }
+            tex->UnlockRect(0);
+        }
+        g_engine.pick_highlight = tex;
+    }
+
+    // Upsert one pickable draw into the stable pick list (render thread only). A given
+    // signature keeps its slot/index across frames, so the UI selection stays put; only
+    // the last-seen frame is refreshed. New signatures append (metadata read once).
+    void PickRecord(IDirect3DDevice9* device, const DrawKey& key, UINT numVerts, UINT primCount)
+    {
+        const auto it = g_engine.pick_index.find(key);
+        if (it != g_engine.pick_index.end()) {
+            g_engine.pick_list[it->second].last_seen = g_engine.pick_frame;
+            return;
+        }
+        if (g_engine.pick_list.size() >= kPickListMax) {
+            return;
+        }
+        PickEntry e;
+        e.key = key;
+        e.verts = numVerts;
+        e.tris = primCount;
+        e.last_seen = g_engine.pick_frame;
+        bool has_tex = false;
+        e.skinned = PeekSkinnedTextured(device, has_tex); // cheap: no VB lock
+        if (has_tex) {
+            IDirect3DBaseTexture9* base = nullptr;
+            if (SUCCEEDED(device->GetTexture(0, &base)) && base) {
+                IDirect3DTexture9* t2 = nullptr;
+                if (SUCCEEDED(base->QueryInterface(__uuidof(IDirect3DTexture9), reinterpret_cast<void**>(&t2))) && t2) {
+                    D3DSURFACE_DESC d{};
+                    if (SUCCEEDED(t2->GetLevelDesc(0, &d))) { e.tex_w = static_cast<int>(d.Width); e.tex_h = static_cast<int>(d.Height); }
+                    t2->Release();
+                }
+                base->Release();
+            }
+        }
+        g_engine.pick_index.emplace(key, g_engine.pick_list.size());
+        g_engine.pick_list.push_back(e);
+    }
+
     HRESULT __stdcall DIP_Hook(IDirect3DDevice9* device, D3DPRIMITIVETYPE Type, INT BaseVertexIndex,
                                UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount)
     {
@@ -577,6 +673,12 @@ namespace {
             if (vb) vb->Release();
             if (ib) ib->Release();
 
+            // Selected-draw capture (pick snap): grab ONLY the marked signatures; every
+            // other draw is passed straight through, so no filter stack is needed.
+            if (g_engine.capture_selected && !g_engine.capture_set.count(key)) {
+                return g_original_dip(device, Type, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+            }
+
             const bool duplicate = g_engine.cfg.dedupe && !g_engine.seen.insert(key).second;
             if (!duplicate) {
                 MeshChunk chunk;
@@ -603,14 +705,17 @@ namespace {
                     // (hair/cape/feather) use DEST=INVSRCALPHA and are left alone.
                     chunk.is_effect = (ablend != FALSE) &&
                         (dblend == D3DBLEND_ONE || dblend == D3DBLEND_INVSRCCOLOR);
-                    bool keep = PassesFilter(g_engine.cfg, chunk, NumVertices, primCount);
+                    // A selected-draw capture keeps exactly the picked draw -- the pick was
+                    // the filter, so PassesFilter/drop_effects/isolation are all bypassed.
+                    bool keep = g_engine.capture_selected ? true
+                                    : PassesFilter(g_engine.cfg, chunk, NumVertices, primCount);
                     bool effect_drop = false;
-                    if (keep && g_engine.cfg.drop_effects && chunk.is_effect) {
+                    if (!g_engine.capture_selected && keep && g_engine.cfg.drop_effects && chunk.is_effect) {
                         keep = false; // additive/screen effect plane -- renders as a black panel
                         effect_drop = true;
                     }
                     bool isolation_drop = false;
-                    if (keep && g_engine.cfg.isolate_by_bone && g_engine.cfg.has_match_pos &&
+                    if (!g_engine.capture_selected && keep && g_engine.cfg.isolate_by_bone && g_engine.cfg.has_match_pos &&
                         chunk.has_vertex_shader && !BoneMatchesTarget(device, g_engine.cfg)) {
                         keep = false; // skinned, but belongs to a different agent
                         isolation_drop = true;
@@ -653,6 +758,41 @@ namespace {
             }
             else {
                 pushLog("dedup", nullptr);
+            }
+        }
+
+        // --- Pick mode: enumerate pickable draws + tint the selected one --------
+        // Runs every frame, independent of `armed`. Depth-tested triangle lists only
+        // (the "world geometry" gate), but WITHOUT the capture filter stack, so props
+        // and small objects are pickable too. Selected draw is drawn with a green
+        // stage-0 texture (restored immediately) so it stands out in-game.
+        if (g_engine.pick_active && Type == D3DPT_TRIANGLELIST && NumVertices > 0 && primCount > 0) {
+            DWORD zenable = D3DZB_TRUE;
+            device->GetRenderState(D3DRS_ZENABLE, &zenable);
+            if (zenable != D3DZB_FALSE) {
+                IDirect3DVertexBuffer9* pvb = nullptr;
+                IDirect3DIndexBuffer9* pib = nullptr;
+                UINT pso = 0, pst = 0;
+                device->GetStreamSource(0, &pvb, &pso, &pst);
+                device->GetIndices(&pib);
+                const DrawKey pk{
+                    reinterpret_cast<uintptr_t>(pvb), reinterpret_cast<uintptr_t>(pib),
+                    static_cast<uint32_t>(BaseVertexIndex), startIndex, primCount, MinVertexIndex};
+                if (pvb) pvb->Release();
+                if (pib) pib->Release();
+                PickRecord(device, pk, NumVertices, primCount);
+                const bool highlight = ((g_engine.pick_has_sel && pk == g_engine.pick_sel) ||
+                                        g_engine.pick_marked.count(pk) != 0);
+                if (highlight && g_engine.pick_highlight) {
+                    IDirect3DBaseTexture9* saved = nullptr;
+                    device->GetTexture(0, &saved);
+                    device->SetTexture(0, g_engine.pick_highlight);
+                    const HRESULT r = g_original_dip(device, Type, BaseVertexIndex, MinVertexIndex,
+                                                     NumVertices, startIndex, primCount);
+                    device->SetTexture(0, saved);
+                    if (saved) saved->Release();
+                    return r;
+                }
             }
         }
         return g_original_dip(device, Type, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
@@ -739,6 +879,7 @@ namespace Capture {
             MH_EnableHook(g_dipup_target) != MH_OK) {
             g_dipup_target = nullptr;
         }
+        EnsurePickHighlight(device); // green tint for pick-mode highlighting
         g_engine.installed = true;
         return true;
     }
@@ -757,6 +898,14 @@ namespace Capture {
         if (g_dp_target)    { MH_DisableHook(g_dp_target);    MH_RemoveHook(g_dp_target);    g_dp_target = nullptr; }
         if (g_dpup_target)  { MH_DisableHook(g_dpup_target);  MH_RemoveHook(g_dpup_target);  g_dpup_target = nullptr; }
         if (g_dipup_target) { MH_DisableHook(g_dipup_target); MH_RemoveHook(g_dipup_target); g_dipup_target = nullptr; }
+        g_engine.pick_active = false;
+        g_engine.pick_has_sel = false;
+        g_engine.pick_list.clear();
+        g_engine.pick_index.clear();
+        g_engine.pick_filtered.clear();
+        g_engine.pick_marked.clear();
+        g_engine.capture_set.clear();
+        if (g_engine.pick_highlight) { g_engine.pick_highlight->Release(); g_engine.pick_highlight = nullptr; }
         g_engine.ResetData();
         g_engine.installed = false;
     }
@@ -770,6 +919,8 @@ namespace Capture {
         g_engine.armed = true;
         g_engine.recorded = false;
         g_engine.frames_since_arm = 0;
+        g_engine.capture_selected = false; // a normal, filtered capture
+        g_engine.capture_set.clear();
     }
 
     CaptureState Advance()
@@ -867,6 +1018,138 @@ namespace Capture {
             }
         }
         chunks.swap(kept);
+    }
+
+    // --- pick mode (render thread only) -----------------------------------
+    void PickSetActive(bool on) { g_engine.pick_active = on; }
+    bool PickActive() { return g_engine.pick_active; }
+
+    void PickCommit()
+    {
+        if (!g_engine.pick_active) {
+            return;
+        }
+        // Age out draws not seen for a while (despawned / culled), then advance the frame.
+        const unsigned now = g_engine.pick_frame;
+        bool pruned = false;
+        std::vector<PickEntry> kept;
+        kept.reserve(g_engine.pick_list.size());
+        for (const auto& e : g_engine.pick_list) {
+            if (now - e.last_seen <= kPickAgeFrames) kept.push_back(e);
+            else pruned = true;
+        }
+        if (pruned) {
+            g_engine.pick_list.swap(kept);
+            g_engine.pick_index.clear();
+            for (size_t i = 0; i < g_engine.pick_list.size(); ++i) {
+                g_engine.pick_index.emplace(g_engine.pick_list[i].key, i);
+            }
+        }
+        // Rebuild the filtered view the UI pages through (skinned-only cuts the scene's
+        // ~hundreds of draws down to just the characters).
+        g_engine.pick_filtered.clear();
+        g_engine.pick_filtered.reserve(g_engine.pick_list.size());
+        for (size_t i = 0; i < g_engine.pick_list.size(); ++i) {
+            if (!g_engine.pick_skinned_only || g_engine.pick_list[i].skinned) {
+                g_engine.pick_filtered.push_back(i);
+            }
+        }
+        g_engine.pick_frame++;
+    }
+
+    void PickSetSkinnedOnly(bool on) { g_engine.pick_skinned_only = on; }
+    bool PickSkinnedOnly() { return g_engine.pick_skinned_only; }
+
+    int PickCount() { return static_cast<int>(g_engine.pick_filtered.size()); }
+
+    int PickIndex() // position of the selection within the filtered view, or -1
+    {
+        if (!g_engine.pick_has_sel) return -1;
+        const auto it = g_engine.pick_index.find(g_engine.pick_sel);
+        if (it == g_engine.pick_index.end()) return -1;
+        for (size_t fi = 0; fi < g_engine.pick_filtered.size(); ++fi) {
+            if (g_engine.pick_filtered[fi] == it->second) return static_cast<int>(fi);
+        }
+        return -1; // selected draw is filtered out of the current view
+    }
+
+    void PickSelect(int index)
+    {
+        if (index < 0 || index >= static_cast<int>(g_engine.pick_filtered.size())) return;
+        g_engine.pick_sel = g_engine.pick_list[g_engine.pick_filtered[index]].key;
+        g_engine.pick_has_sel = true;
+    }
+
+    void PickCycle(int delta)
+    {
+        const int n = static_cast<int>(g_engine.pick_filtered.size());
+        if (n == 0) { g_engine.pick_has_sel = false; return; }
+        const int cur = PickIndex();
+        int next;
+        if (cur < 0) next = (delta >= 0) ? 0 : n - 1;
+        else { next = cur + delta; next = ((next % n) + n) % n; } // wrap
+        PickSelect(next);
+    }
+
+    PickInfo PickRow(int index)
+    {
+        PickInfo r;
+        if (index >= 0 && index < static_cast<int>(g_engine.pick_filtered.size())) {
+            const PickEntry& e = g_engine.pick_list[g_engine.pick_filtered[index]];
+            r.verts = e.verts; r.tris = e.tris; r.tex_w = e.tex_w; r.tex_h = e.tex_h; r.skinned = e.skinned;
+        }
+        return r;
+    }
+
+    // Filter-independent: a hidden-by-filter selection can still be snapped/highlighted.
+    bool HasSelection()
+    {
+        return g_engine.pick_has_sel &&
+               g_engine.pick_index.find(g_engine.pick_sel) != g_engine.pick_index.end();
+    }
+
+    // --- multi-select marks (the export set) --------------------------------
+    int PickMarkedCount() { return static_cast<int>(g_engine.pick_marked.size()); }
+
+    bool PickRowMarked(int index)
+    {
+        if (index < 0 || index >= static_cast<int>(g_engine.pick_filtered.size())) return false;
+        return g_engine.pick_marked.count(g_engine.pick_list[g_engine.pick_filtered[index]].key) != 0;
+    }
+
+    void PickToggleMarkRow(int index)
+    {
+        if (index < 0 || index >= static_cast<int>(g_engine.pick_filtered.size())) return;
+        const DrawKey k = g_engine.pick_list[g_engine.pick_filtered[index]].key;
+        const auto it = g_engine.pick_marked.find(k);
+        if (it == g_engine.pick_marked.end()) g_engine.pick_marked.insert(k);
+        else g_engine.pick_marked.erase(it);
+    }
+
+    void PickToggleMark() // toggle the current cursor draw in/out of the export set
+    {
+        if (!g_engine.pick_has_sel) return;
+        const auto it = g_engine.pick_marked.find(g_engine.pick_sel);
+        if (it == g_engine.pick_marked.end()) g_engine.pick_marked.insert(g_engine.pick_sel);
+        else g_engine.pick_marked.erase(it);
+    }
+
+    void PickClearMarks() { g_engine.pick_marked.clear(); }
+
+    void ArmSelected(const Config& cfg)
+    {
+        // Export the marked set; if nothing is marked, fall back to the cursor draw so a
+        // quick single snap still works without explicitly marking.
+        std::set<DrawKey> set = g_engine.pick_marked;
+        if (set.empty() && HasSelection()) set.insert(g_engine.pick_sel);
+        if (set.empty()) return;
+        g_engine.ResetData();          // clears chunks/stats; pick list + marks survive
+        g_engine.cfg = cfg;
+        g_engine.armed = true;
+        g_engine.recorded = false;
+        g_engine.frames_since_arm = 0;
+        g_engine.capture_selected = true;
+        g_engine.capture_set = std::move(set);
     }
 
     std::vector<MeshChunk>& Chunks() { return g_engine.chunks; }

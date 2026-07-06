@@ -132,6 +132,16 @@ namespace Guildlite {
         Failed,  // armed too long without seeing any triangles
     };
 
+    // One row of the live pick list (Capture::PickRow) -- enough to identify a draw in the
+    // UI without seeing it: triangle/vertex counts, stage-0 texture size, skinned flag.
+    struct PickInfo {
+        uint32_t verts = 0;
+        uint32_t tris = 0;
+        int tex_w = 0;
+        int tex_h = 0;
+        bool skinned = false;
+    };
+
     namespace Capture {
         // Hook / unhook DrawIndexedPrimitive (device vtable[82]). Safe to call once.
         bool Install(IDirect3DDevice9* device);
@@ -141,6 +151,34 @@ namespace Guildlite {
         // Arm a one-frame capture with a private copy of cfg. The next rendered
         // frame is recorded into Chunks(); poll Advance() to learn when it's done.
         void Arm(const Config& cfg);
+
+        // --- Pick mode: interactive single-draw selection ----------------------
+        // While active, the hook enumerates the frame's pickable (depth-tested,
+        // triangle-list) draws into a stable list and tints the selected one green
+        // in-game, so you point at a mesh instead of tuning filters. ArmSelected
+        // then captures exactly that draw -- no isolation, no filter stack. Every
+        // function here is RENDER-THREAD ONLY (call from Exporter::Draw / the panel;
+        // control-file verbs route through request flags Exporter applies there).
+        void PickSetActive(bool on);
+        bool PickActive();
+        void PickSetSkinnedOnly(bool on); // list/cycle only skinned (character) draws
+        bool PickSkinnedOnly();
+        void PickCommit();           // once per frame: age out despawned draws
+        void PickCycle(int delta);   // move the selection within the pickable list
+        void PickSelect(int index);  // select an explicit row
+        int  PickCount();
+        int  PickIndex();            // cursor row within the filtered view, or -1
+        PickInfo PickRow(int index); // metadata for the UI list
+        bool HasSelection();
+        // Multi-select: mark several draws, then snap them all as one export (a whole
+        // character = body + each armor piece + ... = many draws). Cursor + every marked
+        // draw highlights green in-game.
+        void PickToggleMark();          // mark/unmark the cursor draw
+        void PickToggleMarkRow(int index);
+        void PickClearMarks();
+        int  PickMarkedCount();
+        bool PickRowMarked(int index);
+        void ArmSelected(const Config& cfg); // snap the marked set (or the cursor if none marked)
 
         // Call once per plugin Draw (after the world pass). Advances the little
         // state machine and returns the current state.

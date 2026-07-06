@@ -42,6 +42,15 @@ namespace {
     Config pending_cfg;
     GameStateSnapshot pending_snapshot;
 
+    // Pick-mode control-file requests: set by verbs on the stub poll thread, applied on the
+    // render thread in Draw() (the pick list is render-thread-owned). Panel buttons call
+    // Capture directly since the panel is already on the render thread.
+    volatile bool pick_on_req = false, pick_off_req = false, pick_toggle_req = false;
+    volatile int  pick_cycle_req = 0;
+    volatile int  pick_skinned_req = 0; // 0 none, 1 on, 2 off
+    volatile bool pick_mark_req = false, pick_clear_req = false;
+    volatile bool pick_snap_req = false;
+
     std::string status_line = "Ready.";
     CaptureStats last_stats;
     std::string last_output;
@@ -219,6 +228,25 @@ namespace {
         status_line = dry_run ? "Refreshing diagnostics..." : "Capturing next frame...";
     }
 
+    // Snap exactly the draw currently selected in pick mode -- no filter stack, no
+    // isolation; the pick IS the selection. Flushes through the normal capture path.
+    void PickSnap()
+    {
+        if (!Game::Ready()) { status_line = "GWCA not ready -- cannot snap."; return; }
+        if (capture_in_flight) return;
+        if (!Capture::HasSelection()) { status_line = "Pick: nothing selected to snap."; return; }
+        g_config.export_dir = export_dir_buf;
+        pending_dry_run = false;
+        pending_cfg = g_config;
+        pending_snapshot = GameState::Gather(g_config.target);
+        pending_cfg.has_match_pos = false;   // the pick is the filter; isolation not needed
+        pending_cfg.trim_outliers = false;   // export exactly the marked draws, trim nothing
+        pending_cfg.filter_center_radius = 0.f;
+        Capture::ArmSelected(pending_cfg);
+        capture_in_flight = true;
+        status_line = "Snapping selected draw...";
+    }
+
     void FlushCapture(IDirect3DDevice9* device)
     {
         // Drop far-placed effect/billboard fliers before anything else so textures,
@@ -344,6 +372,63 @@ namespace {
             int v = static_cast<int>(g_config.target);
             if (ImGui::Combo("Source", &v, items, 2)) {
                 g_config.target = static_cast<TargetSource>(v);
+            }
+        }
+
+        // --- Pick a draw (interactive select-one) ------------------------------
+        if (ImGui::CollapsingHeader("Pick a draw (point-and-shoot)", ImGuiTreeNodeFlags_DefaultOpen)) {
+            bool active = Capture::PickActive();
+            if (ImGui::Checkbox("Pick mode", &active)) {
+                Capture::PickSetActive(active);
+            }
+            ImGui::TextDisabled("Tints draws GREEN in-game and lists the frame's pickable draws below.\n"
+                                "Click rows (or Prev/Next + Mark) to MARK several -- body + each armor\n"
+                                "piece + weapon -- then Snap exports them together as one model. No\n"
+                                "filters, no isolation: you pick exactly what you want.");
+            if (active) {
+                bool skinned_only = Capture::PickSkinnedOnly();
+                if (ImGui::Checkbox("Skinned only (characters)", &skinned_only)) {
+                    Capture::PickSetSkinnedOnly(skinned_only);
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("cuts scene draws to just characters (turn off for effects/props)");
+                const int n = Capture::PickCount();
+                const int sel = Capture::PickIndex();
+                const int marked = Capture::PickMarkedCount();
+
+                ImGui::BeginDisabled(n == 0);
+                if (ImGui::Button("< Prev")) Capture::PickCycle(-1);
+                ImGui::SameLine();
+                if (ImGui::Button("Next >")) Capture::PickCycle(1);
+                ImGui::SameLine();
+                if (ImGui::Button(Capture::PickRowMarked(sel) ? "Unmark" : "Mark")) Capture::PickToggleMark();
+                ImGui::SameLine();
+                ImGui::Text("cursor %d/%d  |  marked %d", (sel < 0) ? 0 : sel + 1, n, marked);
+                ImGui::EndDisabled();
+
+                const bool loading = gw_ready && GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading;
+                const int to_snap = (marked > 0) ? marked : (Capture::HasSelection() ? 1 : 0);
+                ImGui::BeginDisabled(marked == 0);
+                if (ImGui::Button("Clear marks")) Capture::PickClearMarks();
+                ImGui::EndDisabled();
+                ImGui::SameLine();
+                ImGui::BeginDisabled(!gw_ready || loading || capture_in_flight || to_snap == 0);
+                char snaplabel[64];
+                _snprintf_s(snaplabel, sizeof(snaplabel), _TRUNCATE, "Snap %d draw%s", to_snap, to_snap == 1 ? "" : "s");
+                if (ImGui::Button(snaplabel, ImVec2(-1, 0))) PickSnap();
+                ImGui::EndDisabled();
+
+                ImGui::BeginChild("pick_list", ImVec2(0, 150), true);
+                for (int i = 0; i < n; ++i) {
+                    const PickInfo r = Capture::PickRow(i);
+                    const bool mk = Capture::PickRowMarked(i);
+                    char label[176];
+                    _snprintf_s(label, sizeof(label), _TRUNCATE, "%s #%d   %u tris  %u verts   %dx%d%s",
+                                mk ? "[x]" : "[ ]", i, r.tris, r.verts, r.tex_w, r.tex_h, r.skinned ? "  skinned" : "");
+                    // Click focuses the row (green preview) and toggles its export mark.
+                    if (ImGui::Selectable(label, mk || i == sel)) { Capture::PickSelect(i); Capture::PickToggleMarkRow(i); }
+                }
+                ImGui::EndChild();
             }
         }
 
@@ -607,6 +692,18 @@ namespace Exporter {
             Capture::Install(device);
         }
 
+        // Apply queued pick-mode requests from control-file verbs, then age the pick list.
+        // Before the window-visibility check so pick works even with the panel hidden.
+        if (pick_on_req)     { pick_on_req = false;     Capture::PickSetActive(true); }
+        if (pick_off_req)    { pick_off_req = false;    Capture::PickSetActive(false); }
+        if (pick_toggle_req) { pick_toggle_req = false; Capture::PickSetActive(!Capture::PickActive()); }
+        if (pick_cycle_req)  { const int d = pick_cycle_req; pick_cycle_req = 0; Capture::PickCycle(d); }
+        if (pick_skinned_req) { Capture::PickSetSkinnedOnly(pick_skinned_req == 1); pick_skinned_req = 0; }
+        if (pick_mark_req)   { pick_mark_req = false;  Capture::PickToggleMark(); }
+        if (pick_clear_req)  { pick_clear_req = false; Capture::PickClearMarks(); }
+        if (pick_snap_req)   { pick_snap_req = false; PickSnap(); }
+        Capture::PickCommit();
+
         if (capture_in_flight) {
             const CaptureState st = Capture::Advance();
             if (st == CaptureState::Ready) {
@@ -661,6 +758,24 @@ namespace Exporter {
         if (cmd == "set" && tok.size() >= 3)     { SetConfig(tok[1], tok[2]); return; }
         if (cmd == "target" && tok.size() >= 2)  { SetConfig("target", tok[1]); return; }
         if (cmd == "profile" && tok.size() >= 2) { ApplyProfile(tok[1]); return; }
+        // Pick mode: verbs set request flags the render thread applies (Draw), since the
+        // pick list is render-thread-owned. "snap" grabs the currently selected draw.
+        if (cmd == "pick") {
+            const std::string a = (tok.size() >= 2) ? tok[1] : "toggle";
+            if      (a == "on")     pick_on_req = true;
+            else if (a == "off")    pick_off_req = true;
+            else if (a == "toggle") pick_toggle_req = true;
+            else if (a == "next")   pick_cycle_req += 1;
+            else if (a == "prev")   pick_cycle_req -= 1;
+            else if (a == "skinned") { pick_skinned_req = (tok.size() >= 3 && (tok[2] == "off" || tok[2] == "0")) ? 2 : 1; }
+            else if (a == "mark")    pick_mark_req = true;
+            else if (a == "clear" || a == "unmark") pick_clear_req = true;
+            else GL_DLLLOG("Exporter::Command: unknown pick arg '%s'", a.c_str());
+            return;
+        }
+        if (cmd == "mark")  { pick_mark_req = true; return; }
+        if (cmd == "clear") { pick_clear_req = true; return; }
+        if (cmd == "snap")  { pick_snap_req = true; return; }
         // Capture verbs -- guarded so they no-op during a map load or an in-flight grab.
         // Short-circuit protects GetInstanceType() from being called before GWCA is up.
         const bool loading = !Game::Ready() || GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading;
