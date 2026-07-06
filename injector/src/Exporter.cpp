@@ -122,6 +122,7 @@ namespace {
         else if (key == "export_uvs")             { if (isb) g_config.export_uvs = b; }
         else if (key == "export_textures")        { if (isb) g_config.export_textures = b; }
         else if (key == "log_draws")              { if (isb) g_config.log_draws = b; }
+        else if (key == "export_skin_weights")    { if (isb) g_config.export_skin_weights = b; }
         else if (key == "probe_shader_constants") { if (isb) g_config.probe_shader_constants = b; }
         else if (key == "filter_max_extent")      { g_config.filter_max_extent = fv; }
         else if (key == "filter_min_thickness")   { g_config.filter_min_thickness = fv; }
@@ -484,8 +485,13 @@ namespace {
             else {
                 ImGui::TextDisabled(gw_ready ? "No agent selected." : "GWCA not ready.");
             }
+            ImGui::Checkbox("Export skin weights (#vbld)", &g_config.export_skin_weights);
+            ImGui::TextDisabled("Writes each vertex's 4 bone-palette indices + weights into the OBJ as\n"
+                                "'#vbld' comment lines -- the mesh->bone binding needed to re-rig/pose the\n"
+                                "export later. GW packs the indices in a D3DCOLOR; enable Probe to also dump\n"
+                                "the bone transforms (VS constants) to the manifest.");
             ImGui::TextWrapped("A live grab is the current pose. GW skins in a vertex shader and exposes "
-                               "no skeleton, so animation-frame export is future (DAT/memory) work.");
+                               "no skeleton, so full animation-frame export is future (DAT/memory) work.");
         }
 
         // --- Output path -------------------------------------------------------
@@ -585,9 +591,15 @@ namespace Exporter {
     void Init()
     {
         Settings::Load(g_config);
+        // Reopen the exporter window on every load/reload: the window's close box persists
+        // its hidden state, and Gw.exe has no menu to reopen it, so a saved "closed" would
+        // strand the panel. The overlay's bottom-left panel bar can hide it again at will.
+        g_config.window_visible = true;
         _snprintf_s(export_dir_buf, sizeof(export_dir_buf), _TRUNCATE, "%s", g_config.export_dir.c_str());
         GL_DLLLOG("Exporter::Init: settings loaded (dir='%s')", g_config.export_dir.c_str());
     }
+
+    bool& WindowVisible() { return g_config.window_visible; }
 
     void Draw(IDirect3DDevice9* device)
     {

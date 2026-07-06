@@ -30,6 +30,7 @@ namespace {
     WNDPROC  g_origWndProc   = nullptr;
     bool     g_imguiReady    = false;
     bool     g_showDemo      = false;
+    bool     g_showOverlay   = true;   // the status window; toggled from the panel bar
     bool     g_selfUnload    = true;   // monolith frees itself; the hosted core lets the stub do it
     volatile bool g_unload   = false;
     volatile bool g_tornDown = false;
@@ -120,11 +121,49 @@ namespace {
         return pressed;
     }
 
+    // One toggle button per Guildlite panel; highlighted when the panel is open, so the bar
+    // doubles as an at-a-glance readout of what's showing. `state` is the panel's live flag.
+    void PanelToggle(const char* label, bool& state)
+    {
+        const bool on = state;
+        if (on) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+        if (ImGui::Button(label)) state = !state;
+        if (on) ImGui::PopStyleColor();
+    }
+
+    // Always-visible strip pinned to the bottom-left, padded right of Gw.exe's own "Menu"
+    // button so it never covers it. The one piece of chrome that can't be closed -- it is how
+    // you reopen any Guildlite panel from inside the game (Gw.exe offers no menu for that).
+    void DrawPanelBar()
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        const float menu_clear = 120.f; // clear GW's bottom-left Menu button
+        const float margin = 6.f;
+        ImGui::SetNextWindowPos(ImVec2(menu_clear, io.DisplaySize.y - margin),
+                                ImGuiCond_Always, ImVec2(0.f, 1.f)); // bottom-left pivot
+        ImGui::SetNextWindowBgAlpha(0.65f);
+        const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                                       ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar |
+                                       ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoFocusOnAppearing |
+                                       ImGuiWindowFlags_NoMove;
+        if (ImGui::Begin("##guildlite-panelbar", nullptr, flags)) {
+            ImGui::TextUnformatted("Guildlite");
+            ImGui::SameLine();
+            PanelToggle("Exporter", Exporter::WindowVisible());
+            ImGui::SameLine();
+            PanelToggle("Overlay", g_showOverlay);
+            ImGui::SameLine();
+            PanelToggle("Demo", g_showDemo);
+        }
+        ImGui::End();
+    }
+
     void DrawUI()
     {
+      if (g_showOverlay) {
         ImGui::SetNextWindowSize(ImVec2(360, 220), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_FirstUseEver);
-        if (ImGui::Begin("Guildlite - overlay")) {
+        if (ImGui::Begin("Guildlite - overlay", &g_showOverlay)) {
             ImGui::Text("In-game overlay is LIVE (own injector, own D3D9 hook).");
             ImGui::Text("frame %u   %.1f FPS", g_frame, ImGui::GetIO().Framerate);
             ImGui::Text("GWCA: %s", Game::Ready() ? "ready" : "initialising...");
@@ -145,6 +184,7 @@ namespace {
             }
         }
         ImGui::End();
+      }
         if (g_showDemo) ImGui::ShowDemoWindow(&g_showDemo);
     }
 
@@ -180,6 +220,7 @@ namespace {
             ImGui_ImplDX9_NewFrame();
             ImGui_ImplWin32_NewFrame();
             ImGui::NewFrame();
+            DrawPanelBar();       // always-visible bottom-left panel toggles (reopen any window)
             DrawUI();             // overlay status strip
             Exporter::Draw(dev);  // model-exporter window + capture state machine (installs the DIP hook)
             ImGui::Render();

@@ -12,4 +12,5 @@ namespace Exporter {
     void Draw(IDirect3DDevice9* device);  // per-frame: install-if-needed, advance capture, draw window
     void Shutdown();                      // save settings + remove the capture hook
     void Command(const char* verb);       // SSH/stub-driven: "capture" | "capture-dry"
+    bool& WindowVisible();                // the exporter window's open flag -- for the overlay's panel bar
 }
