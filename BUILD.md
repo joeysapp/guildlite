@@ -1,28 +1,30 @@
-OBInvestigate the layer injected into the Guild Wars DX9 client and (if possible) build a Metal-compatible build into ./build.sh that creates a Mac GUI application to use the tool without a Guild Wars client. 
+Review ModelMod submodule for relevant information and potential breakthroughs for current model-export work (reliable, clean, target exports in a single snapshot button) [NOTE: Submodule checked out to main with DX11 code - seems to be 1.2.x is DX11 alpha, 1.1.x is 64bit support, 1.0.x is base, may need to search GH release notes for last known DX9 build/best release to use in reference https://github.com/jmquigs/ModelMod/releases?page=1]
 
-The intent is both developmental (build/test ImGui functionality) and functional. A primary use case: GUI control of injected Windows clients from macOS GUI. Stub injection and ideated 'dual-threaded' concepts could allow for reliable, live reloading of code and more.
+# Background
+Last state of model exporting (first tooling provided by the Guildlite dll) was using A/B analysis and review of settings (./renders/MODEL-EXPORT-SETTINGS.md) There has been progress made and a classified and manually-confirmed models+renders+settings is in progress at ./RENDER-FEEDBACK (classifying output from `dev-tool` runs, an AI-driven visual inspection tool intended for general usage in Guildlite development.)
 
-Consider fully the project state and focus on lightweight development/testing. We currently have a one-liner to reboot a dll, but nothing more:
-```
-# Reboot
-printf 'reboot\ncapture\n' > /tmp/gl-control; scp -q /tmp/gl-control guildlite-win:Documents/guildlite/control
+Before `tools/dev-tool` work is continued/refined/flattened it seems prudent to consider the ModelMod DX9 prior work for relevant help. It may be tertiary information for us - is there a chance we've gone about exporting wrong with vertex-shader approach instead of DAT exporing/otherwise? The model-exporter is certainly robust and promising (actual rendering) but if we can do exporting easier, consider that as a leapfrog. Consider that the "solo export" current goal could be done simply, then we pivot our renderer to be game-world/full renderer and export tool (all under the same hood.) Investigate.
 
-# Turn off
-printf 'off\ncapture\n' > /tmp/gl-control; scp -q /tmp/gl-control guildlite-win:Documents/guildlite/control
+# Initial Thoughts
+Cursory glance-over of several readmes:
+- Almost every markdown document has random newline breaks throughout. Looks like comments from a 80char maximum line length dev. Suggest to sanitize markdowns first if a possible issue, there is none of that here ever, there is a lot in this repo to go over
+- Dev notes make note of Rust-based global memory usage for a lot of the logic - unclear if this is a blocker for us as well
+- Note of software not working if a D3D9 renderer is used. Unclear if a blocker
+- Dev notes have interesting info about verts/skeleton rigging - as background for Guildlite, initial intent was a cross-platform renderer for GW - deemed low reward s.t. we are now completely reliant on D9 and the Windows client (fine as of now, just an inkling of "hmm.." for interest.)
+ - **Importing** models is assuredly an interesting proposition (Prop Hunt, games, fun) but exporting and getting our exporting logic perfected is the priority. Things like **shader hooks** and novel player-facing config is more intriuging (perfect example: Minecraft Acid Shaders 2011)
+- The vertices discussion is very intriuging and sounds like a starting point for animations/skeleton capability (devguide MeshRelation note)
+- The snapshot explanation in the developer guide is very informative for our current state and specific struggles (placement and selection of things, prior attempts like iso=)
+ - The screenshot and AI/human verification pipeline built for this capability is now more interesting reading the difficulties injection-based coding inherently has been driven. Curious to see if any past blockers/thought-impossible/too-much-time features could now be worked towards with the feature-agnostic loop chain we have built/been building.
+- **Question**: If / when model isolation is achieved, how granular are these models and meshes and geometries? Could we export an entire character as-is + their separated armor + weapon models at once? 
+- Note of the .mm... proprietary formats. Realizing we are ourselves doing some of this - I would imagine our best path for just _exporting_ would be human-readable for animation/node/skeleton information but - first foray into animation and how getting this information from live memory is "not simple (but probably doable.)"
+-# p.s. .. BatGuano? a joke? (unimportant question, just an eyebrow raiser)
 
-# Turn on - not sure if core is providing this
-printf 'on\ncapture\n' > /tmp/gl-control; scp -q /tmp/gl-control guildlite-win:Documents/guildlite/control
-```
+**Background: Returned home, have Windows machine w/ Gw.exe. May need refresher/cleanup of tools to get build injected for output information / let us watch it for this build**
 
-# OPEN QUESTION
-The Metal-GUI control from macOS was generally confirmed but an open idea/lower priority, but high interest and same ask: what about the exact same for iOS? In past experience this would expand the macOS build to an xcodeproj build no? An Apple Developer account to boot to iPhone?
+# Project Relevant Documents
+./README.md, ROADMAP.md, INJECTOR.md - Current state of beginning lightweight injector using GWCA and network protocols for macOS -> Windows dev
 
-Between a "no, not possible" and "yes, but harder" - am open to discussion. Complete macOS user and walled-garden user - the Linux space for Guild Wars is being opened but have seen no tooling or even mention of macOS. Admittedly this 'headless'/Guild Wars-less Guildlite surface will be more for development at first, it seems like a fun iOS experiment if it wouldn't be a headache/not worth the effort.
-
-**Background: developing on the go, desktop/Windows computer is at home and did not set tunneling up - as a result, none of the gw-tool/Gw.exe tests and verifications will work and is OK.**
-
-
-## NEXT BUILD
-- Review ModelMod submodule for relevant information and potential breakthroughs for current model-export work (reliable, clean, target exports in a single snapshot button) [NOTE: Submodule checked out to main with DX11 code, may need to search GH release notes for last known DX9 build.]
- - Background: Last state of model exporting (first tooling provided by the Guildlite dll) was using A/B analysis and review of settings (./renders/MODEL-EXPORT-SETTINGS.md) There has been progress made and a classified and manually-confirmed models+renders+settings is in progress at ./RENDER-FEEDBACK (classifying output from `dev-tool` runs, an AI-driven visual inspection tool intended for general usage in Guildlite development.)
- - Before `dev-tool` work is continued it seems prudent to consider the ModelMod DX9 prior work for relevant help. It may be tertiary information for us - is there a chance we've gone about exporting wrong with vertex-shader approach instead of DAT exporing/otherwise? The model-exporter is certainly robust and promising (actual rendering) but if we can do exporting easier, consider that as a leapfrog. Consider that the "solo export" current goal could be done simply, then we pivot our renderer to be game-world/full renderer and export tool (all under the same hood.) Investigate.
+# After Models - Priorities
+1. Refine UI (Gw.exe and macOS build) - Basic bottom-left (~120px padded left to not block Gw menu) toggle menu to open and close all windows
+  - NOTE: Bug in Gw.exe where mouse captures are not perfect - can embellish in following build doc.
+2. Freecam tool
