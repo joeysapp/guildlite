@@ -154,6 +154,12 @@ namespace Guildlite {
         // GW skins in a vertex shader, so a live grab is the bind/current pose only.
         // Recorded in the manifest for provenance; frame-series export is future work.
         bool capture_pose_note = true;
+        // Emit per-vertex bone indices + weights as "#vbld" comment lines in the OBJ (the
+        // skinning substrate ModelMod preserves in .mmobj). GW packs 4 bone-palette indices
+        // per vertex into a D3DCOLOR; capturing them is the mesh->bone binding needed to
+        // re-rig/pose the export later. The bone transforms themselves are in the VS
+        // constant palette (enable Probe to dump it). Off => a plain, unskinned OBJ.
+        bool export_skin_weights = true;
     };
 
 } // namespace Guildlite

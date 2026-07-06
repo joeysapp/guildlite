@@ -30,6 +30,16 @@ namespace Guildlite {
         std::vector<float> uvs;       // 2 per vertex, or empty if the format had none
         std::vector<uint32_t> indices; // triangle list, 0-based within this chunk
 
+        // Per-vertex skinning (up to 4 bones/vertex), captured when the vertex layout
+        // carries bone data; empty for static geometry. GW packs 4 bone-palette indices
+        // into a D3DCOLOR beta (XYZB1 + LASTBETA_D3DCOLOR) with implicit rigid weighting;
+        // other layouts may carry explicit BLENDWEIGHT floats. This is the mesh->bone
+        // *binding* half of the animation substrate -- the bone transforms themselves live
+        // in the vertex-shader constant palette (see ProbeSample). Preserving it here is
+        // what lets a captured mesh be re-rigged/posed later instead of being a dead T-pose.
+        std::vector<uint8_t> blend_indices; // 4 per vertex (indices into the bone palette)
+        std::vector<float> blend_weights;   // 4 per vertex (0..1; (1,0,0,0) when implicit)
+
         uint32_t draw_index = 0; // Nth accepted draw this frame (stable-ish object id)
         uint32_t stride = 0;
         uint32_t fvf = 0;

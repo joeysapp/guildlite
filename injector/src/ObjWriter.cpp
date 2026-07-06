@@ -77,8 +77,29 @@ namespace ObjWriter {
             }
         }
 
+        // Skin weights are emitted as "#vbld" comment lines interleaved with the vertices
+        // (standard OBJ ignores them; a mmobj-style importer can read them). Announce the
+        // format once at the top if any chunk actually carries them.
+        bool any_blend = false;
+        if (cfg.export_skin_weights) {
+            for (const auto& c : chunks) {
+                const size_t nv = c.positions.size() / 3;
+                if (nv > 0 && c.blend_indices.size() == nv * 4 && c.blend_weights.size() == nv * 4) {
+                    any_blend = true;
+                    break;
+                }
+            }
+        }
+
         out << "# Guildlite model snapshot\n";
         out << "# objects: " << chunks.size() << "\n";
+        if (any_blend) {
+            out << "# skin: a '#vbld i0 w0 i1 w1 i2 w2 i3 w3' line after each 'v' gives that\n";
+            out << "#   vertex's 4 bone-palette indices + weights (GW packs the indices in a\n";
+            out << "#   D3DCOLOR; weight is 1,0,0,0 when rigidly bound to one bone). The bone\n";
+            out << "#   transforms live in GW's vertex-shader constant palette -- see the .json\n";
+            out << "#   manifest (probe[]) captured alongside this file.\n";
+        }
         if (!materials.empty()) {
             const std::string mtl_name(mtl_path.filename().string());
             out << "mtllib " << mtl_name << "\n";
@@ -92,6 +113,9 @@ namespace ObjWriter {
             }
             const bool has_uv = want_uv && c.uvs.size() == nverts * 2;
             const bool has_normal = want_normal && c.normals.size() == nverts * 3;
+            const bool has_blend = cfg.export_skin_weights &&
+                                   c.blend_indices.size() == nverts * 4 &&
+                                   c.blend_weights.size() == nverts * 4;
 
             out << "o object_" << c.draw_index << "\n";
             if (want_tex && !c.texture_file.empty()) {
@@ -102,6 +126,14 @@ namespace ObjWriter {
                 float x = c.positions[i * 3 + 0], y = c.positions[i * 3 + 1], z = c.positions[i * 3 + 2];
                 RemapUp(cfg.up_axis, x, y, z);
                 out << "v " << x << ' ' << y << ' ' << z << "\n";
+                if (has_blend) {
+                    out << "#vbld";
+                    for (int k = 0; k < 4; ++k) {
+                        out << ' ' << static_cast<unsigned>(c.blend_indices[i * 4 + k])
+                            << ' ' << c.blend_weights[i * 4 + k];
+                    }
+                    out << "\n";
+                }
             }
             if (has_uv) {
                 for (size_t i = 0; i < nverts; ++i) {

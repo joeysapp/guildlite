@@ -23,6 +23,15 @@ namespace {
         int uv_type = 0;      // D3DDECLTYPE_* for the uv element (0 => FLOAT2 assumed)
         bool transformed = false; // XYZRHW -> screen space, not a model
         bool has_blend = false;   // bone blend weights/indices present -> skinned character
+        // Skinning source, if any (offsets into one vertex; -1 = absent). GW carries bone
+        // indices in a D3DCOLOR beta and NO explicit weights; other games use a
+        // BLENDINDICES + BLENDWEIGHT element pair. Both are decoded into 4 idx + 4 weights.
+        // Indices are read in raw byte order so index slot k pairs with weight slot k; GW's
+        // single rigid bone sits in byte 0, which lands in slot 0 with the implicit weight 1
+        // (verified against a live capture: byte 0 held the varying bone, bytes 1-3 were 0).
+        int blend_idx_offset = -1;    // 4 bone indices (one byte each, raw order)
+        int blend_wt_offset = -1;     // explicit per-vertex weights, or -1 if implicit
+        int blend_wt_type = 0;        // D3DDECLTYPE_* of the weight element
     };
 
     float HalfToFloat(const uint16_t h)
@@ -77,6 +86,13 @@ namespace {
             if (e.Usage == D3DDECLUSAGE_BLENDWEIGHT || e.Usage == D3DDECLUSAGE_BLENDINDICES) {
                 out.has_blend = true; // skinned mesh (bones), not static world geometry
             }
+            if (e.Usage == D3DDECLUSAGE_BLENDINDICES && e.UsageIndex == 0) {
+                out.blend_idx_offset = e.Offset;
+            }
+            else if (e.Usage == D3DDECLUSAGE_BLENDWEIGHT && e.UsageIndex == 0) {
+                out.blend_wt_offset = e.Offset;
+                out.blend_wt_type = e.Type;
+            }
             if (e.Usage == D3DDECLUSAGE_POSITION && e.UsageIndex == 0) {
                 if (e.Type == D3DDECLTYPE_FLOAT3 || e.Type == D3DDECLTYPE_FLOAT4) {
                     out.pos_offset = e.Offset;
@@ -103,21 +119,38 @@ namespace {
     {
         const DWORD pos = fvf & D3DFVF_POSITION_MASK;
         int offset = 0;
+        int beta = 0; // XYZB beta DWORD count (0 = unskinned)
         switch (pos) {
             case D3DFVF_XYZ:    offset = 12; break;
             case D3DFVF_XYZRHW: offset = 16; out.transformed = true; break;
             case D3DFVF_XYZW:   offset = 16; break;
             // XYZB* carry per-vertex bone blend weights/indices => a skinned character.
-            case D3DFVF_XYZB1:  offset = 12 + 4;  out.has_blend = true; break;
-            case D3DFVF_XYZB2:  offset = 12 + 8;  out.has_blend = true; break;
-            case D3DFVF_XYZB3:  offset = 12 + 12; out.has_blend = true; break;
-            case D3DFVF_XYZB4:  offset = 12 + 16; out.has_blend = true; break;
-            case D3DFVF_XYZB5:  offset = 12 + 20; out.has_blend = true; break;
+            case D3DFVF_XYZB1:  offset = 12 + 4;  beta = 1; out.has_blend = true; break;
+            case D3DFVF_XYZB2:  offset = 12 + 8;  beta = 2; out.has_blend = true; break;
+            case D3DFVF_XYZB3:  offset = 12 + 12; beta = 3; out.has_blend = true; break;
+            case D3DFVF_XYZB4:  offset = 12 + 16; beta = 4; out.has_blend = true; break;
+            case D3DFVF_XYZB5:  offset = 12 + 20; beta = 5; out.has_blend = true; break;
             default: return false;
         }
         out.pos_offset = 0; // xyz is always the first three floats
         if (out.transformed) {
             return true; // screen-space; caller will drop it
+        }
+        // The beta DWORDs sit at [12, 12+4*beta). If a LASTBETA flag is set the final one
+        // is 4 packed bone indices (D3DCOLOR or UBYTE4) and the earlier betas are float
+        // weights; otherwise all betas are float weights. GW is XYZB1 + LASTBETA_D3DCOLOR:
+        // one beta = 4 D3DCOLOR bone indices, no explicit weights (rigid, shader-applied).
+        if (beta > 0) {
+            const bool last_color = (fvf & D3DFVF_LASTBETA_D3DCOLOR) != 0;
+            const bool last_ubyte = (fvf & D3DFVF_LASTBETA_UBYTE4) != 0;
+            const int wt_floats = (last_color || last_ubyte) ? (beta - 1) : beta;
+            if (wt_floats > 0) {
+                out.blend_wt_offset = 12;
+                out.blend_wt_type = D3DDECLTYPE_FLOAT1 + (std::min)(wt_floats, 4) - 1;
+            }
+            if (last_color || last_ubyte) {
+                out.blend_idx_offset = 12 + (beta - 1) * 4; // 4 packed bone indices (raw byte order)
+            }
         }
         if (fvf & D3DFVF_NORMAL) { out.normal_offset = offset; offset += 12; }
         if (fvf & D3DFVF_PSIZE) { offset += 4; }
@@ -292,6 +325,8 @@ namespace {
         int attr_end = layout.pos_offset + 12;
         if (layout.normal_offset >= 0) attr_end = (std::max)(attr_end, layout.normal_offset + 12);
         if (layout.uv_offset >= 0) attr_end = (std::max)(attr_end, layout.uv_offset + 8);
+        if (layout.blend_idx_offset >= 0) attr_end = (std::max)(attr_end, layout.blend_idx_offset + 4);
+        if (layout.blend_wt_offset >= 0) attr_end = (std::max)(attr_end, layout.blend_wt_offset + 16);
         if (ok) {
             const size_t last_vertex_byte = stream_offset +
                 static_cast<size_t>(first_abs + static_cast<long long>(NumVertices) - 1) * stride +
@@ -312,6 +347,11 @@ namespace {
                 chunk.positions.reserve(NumVertices * 3);
                 const bool want_normal = layout.normal_offset >= 0;
                 const bool want_uv = layout.uv_offset >= 0;
+                const bool want_blend = (layout.blend_idx_offset >= 0 || layout.blend_wt_offset >= 0);
+                if (want_blend) {
+                    chunk.blend_indices.reserve(static_cast<size_t>(NumVertices) * 4);
+                    chunk.blend_weights.reserve(static_cast<size_t>(NumVertices) * 4);
+                }
                 float mn[3] = {0, 0, 0}, mx[3] = {0, 0, 0};
                 for (UINT v = 0; v < NumVertices; ++v) {
                     const uint8_t* vp = vbytes + static_cast<size_t>(v) * stride;
@@ -339,6 +379,38 @@ namespace {
                             chunk.uvs.push_back(t[0]);
                             chunk.uvs.push_back(t[1]);
                         }
+                    }
+                    if (want_blend) {
+                        uint8_t bi[4] = {0, 0, 0, 0};
+                        float bw[4] = {0.f, 0.f, 0.f, 0.f};
+                        if (layout.blend_idx_offset >= 0) {
+                            const uint8_t* q = vp + layout.blend_idx_offset;
+                            bi[0] = q[0]; bi[1] = q[1]; bi[2] = q[2]; bi[3] = q[3];
+                        }
+                        if (layout.blend_wt_offset >= 0) {
+                            const uint8_t* q = vp + layout.blend_wt_offset;
+                            const float* f = reinterpret_cast<const float*>(q);
+                            switch (layout.blend_wt_type) {
+                                case D3DDECLTYPE_FLOAT1: bw[0] = f[0]; break;
+                                case D3DDECLTYPE_FLOAT2: bw[0] = f[0]; bw[1] = f[1]; break;
+                                case D3DDECLTYPE_FLOAT3:
+                                    bw[0] = f[0]; bw[1] = f[1]; bw[2] = f[2];
+                                    bw[3] = (std::max)(0.f, 1.f - (bw[0] + bw[1] + bw[2])); // implicit 4th
+                                    break;
+                                case D3DDECLTYPE_FLOAT4:
+                                    bw[0] = f[0]; bw[1] = f[1]; bw[2] = f[2]; bw[3] = f[3]; break;
+                                // Weight bytes are read in the same raw order as the indices so
+                                // weight slot k stays paired with bone slot k.
+                                case D3DDECLTYPE_UBYTE4N:
+                                case D3DDECLTYPE_D3DCOLOR:
+                                    for (int k = 0; k < 4; ++k) bw[k] = q[k] / 255.f; break;
+                                default: bw[0] = 1.f; break;
+                            }
+                        }
+                        else {
+                            bw[0] = 1.f; // indices only (GW rigid): full weight on the first bone
+                        }
+                        for (int k = 0; k < 4; ++k) { chunk.blend_indices.push_back(bi[k]); chunk.blend_weights.push_back(bw[k]); }
                     }
                 }
                 for (int k = 0; k < 3; ++k) { chunk.aabb_min[k] = mn[k]; chunk.aabb_max[k] = mx[k]; }

@@ -31,6 +31,7 @@ struct ManifestChunk {
                             // when drop_effects is off, so the cull rule can be verified/tuned.
     bool has_uv = false;
     bool has_normal = false;
+    bool weighted = false;  // per-vertex bone indices+weights captured (exported as #vbld)
     std::string texture_file;
     uint32_t texture_format = 0;
     int texture_w = 0;
@@ -272,7 +273,10 @@ namespace GameState {
                       "triangle-typed subset -- these are NOT decoded yet. A large dip_trianglestrip/fan or "
                       "*_tris count is where the never-captured bare-skin body is going.";
         m.pose_note = "Live grab is the current bind/animation pose only; GW skins in a vertex shader "
-                      "and GWCA exposes no skeleton. model_state/animation_id record the pose for provenance.";
+                      "and GWCA exposes no skeleton. model_state/animation_id record the pose for provenance. "
+                      "Per-vertex bone indices+weights (chunk.weighted) are exported as OBJ #vbld lines when "
+                      "export_skin_weights is on -- that is the mesh->bone binding; the bone transforms are in "
+                      "the vertex-shader palette (enable probe_shader_constants to dump probe[]).";
         m.probe_note = "probe[].regs lists the first 96 vertex-shader constant registers c0..c95 (see each "
                        "probe's reg_count), one float4 per register. GW view is c0-c3, projection c4-c7; find "
                        "the register whose translation row tracks subject.pos_* (x,y = pos_x,pos_y; height = "
@@ -320,6 +324,7 @@ namespace GameState {
             mc.is_effect = c.is_effect;
             mc.has_uv = !c.uvs.empty();
             mc.has_normal = !c.normals.empty();
+            mc.weighted = !c.blend_weights.empty();
             mc.texture_file = c.texture_file;
             mc.texture_format = c.texture_format;
             mc.texture_w = c.texture_w;
