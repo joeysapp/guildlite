@@ -742,7 +742,13 @@ namespace {
                 const bool loading = gw_ready && GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading;
                 const int to_snap = (marked > 0) ? marked : (Capture::HasSelection() ? 1 : 0);
                 ImGui::BeginDisabled(n == 0);
-                if (ImGui::Button("Mark all in view")) Capture::PickMarkAllFiltered();
+                if (ImGui::Button("Mark all in view")) {
+                    for (int i = 0; i < n; ++i) {           // mark every NON-excluded visible row
+                        const PickInfo r = Capture::PickRow(i);
+                        if (ExclContains(g_config.exclude_list, r.tris, r.verts)) continue;
+                        if (!Capture::PickRowMarked(i)) Capture::PickToggleMarkRow(i);
+                    }
+                }
                 ImGui::EndDisabled();
                 ImGui::SameLine();
                 ImGui::BeginDisabled(marked == 0);
@@ -763,63 +769,71 @@ namespace {
                 if (ImGui::Button(snaplabel, ImVec2(-1, 0))) PickSnap();
                 ImGui::EndDisabled();
 
-                ImGui::TextDisabled("Per row:  [x] never-export toggle | label (click to name) | the draw.");
-                ImGui::BeginChild("pick_list", ImVec2(0, 175), true);
+                ImGui::TextDisabled("Per row:  [mark] [never-export] | label | the draw.   Excluded rows sink to the bottom.");
+                ImGui::BeginChild("pick_list", ImVec2(0, 180), true);
                 static uint32_t label_edit = 0;   // r.id whose label is being edited (0 = none)
                 static char label_buf[48] = {};
                 static bool label_focus = false;
-                for (int i = 0; i < n; ++i) {
-                    const PickInfo r = Capture::PickRow(i);
-                    const bool mk = Capture::PickRowMarked(i);
-                    const bool cur = (i == sel);
-                    char key[32];
-                    _snprintf_s(key, sizeof(key), _TRUNCATE, "%ux%u", r.tris, r.verts);
-                    const bool excl = ExclContains(g_config.exclude_list, r.tris, r.verts);
-                    ImGui::PushID(static_cast<int>(r.id));
-                    // [x] never-export toggle -> the global, persisted exclude list.
-                    bool ex = excl;
-                    if (ImGui::Checkbox("##excl", &ex)) {
-                        ExclToggle(g_config.exclude_list, r.tris, r.verts);
-                        _snprintf_s(exclude_buf, sizeof(exclude_buf), _TRUNCATE, "%s", g_config.exclude_list.c_str());
-                        Settings::Save(g_config);
-                    }
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Never export this tris x verts (global, persisted)");
-                    ImGui::SameLine();
-                    // Label: click to edit; Enter or click-away commits. Keyed by tris x verts, so
-                    // it sticks to that mesh across captures and is saved to settings.json.
-                    const auto lit = g_config.mesh_labels.find(key);
-                    const std::string cur_label = (lit != g_config.mesh_labels.end()) ? lit->second : std::string();
-                    ImGui::SetNextItemWidth(80.f);
-                    if (label_edit == r.id) {
-                        if (label_focus) { ImGui::SetKeyboardFocusHere(); label_focus = false; }
-                        const bool enter = ImGui::InputText("##lbl", label_buf, sizeof(label_buf),
-                                                            ImGuiInputTextFlags_EnterReturnsTrue);
-                        if (enter || ImGui::IsItemDeactivated()) {
-                            if (label_buf[0]) g_config.mesh_labels[key] = label_buf;
-                            else g_config.mesh_labels.erase(key);
+                // Two passes: kept rows first, excluded rows sunk to the bottom (both in stable id
+                // order). Exclude state is the UI's (g_config), so the sort happens here.
+                for (int pass = 0; pass < 2; ++pass) {
+                    for (int i = 0; i < n; ++i) {
+                        const PickInfo r = Capture::PickRow(i);
+                        char key[32];
+                        _snprintf_s(key, sizeof(key), _TRUNCATE, "%ux%u", r.tris, r.verts);
+                        const bool excl = ExclContains(g_config.exclude_list, r.tris, r.verts);
+                        if ((pass == 0) == excl) continue;         // pass 0 keeps, pass 1 = excluded
+                        const bool mk = Capture::PickRowMarked(i);
+                        const bool cur = (i == sel);
+                        ImGui::PushID(static_cast<int>(r.id));
+                        // col 1: MARK (green in-game; the Snap export set)
+                        bool m = mk;
+                        if (ImGui::Checkbox("##mark", &m)) Capture::PickToggleMarkRow(i);
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Mark for a Snap (green in-game)");
+                        ImGui::SameLine();
+                        // col 2: NEVER-EXPORT (global, persisted; wins over marks + sinks the row)
+                        bool ex = excl;
+                        if (ImGui::Checkbox("##excl", &ex)) {
+                            ExclToggle(g_config.exclude_list, r.tris, r.verts);
+                            _snprintf_s(exclude_buf, sizeof(exclude_buf), _TRUNCATE, "%s", g_config.exclude_list.c_str());
                             Settings::Save(g_config);
-                            label_edit = 0;
                         }
-                    }
-                    else {
-                        char btn[64];
-                        _snprintf_s(btn, sizeof(btn), _TRUNCATE, "%-9s##lb", cur_label.empty() ? "label..." : cur_label.c_str());
-                        if (ImGui::Button(btn)) {
-                            label_edit = r.id; label_focus = true;
-                            _snprintf_s(label_buf, sizeof(label_buf), _TRUNCATE, "%s", cur_label.c_str());
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Never export this tris x verts (global, persisted)");
+                        ImGui::SameLine();
+                        // col 3: label (click to edit; Enter/click-away commits; saved)
+                        const auto lit = g_config.mesh_labels.find(key);
+                        const std::string cur_label = (lit != g_config.mesh_labels.end()) ? lit->second : std::string();
+                        ImGui::SetNextItemWidth(72.f);
+                        if (label_edit == r.id) {
+                            if (label_focus) { ImGui::SetKeyboardFocusHere(); label_focus = false; }
+                            const bool enter = ImGui::InputText("##lbl", label_buf, sizeof(label_buf),
+                                                                ImGuiInputTextFlags_EnterReturnsTrue);
+                            if (enter || ImGui::IsItemDeactivated()) {
+                                if (label_buf[0]) g_config.mesh_labels[key] = label_buf;
+                                else g_config.mesh_labels.erase(key);
+                                Settings::Save(g_config);
+                                label_edit = 0;
+                            }
                         }
+                        else {
+                            char btn[64];
+                            _snprintf_s(btn, sizeof(btn), _TRUNCATE, "%-8s##lb", cur_label.empty() ? "label" : cur_label.c_str());
+                            if (ImGui::Button(btn)) {
+                                label_edit = r.id; label_focus = true;
+                                _snprintf_s(label_buf, sizeof(label_buf), _TRUNCATE, "%s", cur_label.c_str());
+                            }
+                        }
+                        ImGui::SameLine();
+                        // col 4: the draw. Click moves the cursor (amber preview). Greyed if excluded.
+                        char label[160];
+                        _snprintf_s(label, sizeof(label), _TRUNCATE, "%s#%u  %u tris %u verts %dx%d%s##pk%u",
+                                    cur ? "> " : "  ", r.id, r.tris, r.verts,
+                                    r.tex_w, r.tex_h, r.skinned ? " skin" : "", r.id);
+                        if (excl) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.45f, 0.45f, 1.f));
+                        if (ImGui::Selectable(label, mk || cur)) Capture::PickSelect(i);
+                        if (excl) ImGui::PopStyleColor();
+                        ImGui::PopID();
                     }
-                    ImGui::SameLine();
-                    // The draw row (click = mark green / deselect). Greyed when excluded. Stable
-                    // #id + hidden ##id keep the row's identity as the list prunes/reorders.
-                    char label[176];
-                    _snprintf_s(label, sizeof(label), _TRUNCATE, "%s %s #%u  %u tris %u verts %dx%d%s##pk%u",
-                                mk ? "[x]" : "[ ]", cur ? ">" : " ", r.id, r.tris, r.verts,
-                                r.tex_w, r.tex_h, r.skinned ? " skin" : "", r.id);
-                    if (excl) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.45f, 0.45f, 1.f));
-                    if (ImGui::Selectable(label, mk || cur)) { Capture::PickSelect(i); Capture::PickToggleMarkRow(i); }
-                    if (excl) ImGui::PopStyleColor();
-                    ImGui::PopID();
                 }
                 ImGui::EndChild();
             }

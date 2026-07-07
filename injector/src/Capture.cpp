@@ -586,12 +586,8 @@ namespace {
         if (cfg.scope != CaptureScope::Filtered) {
             return true;
         }
-        // Manual exclude list: drop a draw whose exact (tris, verts) the user blacklisted -- the
-        // targeted way to kill recurring junk (random flowers/props) that slips the size filters.
-        if (!g_engine.exclude_sigs.empty() &&
-            g_engine.exclude_sigs.count({primCount, numVertices}) != 0) {
-            return false;
-        }
+        // (The manual exclude list is enforced earlier in the hook, before this, so it applies to
+        // pick snaps too -- see the exclude_sigs check in DIP_Hook.)
         if (primCount < static_cast<UINT>((std::max)(0, cfg.filter_min_prims))) return false;
         if (cfg.filter_max_prims > 0 && primCount > static_cast<UINT>(cfg.filter_max_prims)) return false;
         if (numVertices < static_cast<UINT>((std::max)(0, cfg.filter_min_verts))) return false;
@@ -784,6 +780,13 @@ namespace {
             if (vb) vb->Release();
             if (ib) ib->Release();
 
+            // Global "never-export" list wins over EVERYTHING -- the size filter and a pick snap's
+            // marks alike. So you can [x] a plant globally, "mark all in view", snap, and still get
+            // only the non-excluded pieces.
+            if (!g_engine.exclude_sigs.empty() &&
+                g_engine.exclude_sigs.count({primCount, NumVertices}) != 0) {
+                return g_original_dip(device, Type, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+            }
             // Selected-draw capture (pick snap): grab ONLY the marked signatures; every other
             // draw is passed straight through, so no filter stack is needed. capture_done skips a
             // marked piece already grabbed on an earlier frame of this (multi-frame) snap.
