@@ -23,6 +23,7 @@ struct PersistConfig {
     int target = 0;
     int scope = 0;
     std::string export_dir;
+    std::string exclude_list; // manual "TxV,TxV" per-draw excludes (persist so junk-lists survive)
     bool export_normals = true;
     bool dedupe = true;
     bool exclude_2d = true;
@@ -62,6 +63,7 @@ namespace {
         p.target = static_cast<int>(c.target);
         p.scope = static_cast<int>(c.scope);
         p.export_dir = c.export_dir;
+        p.exclude_list = c.exclude_list;
         p.export_normals = c.export_normals;
         p.dedupe = c.dedupe;
         p.exclude_2d = c.exclude_2d;
@@ -97,6 +99,7 @@ namespace {
         c.target = static_cast<TargetSource>(p.target);
         c.scope = static_cast<CaptureScope>(p.scope);
         c.export_dir = p.export_dir;
+        c.exclude_list = p.exclude_list;
         c.export_normals = p.export_normals;
         c.dedupe = p.dedupe;
         c.exclude_2d = p.exclude_2d;

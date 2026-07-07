@@ -6,9 +6,11 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <map>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -237,6 +239,7 @@ namespace {
         Config cfg;
         std::vector<MeshChunk> chunks;
         std::set<DrawKey> seen;
+        std::set<std::pair<uint32_t, uint32_t>> exclude_sigs; // parsed cfg.exclude_list: (tris,verts)
         std::vector<ProbeSample> probes;
         std::vector<DrawLogEntry> draw_log; // per-draw disposition when cfg.log_draws
         CaptureStats stats;
@@ -559,10 +562,35 @@ namespace {
         return true;
     }
 
+    // Parse a "TRISxVERTS,TRISxVERTS" exclude string into (prims, verts) pairs (e.g. "20x40,154x135").
+    void ParseExcludes(const std::string& s, std::set<std::pair<uint32_t, uint32_t>>& out)
+    {
+        out.clear();
+        size_t pos = 0;
+        while (pos < s.size()) {
+            const size_t comma = s.find(',', pos);
+            const std::string tok = s.substr(pos, (comma == std::string::npos ? s.size() : comma) - pos);
+            const size_t x = tok.find_first_of("xX*");
+            if (x != std::string::npos) {
+                const int t = std::atoi(tok.c_str());
+                const int v = std::atoi(tok.c_str() + x + 1);
+                if (t > 0 && v > 0) out.insert({static_cast<uint32_t>(t), static_cast<uint32_t>(v)});
+            }
+            if (comma == std::string::npos) break;
+            pos = comma + 1;
+        }
+    }
+
     bool PassesFilter(const Config& cfg, const MeshChunk& chunk, UINT numVertices, UINT primCount)
     {
         if (cfg.scope != CaptureScope::Filtered) {
             return true;
+        }
+        // Manual exclude list: drop a draw whose exact (tris, verts) the user blacklisted -- the
+        // targeted way to kill recurring junk (random flowers/props) that slips the size filters.
+        if (!g_engine.exclude_sigs.empty() &&
+            g_engine.exclude_sigs.count({primCount, numVertices}) != 0) {
+            return false;
         }
         if (primCount < static_cast<UINT>((std::max)(0, cfg.filter_min_prims))) return false;
         if (cfg.filter_max_prims > 0 && primCount > static_cast<UINT>(cfg.filter_max_prims)) return false;
@@ -1021,6 +1049,7 @@ namespace Capture {
     {
         g_engine.ResetData();
         g_engine.cfg = cfg;
+        ParseExcludes(g_engine.cfg.exclude_list, g_engine.exclude_sigs);
         g_engine.armed = true;
         g_engine.recorded = false;
         g_engine.frames_since_arm = 0;
@@ -1318,6 +1347,7 @@ namespace Capture {
         if (set.empty()) return;
         g_engine.ResetData();          // clears chunks/stats/capture_done; pick list + marks survive
         g_engine.cfg = cfg;
+        ParseExcludes(g_engine.cfg.exclude_list, g_engine.exclude_sigs);
         g_engine.armed = true;
         g_engine.recorded = false;
         g_engine.frames_since_arm = 0;

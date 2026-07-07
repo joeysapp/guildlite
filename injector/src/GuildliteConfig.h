@@ -48,6 +48,10 @@ namespace Guildlite {
         TargetSource target = TargetSource::Player;
         // Empty => resolved at runtime to <Documents>\guildlite\.
         std::string export_dir;
+        // Manual per-draw exclude list: "TRISxVERTS" sigs to drop, comma-separated (e.g.
+        // "20x40,154x135"). Read a stray mesh's tris/verts off the pick list or a draw_log and
+        // add it here to nuke recurring junk (random flowers/props) the size filters let through.
+        std::string exclude_list;
 
         // --- geometry (Base) ---------------------------------------------------
         bool export_normals = true;

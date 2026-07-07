@@ -67,6 +67,7 @@ namespace {
     float last_aabb_max[3] = {0.f, 0.f, 0.f};
 
     char export_dir_buf[512] = {};
+    char exclude_buf[256] = {};   // UI text mirror of g_config.exclude_list ("TxV,TxV" excludes)
 
     // --- small helpers (verbatim from the plugin) --------------------------
     std::wstring Widen(const std::string& s)
@@ -140,6 +141,7 @@ namespace {
         else if (key == "log_draws")              { if (isb) g_config.log_draws = b; }
         else if (key == "export_skin_weights")    { if (isb) g_config.export_skin_weights = b; }
         else if (key == "pose_to_live")           { if (isb) g_config.pose_to_live = b; }
+        else if (key == "exclude_list")           { g_config.exclude_list = val; }
         else if (key == "probe_shader_constants") { if (isb) g_config.probe_shader_constants = b; }
         else if (key == "filter_max_extent")      { g_config.filter_max_extent = fv; }
         else if (key == "filter_min_thickness")   { g_config.filter_min_thickness = fv; }
@@ -175,11 +177,13 @@ namespace {
 
         const std::string keep_dir = g_config.export_dir;
         const bool keep_vis = g_config.window_visible;
-        const bool keep_pose = g_config.pose_to_live; // pose is orthogonal to scene filtering
+        const bool keep_pose = g_config.pose_to_live;      // pose is orthogonal to scene filtering
+        const std::string keep_excl = g_config.exclude_list; // the manual junk-list is the user's
         g_config = Config{};               // reset EVERY capture setting to its default
-        g_config.export_dir = keep_dir;    // ... but keep the user's environment + pose choice
+        g_config.export_dir = keep_dir;    // ... but keep the user's environment + pose + excludes
         g_config.window_visible = keep_vis;
         g_config.pose_to_live = keep_pose;
+        g_config.exclude_list = keep_excl;
 
         if (name == "clean-full" || name == "clean-full-target") {
             // The most COMPLETE solo character in one Export Snapshot. A/B testing (2026-07-06)
@@ -197,6 +201,7 @@ namespace {
             g_config.exclude_2d = false;          // include depth-test-off draws (reach z-off armor)
             g_config.filter_max_extent = 150.f;   // drop terrain/structure-sized meshes (scenery gate)
             g_config.filter_min_thickness = 1.5f; // drop HUD billboards let in by exclude_2d off
+            g_config.trim_outliers = true;        // drop far-scattered foliage/props (stray flowers)
             g_config.target = (name == "clean-full-target") ? TargetSource::Target : TargetSource::Player;
         }
         else if (name == "clean-self" || name == "clean-target") {
@@ -207,6 +212,7 @@ namespace {
             g_config.drop_effects = true;
             g_config.filter_max_extent = 150.f;
             g_config.filter_min_thickness = 1.5f;
+            g_config.trim_outliers = true;        // drop far-scattered foliage/props
             g_config.target = (name == "clean-target") ? TargetSource::Target : TargetSource::Player;
         }
         else if (name == "clean-solo" || name == "clean-solo-target") {
@@ -219,6 +225,7 @@ namespace {
             g_config.drop_effects = true;
             g_config.filter_max_extent = 150.f;
             g_config.filter_min_thickness = 1.5f;
+            g_config.trim_outliers = true;        // drop far-scattered foliage/props
             g_config.target = (name == "clean-solo-target") ? TargetSource::Target : TargetSource::Player;
         }
         else if (name == "raw") {
@@ -610,6 +617,7 @@ namespace {
                 Settings::Load(g_config);
                 g_config.window_visible = true; // never let a reloaded 'closed' strand the panel
                 _snprintf_s(export_dir_buf, sizeof(export_dir_buf), _TRUNCATE, "%s", g_config.export_dir.c_str());
+                _snprintf_s(exclude_buf, sizeof(exclude_buf), _TRUNCATE, "%s", g_config.exclude_list.c_str());
                 status_line = "Settings reloaded from settings.json.";
             }
             ImGui::SameLine();
@@ -830,6 +838,12 @@ namespace {
                                     "as a solid black panel stuck to the model. Detected from the blend mode,\n"
                                     "so legit cutouts (hair/cape/feather) are kept. Turn ON with require-\n"
                                     "skinned OFF for a clean solo body -- this is the 'clean-solo' profile.");
+                ImGui::Separator();
+                ImGui::InputTextWithHint("Exclude tris x verts", "e.g.  20x40, 154x135", exclude_buf, sizeof(exclude_buf));
+                g_config.exclude_list = exclude_buf;
+                ImGui::TextDisabled("Drops draws with these EXACT tris x verts. Read a stray mesh's counts off\n"
+                                    "the pick list (or a log_draws capture) and add it here to nuke recurring\n"
+                                    "junk -- random flowers/props the size filters let through. Comma-separated.");
             }
         }
 
@@ -988,6 +1002,7 @@ namespace Exporter {
         // strand the panel. The overlay's bottom-left panel bar can hide it again at will.
         g_config.window_visible = true;
         _snprintf_s(export_dir_buf, sizeof(export_dir_buf), _TRUNCATE, "%s", g_config.export_dir.c_str());
+        _snprintf_s(exclude_buf, sizeof(exclude_buf), _TRUNCATE, "%s", g_config.exclude_list.c_str());
         GL_DLLLOG("Exporter::Init: settings loaded (dir='%s')", g_config.export_dir.c_str());
     }
 
