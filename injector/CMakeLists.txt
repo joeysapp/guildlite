@@ -58,6 +58,8 @@ set(GUILDLITE_ENGINE
     src/Overlay.cpp
     src/Screenshot.cpp
     src/Exporter.cpp
+    src/Freecam.cpp
+    src/Controls.cpp
     src/Capture.cpp
     src/ObjWriter.cpp
     src/TextureExport.cpp

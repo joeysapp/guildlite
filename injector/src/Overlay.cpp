@@ -1,6 +1,8 @@
 #include "Overlay.h"
 #include "Screenshot.h"
 #include "Exporter.h"
+#include "Freecam.h"
+#include "Controls.h"
 #include "Game.h"
 #include "Log.h"
 
@@ -151,6 +153,10 @@ namespace {
             ImGui::SameLine();
             PanelToggle("Exporter", Exporter::WindowVisible());
             ImGui::SameLine();
+            PanelToggle("Freecam", Freecam::WindowVisible());
+            ImGui::SameLine();
+            PanelToggle("Controls", Controls::WindowVisible());
+            ImGui::SameLine();
             PanelToggle("Overlay", g_showOverlay);
             ImGui::SameLine();
             PanelToggle("Demo", g_showDemo);
@@ -223,6 +229,8 @@ namespace {
             DrawPanelBar();       // always-visible bottom-left panel toggles (reopen any window)
             DrawUI();             // overlay status strip
             Exporter::Draw(dev);  // model-exporter window + capture state machine (installs the DIP hook)
+            Freecam::Draw(dev);   // free-camera fly step + control window (GWCA UnlockCam)
+            Controls::Draw();     // self-documenting controls/help reference (pure UI)
             ImGui::Render();
             ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
@@ -242,6 +250,7 @@ namespace {
     {
         if (g_tornDown) return;
         g_tornDown = true;
+        Freecam::Shutdown();           // re-lock the camera so an unload never strands the player detached
         Exporter::Shutdown();          // save settings + remove the DIP capture hook + release texture refs
         MH_DisableHook(MH_ALL_HOOKS);  // EndScene/Reset (and DIP if Capture::Remove missed it)
         MH_Uninitialize();
@@ -297,6 +306,11 @@ void Overlay::Command(const char* verb)
         if (g_selfUnload) RequestUnload();
         else GL_DLLLOG("Overlay::Command: 'unload' ignored in hosted mode (stub owns lifecycle)");
     }
+    else if (v == "freecam" || v.rfind("freecam ", 0) == 0 || v == "cam" || v.rfind("cam ", 0) == 0
+             || v.rfind("camera ", 0) == 0 || v.rfind("fov", 0) == 0 || v.rfind("fog", 0) == 0)
+        Freecam::Command(verb);
+    else if (v == "controls" || v == "help")
+        Controls::WindowVisible() = !Controls::WindowVisible();
     // Everything else (set/target/profile/...) is forwarded to the exporter, which
     // tokenises and handles it. Keeps new control verbs a one-file change in Exporter.
     else Exporter::Command(verb);
@@ -322,6 +336,7 @@ void Overlay::Install(HMODULE self, IDirect3DDevice9* device, bool selfUnload)
     GL_DLLLOG("Install: hooks createEndScene=%d createReset=%d enable=%d (0=OK)", c1, c2, en);
 
     Exporter::Init();   // load persisted settings (engine self-init; GWCA is brought up by the entry)
+    Freecam::Init();
 
     if (selfUnload) {
         g_unloadEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
