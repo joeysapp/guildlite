@@ -1,0 +1,4 @@
+/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles/datcore.dir
+/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles/datcli.dir
+/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles/edit_cache.dir
+/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles/rebuild_cache.dir
