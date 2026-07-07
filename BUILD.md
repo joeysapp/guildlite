@@ -1,9 +1,9 @@
-We're building a layer of tools for Guild Wars. 
+Begin building the described Model Editor in ./ROADMAP.md using/implementing all relevant build pieces around it. Treat the ROADMAP and any other items required as open items to implement/refine/fix in the first Editor.
 
-- [~] Model Export
-- [ ] Free cam
-- [ ] GWCA / GW to Guildlite via Rule-friendly tools, config, UX
- - Handling multiple Gw.exes (targetting/unload-reload/etc)
- - gw-ctl/gw-tool/etc into Guild Wars itself
- - First item: /chest provides access to Xunlai agents in a loaded outpost (left click within minimap range) and retains the state via a user-friendly (e.g. backupable/sycnable) state of multiple accounts)
- - Second item: Is it possible to show a list of clickable npcs in an outpost, and you click them, and it shows their dialog/window like a Xunlai above?
+## Background
+- There are many related/moving parts detailed in ROADMAP; review it and the project state to determine which items can be bundled into the MVP 1. Editor build. 
+- The first tool built: **Exporter**
+ - Most recent work has been picker/targetting export and beginning of pose/export stitching. Next is pose refinement.
+ - Must interface as expected with new **Editor**, aka all edits must be reflected in the export.
+- The second tool built: **Freecam**
+ - Works. A number of refinements planned.
