@@ -36,9 +36,11 @@ find_package(minhook CONFIG REQUIRED)
 find_package(glaze CONFIG REQUIRED)
 find_path(STB_INCLUDE_DIRS "stb_image_write.h")
 
-# GWCA: the reverse-engineered Guild Wars API. Prebuilt import lib + runtime dll living in
-# the GWToolboxpp submodule (siblings in the pushed source tree); mirrors cmake/gwca.cmake.
-set(GWCA_FOLDER "${PROJECT_SOURCE_DIR}/../GWToolboxpp/Dependencies/GWCA")
+# GWCA: the reverse-engineered Guild Wars API. Prebuilt import lib + runtime dll from the
+# GWCA submodule at third_party/GWCA -- a pinned "ghost" mirror we own (see its README),
+# NOT the GWToolbox tree. This is what decouples the injector from GWToolboxpp: GWCA is the
+# real substrate, GWToolbox was just one consumer of it.
+set(GWCA_FOLDER "${PROJECT_SOURCE_DIR}/../third_party/GWCA")
 add_library(gwca SHARED IMPORTED GLOBAL)
 set_target_properties(gwca PROPERTIES
     IMPORTED_IMPLIB "${GWCA_FOLDER}/lib/gwca.lib"
