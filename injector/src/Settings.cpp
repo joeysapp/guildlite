@@ -48,6 +48,7 @@ struct PersistConfig {
     bool isolate_by_bone = false;
     float isolate_tolerance = 250.f;
     bool export_skin_weights = true; // persist so the #vbld substrate toggle survives a reload
+    bool pose_to_live = false;       // persist the pose-reconstruction toggle across reloads
     bool window_visible = true;
 };
 
@@ -84,6 +85,7 @@ namespace {
         p.isolate_by_bone = c.isolate_by_bone;
         p.isolate_tolerance = c.isolate_tolerance;
         p.export_skin_weights = c.export_skin_weights;
+        p.pose_to_live = c.pose_to_live;
         p.window_visible = c.window_visible;
         return p;
     }
@@ -118,6 +120,7 @@ namespace {
         c.isolate_by_bone = p.isolate_by_bone;
         c.isolate_tolerance = p.isolate_tolerance;
         c.export_skin_weights = p.export_skin_weights;
+        c.pose_to_live = p.pose_to_live;
         c.window_visible = p.window_visible;
     }
 

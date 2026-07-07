@@ -37,10 +37,14 @@
   from the body and the export rendered as a speck. Now re-seated onto the body via
   `local = Rz(-facing)·(world - agent_pos)` from the GWCA snapshot (`Exporter::AlignWorldSpaceChunks`).
   Result: a **complete, correctly-oriented** character. Caveat below (#pose).
-- [~] **Exact assembly (#pose) — the "close, not exact" gap.** The skinned body is exported in
-  **bind pose**; the re-seated non-skinned pieces are the **live** pose. So root+facing align but
-  limb-level pose does not — the garment fits a slightly different stance than the neutral body.
-  A rigid transform can't close this. See FUTURE → **Rig/pose the body from the captured substrate**.
+- [~] **Pose reconstruction (`pose_to_live`) — prototyped + baked in.** Closes the "close, not
+  exact" gap: poses the bind body forward into the LIVE frame from the **bone palette** so GW's
+  live-pose non-skinned armor lines up. **Palette layout solved + self-calibrating**: per-draw,
+  bone `k` → VS registers `c(base+3k)` as `[3x3|t]`; `base` found by scanning for the bone whose
+  translation == the agent's GWCA pos (`Exporter::PoseChunks`). Rigid single-bone: `world_v =
+  BoneMatrix[bone]·bind_v`. Verified: reconstructs a coherent live-pose body. Remaining: confirm
+  every skinned chunk poses once all draws are probed (`kProbeMaxSamples` now 64); minor residuals
+  (hair sat low). See FUTURE → **Rig/pose** for the full-skeleton/animation extension.
 - [~] **Whole-character grouping (`pick target`)** — built, but bone-palette-calibration-bound
   (0 on map 280); gated behind isolation self-calibration.
 - [~] Armor/weapon systems: per-slot equipment, `model_file_id`s, dyes → manifest (identity only; per-slot **geometry** gating is DAT work).

@@ -139,6 +139,7 @@ namespace {
         else if (key == "export_textures")        { if (isb) g_config.export_textures = b; }
         else if (key == "log_draws")              { if (isb) g_config.log_draws = b; }
         else if (key == "export_skin_weights")    { if (isb) g_config.export_skin_weights = b; }
+        else if (key == "pose_to_live")           { if (isb) g_config.pose_to_live = b; }
         else if (key == "probe_shader_constants") { if (isb) g_config.probe_shader_constants = b; }
         else if (key == "filter_max_extent")      { g_config.filter_max_extent = fv; }
         else if (key == "filter_min_thickness")   { g_config.filter_min_thickness = fv; }
@@ -262,6 +263,7 @@ namespace {
         pending_dry_run = dry_run;
         pending_is_pick = false; // the filter-stack path, not a pick Snap
         pending_cfg = g_config;
+        if (pending_cfg.pose_to_live) pending_cfg.probe_shader_constants = true; // pose needs palettes
         pending_snapshot = GameState::Gather(g_config.target);
         // Seed the render-thread isolation match from the target's GWCA world position
         // (the hook can't safely call GWCA), calibrated 1:1 to the bone-palette translation.
@@ -293,6 +295,7 @@ namespace {
         pending_is_pick = true;
         pending_pick_n = (marks > 0) ? marks : 1;
         pending_cfg = g_config;
+        if (pending_cfg.pose_to_live) pending_cfg.probe_shader_constants = true; // pose needs palettes
         pending_snapshot = GameState::Gather(g_config.target);
         pending_cfg.has_match_pos = false;   // the pick is the filter; isolation not needed
         pending_cfg.trim_outliers = false;   // export exactly the marked draws, trim nothing
@@ -364,12 +367,77 @@ namespace {
         }
     }
 
+    // Pose reconstruction (experimental, pose_to_live): pose the captured BIND-pose skinned body
+    // forward into the LIVE frame using the per-draw bone palette, so it matches GW's live-pose
+    // non-skinned pieces (armor/dress). Each skinned chunk uses its OWN palette (matched by
+    // draw_index -- GW remaps bones per draw); the palette base register is self-calibrated per
+    // draw by scanning for the bone whose translation is the agent's world position. Then
+    // world_v = BoneMatrix[vertex_bone] * bind_v, re-seated to local like the non-skinned pieces.
+    // GW is rigid single-bone, so the vertex's bone = blend index byte 0. Verified 2026-07-06
+    // (base c53 on map 248): reconstructs a coherent live-pose body that the armor lines up with.
+    void PoseChunks(const GameStateSnapshot& snap, std::vector<MeshChunk>& chunks,
+                    const std::vector<ProbeSample>& probes)
+    {
+        if (!snap.valid) return;
+        std::map<uint32_t, const ProbeSample*> pal;
+        for (const auto& p : probes) pal[p.draw_index] = &p;
+        const float px = snap.pos_x, py = snap.pos_y, pz = snap.pos_z;
+        const float cc = std::cos(snap.rotation), ss = std::sin(snap.rotation);
+        for (auto& ch : chunks) {
+            if (!ch.is_skinned) continue;               // non-skinned -> AlignWorldSpaceChunks
+            const auto it = pal.find(ch.draw_index);
+            if (it == pal.end()) continue;              // no palette captured -> leave bind pose
+            const std::vector<float>& regs = it->second->regs;
+            const int nregs = static_cast<int>(regs.size() / 4);
+            int base = -1;                              // self-calibrate: bone whose .w == agent pos
+            for (int r = 0; r + 2 < nregs; ++r) {
+                if (std::fabs(regs[r * 4 + 3] - px) < 250.f &&
+                    std::fabs(regs[(r + 1) * 4 + 3] - py) < 250.f &&
+                    std::fabs(regs[(r + 2) * 4 + 3] - pz) < 250.f) { base = r; break; }
+            }
+            if (base < 0) continue;                     // palette not in this draw's captured window
+            const size_t nv = ch.positions.size() / 3;
+            float mn[3] = {0, 0, 0}, mx[3] = {0, 0, 0}; bool any = false;
+            for (size_t v = 0; v < nv; ++v) {
+                const float bx = ch.positions[v * 3], by = ch.positions[v * 3 + 1], bz = ch.positions[v * 3 + 2];
+                const int bone = (v * 4 < ch.blend_indices.size()) ? static_cast<int>(ch.blend_indices[v * 4]) : 0;
+                const int b = base + 3 * bone;
+                if (b + 2 >= nregs) continue;           // bone beyond captured palette -> leave
+                const float* r0 = &regs[b * 4]; const float* r1 = &regs[(b + 1) * 4]; const float* r2 = &regs[(b + 2) * 4];
+                const float wx = r0[0] * bx + r0[1] * by + r0[2] * bz + r0[3];
+                const float wy = r1[0] * bx + r1[1] * by + r1[2] * bz + r1[3];
+                const float wz = r2[0] * bx + r2[1] * by + r2[2] * bz + r2[3];
+                const float dx = wx - px, dy = wy - py, dz = wz - pz;
+                ch.positions[v * 3]     =  cc * dx + ss * dy;   // re-seat: Rz(-facing)*(world-pos)
+                ch.positions[v * 3 + 1] = -ss * dx + cc * dy;
+                ch.positions[v * 3 + 2] = dz;
+                if (v * 3 + 2 < ch.normals.size()) {            // rotate normal by R_bone then -facing
+                    const float nx = ch.normals[v * 3], ny = ch.normals[v * 3 + 1], nz = ch.normals[v * 3 + 2];
+                    const float wnx = r0[0] * nx + r0[1] * ny + r0[2] * nz;
+                    const float wny = r1[0] * nx + r1[1] * ny + r1[2] * nz;
+                    const float wnz = r2[0] * nx + r2[1] * ny + r2[2] * nz;
+                    ch.normals[v * 3]     =  cc * wnx + ss * wny;
+                    ch.normals[v * 3 + 1] = -ss * wnx + cc * wny;
+                    ch.normals[v * 3 + 2] = wnz;
+                }
+                const float p[3] = {ch.positions[v * 3], ch.positions[v * 3 + 1], ch.positions[v * 3 + 2]};
+                for (int k = 0; k < 3; ++k) { if (!any) { mn[k] = mx[k] = p[k]; } else { if (p[k] < mn[k]) mn[k] = p[k]; if (p[k] > mx[k]) mx[k] = p[k]; } }
+                any = true;
+            }
+            if (any) for (int k = 0; k < 3; ++k) { ch.aabb_min[k] = mn[k]; ch.aabb_max[k] = mx[k]; }
+        }
+    }
+
     void FlushCapture(IDirect3DDevice9* device)
     {
-        // Re-seat world-space non-skinned pieces (dress/skirt/armor GW bakes into world space)
-        // onto the bind-pose body before trimming/bounds, so the export is ONE assembled model.
-        // Only for single-character captures (pick snap or Filtered scope) with a valid agent.
+        // Assemble ONE model in a single local frame: (pose_to_live) pose the skinned body forward
+        // into the live pose so it matches GW's live-pose non-skinned pieces, then re-seat those
+        // world-space pieces onto it. Only for single-character captures (pick snap or Filtered)
+        // with a valid agent.
         if ((pending_is_pick || pending_cfg.scope == CaptureScope::Filtered) && pending_snapshot.valid) {
+            if (pending_cfg.pose_to_live) {
+                PoseChunks(pending_snapshot, Capture::Chunks(), Capture::ProbeSamples());
+            }
             AlignWorldSpaceChunks(pending_snapshot, Capture::Chunks());
         }
         // Drop far-placed effect/billboard fliers before anything else so textures,
@@ -794,8 +862,16 @@ namespace {
                                 "'#vbld' comment lines -- the mesh->bone binding needed to re-rig/pose the\n"
                                 "export later. GW packs the indices in a D3DCOLOR; enable Probe to also dump\n"
                                 "the bone transforms (VS constants) to the manifest.");
-            ImGui::TextWrapped("A live grab is the current pose. GW skins in a vertex shader and exposes "
-                               "no skeleton, so full animation-frame export is future (DAT/memory) work.");
+            ImGui::Separator();
+            ImGui::Checkbox("Pose to live frame (experimental)", &g_config.pose_to_live);
+            ImGui::SameLine();
+            ImGui::TextDisabled("(forces Probe on)");
+            ImGui::TextDisabled("Reconstructs the body's LIVE pose from the bone palette (world_v =\n"
+                                "BoneMatrix[bone] * bind_v) so GW's live-pose non-skinned armor lines up\n"
+                                "with the body instead of a bind-pose mismatch. Needs a VALID Source\n"
+                                "(pos + facing). Rigid single-bone; not every piece is perfect yet.");
+            ImGui::TextWrapped("Off = bind pose (skinned body as authored). GW skins in a vertex shader; "
+                               "we read the per-draw bone palette from its VS constants to pose it.");
         }
 
         // --- Output path -------------------------------------------------------

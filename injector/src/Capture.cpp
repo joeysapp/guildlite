@@ -294,7 +294,9 @@ namespace {
 
     constexpr size_t kDrawLogMax = 1500; // safety cap so a pathological frame can't OOM the log
 
-    constexpr size_t kProbeMaxSamples = 6; // enough distinct agents to solve the isolation register
+    constexpr size_t kProbeMaxSamples = 64; // per-DRAW bone palettes (pose_to_live needs one per
+                                            // skinned chunk, not just a few samples); a character
+                                            // is ~8-14 skinned draws, 64 covers it with headroom
 
     constexpr size_t kPickListMax = 1024;  // cap on the live pick list (unique draw signatures)
     // The pick list is a RUNNING WINDOW: an entry survives this many frames after it was last

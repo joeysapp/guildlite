@@ -160,6 +160,15 @@ namespace Guildlite {
         // re-rig/pose the export later. The bone transforms themselves are in the VS
         // constant palette (enable Probe to dump it). Off => a plain, unskinned OBJ.
         bool export_skin_weights = true;
+
+        // --- pose reconstruction (experimental) --------------------------------
+        // Pose the captured BIND-pose skinned body forward into the LIVE frame using the
+        // per-draw bone palette (VS constants): world_v = BoneMatrix[vertex_bone] * bind_v, then
+        // re-seat to local like the non-skinned pieces. Closes the "close, not exact" gap where a
+        // bind-pose body doesn't match GW's live-pose non-skinned armor. Forces probe capture on
+        // (it needs the palette). Self-calibrates the palette base register per draw by scanning
+        // for the bone triple whose translation matches the agent's GWCA position.
+        bool pose_to_live = false;
     };
 
 } // namespace Guildlite
