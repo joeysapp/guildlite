@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 
 // ==============================================================================
@@ -52,6 +53,10 @@ namespace Guildlite {
         // "20x40,154x135"). Read a stray mesh's tris/verts off the pick list or a draw_log and
         // add it here to nuke recurring junk (random flowers/props) the size filters let through.
         std::string exclude_list;
+        // Freeform per-mesh labels, keyed by "TRISxVERTS" (e.g. {"20x40":"flower"}). GLOBAL and
+        // persisted (settings.json) -- a mesh you name/exclude stays named/excluded across every
+        // capture and profile. Paired with exclude_list: label = memo, exclude_list = the cull.
+        std::map<std::string, std::string> mesh_labels;
 
         // --- geometry (Base) ---------------------------------------------------
         bool export_normals = true;
