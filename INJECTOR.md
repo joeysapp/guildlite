@@ -73,7 +73,11 @@ the game"* can't be done over an SSH/session-0 shell. Owning the present hook fi
   file) + `guildlite-core.dll` (the reloadable overlay/exporter). Write `reload` to the control
   file to hot-swap a freshly-built core; write `capture`/`screenshot`/… to drive it — all over
   SSH, no re-inject. See **Phase 2 control file** below.
-- **Phase 3 — the fun:** free camera, then shared-state / Prop Hunt off the ROADMAP.
+- **Phase 3 — the fun:** free camera ✔, then the **model editor** ✔ (`Editor`/`AppearanceApply` — the
+  client-side appearance writer: transmog/scale via emulated StoC packets, equipment+dye via the
+  `NPCEquipment` vtable, all on the game thread; the `Controls` panel became the unified **`Info`** panel),
+  then shared-state / Prop Hunt off the ROADMAP (the editor's per-agent `model_id`/scale writes are the
+  Prop-Hunt substrate).
 
 ## Phase 2 control file — driving the dev loop over SSH
 

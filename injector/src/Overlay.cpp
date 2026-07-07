@@ -2,7 +2,8 @@
 #include "Screenshot.h"
 #include "Exporter.h"
 #include "Freecam.h"
-#include "Controls.h"
+#include "Editor.h"
+#include "Info.h"
 #include "Game.h"
 #include "Log.h"
 
@@ -32,7 +33,6 @@ namespace {
     WNDPROC  g_origWndProc   = nullptr;
     bool     g_imguiReady    = false;
     bool     g_showDemo      = false;
-    bool     g_showOverlay   = true;   // the status window; toggled from the panel bar
     bool     g_selfUnload    = true;   // monolith frees itself; the hosted core lets the stub do it
     volatile bool g_unload   = false;
     volatile bool g_tornDown = false;
@@ -151,46 +151,23 @@ namespace {
         if (ImGui::Begin("##guildlite-panelbar", nullptr, flags)) {
             ImGui::TextUnformatted("Guildlite");
             ImGui::SameLine();
+            PanelToggle("Editor", Editor::WindowVisible());
+            ImGui::SameLine();
             PanelToggle("Exporter", Exporter::WindowVisible());
             ImGui::SameLine();
             PanelToggle("Freecam", Freecam::WindowVisible());
             ImGui::SameLine();
-            PanelToggle("Controls", Controls::WindowVisible());
-            ImGui::SameLine();
-            PanelToggle("Overlay", g_showOverlay);
+            PanelToggle("Info", Info::WindowVisible());   // status + commands + controls (was Overlay+Controls)
             ImGui::SameLine();
             PanelToggle("Demo", g_showDemo);
         }
         ImGui::End();
     }
 
+    // The overlay's status window folded into the Info panel (Info::DrawStatus); all that stays
+    // on the frame directly is the optional ImGui demo.
     void DrawUI()
     {
-      if (g_showOverlay) {
-        ImGui::SetNextWindowSize(ImVec2(360, 220), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_FirstUseEver);
-        if (ImGui::Begin("Guildlite - overlay", &g_showOverlay)) {
-            ImGui::Text("In-game overlay is LIVE (own injector, own D3D9 hook).");
-            ImGui::Text("frame %u   %.1f FPS", g_frame, ImGui::GetIO().Framerate);
-            ImGui::Text("GWCA: %s", Game::Ready() ? "ready" : "initialising...");
-            ImGui::Separator();
-            ImGui::TextWrapped("The model exporter is the 'Guildlite - Model Exporter' window.");
-            ImGui::TextWrapped("F9 / button = screenshot the backbuffer to Documents\\guildlite\\guildlite-shot.png");
-            ImGui::TextWrapped("Over SSH: drop 'Documents\\guildlite\\shot.request' (screenshot) or write verbs\n"
-                               "to 'Documents\\guildlite\\control' (capture / capture-dry / screenshot / demo).");
-            if (g_selfUnload) ImGui::TextWrapped("INSERT = ImGui demo.   END = unload the overlay.");
-            else ImGui::TextWrapped("INSERT = ImGui demo.   (hosted core: reload/unload via the stub's control file.)");
-            ImGui::Separator();
-            if (ImGui::Button("Screenshot now")) Screenshot::Request();
-            ImGui::SameLine();
-            if (ImGui::Button("Toggle demo")) g_showDemo = !g_showDemo;
-            if (g_selfUnload) {
-                ImGui::SameLine();
-                if (ImGui::Button("Unload")) Overlay::RequestUnload();
-            }
-        }
-        ImGui::End();
-      }
         if (g_showDemo) ImGui::ShowDemoWindow(&g_showDemo);
     }
 
@@ -227,10 +204,11 @@ namespace {
             ImGui_ImplWin32_NewFrame();
             ImGui::NewFrame();
             DrawPanelBar();       // always-visible bottom-left panel toggles (reopen any window)
-            DrawUI();             // overlay status strip
+            DrawUI();             // optional ImGui demo
+            Editor::Draw(dev);    // model-editor window (appearance edits via AppearanceApply)
             Exporter::Draw(dev);  // model-exporter window + capture state machine (installs the DIP hook)
             Freecam::Draw(dev);   // free-camera fly step + control window (GWCA UnlockCam)
-            Controls::Draw();     // self-documenting controls/help reference (pure UI)
+            Info::Draw();         // unified status + commands + controls reference (pure UI)
             ImGui::Render();
             ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
@@ -251,6 +229,7 @@ namespace {
         if (g_tornDown) return;
         g_tornDown = true;
         Freecam::Shutdown();           // re-lock the camera so an unload never strands the player detached
+        Editor::Shutdown();            // save the character/state library (does NOT auto-revert live edits)
         Exporter::Shutdown();          // save settings + remove the DIP capture hook + release texture refs
         MH_DisableHook(MH_ALL_HOOKS);  // EndScene/Reset (and DIP if Capture::Remove missed it)
         MH_Uninitialize();
@@ -309,8 +288,14 @@ void Overlay::Command(const char* verb)
     else if (v == "freecam" || v.rfind("freecam ", 0) == 0 || v == "cam" || v.rfind("cam ", 0) == 0
              || v.rfind("camera ", 0) == 0 || v.rfind("fov", 0) == 0 || v.rfind("fog", 0) == 0)
         Freecam::Command(verb);
-    else if (v == "controls" || v == "help")
-        Controls::WindowVisible() = !Controls::WindowVisible();
+    // Editor verbs are namespaced under 'edit'/'editor' so they never collide with the exporter's
+    // (set/target/profile/pick/...); the prefix is stripped and the remainder handed to the Editor.
+    else if (v == "edit" || v.rfind("edit ", 0) == 0)
+        Editor::Command(v.size() > 5 ? verb + 5 : "");
+    else if (v.rfind("editor ", 0) == 0)
+        Editor::Command(verb + 7);
+    else if (v == "controls" || v == "help" || v == "info")
+        Info::WindowVisible() = !Info::WindowVisible();
     // Everything else (set/target/profile/...) is forwarded to the exporter, which
     // tokenises and handles it. Keeps new control verbs a one-file change in Exporter.
     else Exporter::Command(verb);
@@ -337,6 +322,7 @@ void Overlay::Install(HMODULE self, IDirect3DDevice9* device, bool selfUnload)
 
     Exporter::Init();   // load persisted settings (engine self-init; GWCA is brought up by the entry)
     Freecam::Init();
+    Editor::Init();     // load saved character looks + global states
 
     if (selfUnload) {
         g_unloadEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);

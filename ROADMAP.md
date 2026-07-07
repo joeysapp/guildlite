@@ -56,19 +56,37 @@
 - GWToolbox provides a /target command, described in Chat Commands build item
 - Model Exporter picker and target logic relies on targetting but there is no way for us to target in-game, therefore we have not been able to A/B test
 
-### [ ] Model Editor (Investigate GWToolbox Armory, Ensure -image/DAT explore)
-*Goal: A new 'Editor' panel that allows users to edit their character's visual appearance comprehensively. MVP features include:*
-- Character Model Selection and Editing:
- - Player Character: Profession, Sex, Options e.g. hair/face/skin color/hair color
- - Non Player Character: List of NPCs
-- Armor and Items Equipped
-- Geometry - Novel visual edits, transform matrices
-- Textures - TexMod analog, custom textures
-- Savable and loadable Complete Character Configurations with Labels/(optional) Targets
-- Uses shared/expected targetting functionality, allowing users to edit ALL models in-game.
-- Higher-level global state save/loading: List of edited items in a visual list, savable. Allows users to edit multiple things, save the state, and load it later.
- - Multiple states enabled/disabled at once, e.g. enabling the following global states at once: "All Xunlai chests scaled x3", "Self as Male Warrior in black Obsidian Armor and Chaos Gloves", "All Players as Male Warrior in blue Obsidian Armor and Chaos Gloves", ordered with priority
-- Automatic/target edits in higher-level states: Automatically edit a target/selection to another state on load
+### [~] Model Editor (MVP 1 built — client-side appearance editor)
+*Goal: A new 'Editor' panel that allows users to edit their character's visual appearance comprehensively.*
+**[~] MVP 1 SHIPPED** → `injector/src/{Editor,AppearanceApply,EditorConfig}` + the third Guildlite tool
+`[Editor]` in the toolbar. Investigation of GWToolbox's **Armory** (`ArmoryWindow.cpp`) + **TransmoModule**
+done: both mechanisms ported. The Editor **writes** appearance (mirror of the Exporter's read); all
+game-memory/vtable/packet writes are marshalled onto GW's game thread (`GW::GameThread::Enqueue`), and
+`AppearanceApply` is the one auditable place they live (the read/write split, like GameState/AppearanceApply).
+- [x] **Transmog** — whole-model swap into any NPC via emulated `AgentModel`/`NpcGeneralStats`/`NPCModelFile`
+  StoC packets (GWToolbox's proven path, NOT a raw `transmog_npc_id` write). NPC **picker list** from the
+  client-global `GetNPCArray()` (id + model + profession per row).
+- [x] **Scale** — emulated `AgentScale` packet (1..255%). Live 2026-07-07: scale ALONE doesn't visibly
+  resize (GW only re-applies scale on a model reload), **but paired with a Transmog it works — CONFIRMED
+  255% + transmog #285 rendered a giant.** So the reliable combo is transmog+scale; standalone scale is
+  the field-set only (noted in-panel).
+- [x] **Equipment + dye** — per-slot spoof of `equip->items[slot]` (model_file_id + dye) then the
+  `EquipItem`/`RemoveItem` vtable to redraw. Dye is robust (recolour real gear); model swap reuses the
+  slot's real item type (experimental); weapons/costumes are the known-fragile bits (planned).
+- [x] **Profession / Sex** — direct `AgentLiving` field writes (experimental: many models don't re-skin
+  live from these — the reliable look-change path is transmog/equipment; called out honestly in-panel).
+- [x] **Apply / Revert** — a pre-edit snapshot per agent restores the true look; **Revert all**.
+- [x] **Savable/loadable Character configs** with labels (persisted `editor.json` via glaze).
+- [x] **Global states** — named looks bound to a **target set** (Self / Target / All players / All NPCs)
+  with **enable + priority**; several enabled at once, applied low-priority-first so the highest wins a
+  contested field ("All players as X", "Self as Y" compose). One-shot over agents present now.
+- [x] **Shared targeting** — Source = Player/Target (mirrors the Exporter); every edit + state works over
+  SSH via `edit ...` control verbs (apply/revert/transmog/scale/slot/save/load/states), so it is A/B-drivable
+  from the Mac even without an in-game /target.
+*Honest gaps (planned): edits are CLIENT-SIDE and reset on zone (no auto-reapply yet — re-Apply after a map
+change); NPC names are still encoded (picker shows ids); weapon redraw + costume/festival-hat tables need the
+signature-scanned game funcs; hair/face/skin-colour and true **geometry (transform matrices) / custom textures**
+are DAT/-image-era work (see Direct DAT Asset Reading + TexMod) — not in MVP 1.*
 
 ### [~] Review Submodule References for Completed Work and Capabilities
 *Goal: Use existing work in reference while building out Guildlite, submodules described selectively below as they are added/removed:*
@@ -116,7 +134,10 @@ _**IMPORTANT**: All commands must be documented in `Info` panel._
 *Multi-Gw.exe targetting to drive and reload independent clients*
 *UI: Surface all tools and options with saved/loadable state*
  - [x] Guildlite toolbar toggleable all tools
- - [ ] Unify Controls+Overlay panels - place content of Overlay at top of pane, (new) commands section, controls after. Button is 'Info', placed at end of Guildlite toolbar. Will now be ordered: [Editor] [Exporter] [Freecam] [Info]
+ - [x] Unify Controls+Overlay panels — done: `Controls` → **`Info`** (`injector/src/Info.{h,cpp}`), which now
+   leads with the old Overlay **Status** (health + screenshot/demo/unload actions), then a **Commands** crib,
+   then the controls reference. Standalone Overlay window removed. Toolbar reordered to
+   **[Editor] [Exporter] [Freecam] [Info]** (+ Demo for dev).
 
 ---
 
