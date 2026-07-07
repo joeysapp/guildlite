@@ -38,18 +38,36 @@
 
 ### [ ] Direct DAT Asset Reading
 *Goal: Parse the DAT directly, so assets don't depend on active game state.*
-* Likely requires running -image to download all assets prior.
-* Port DAT parsing concepts from `FULL-ENGINE.md` (Phase 1/2) into C++.
-* Basic asset loader (`guildlite-assets`) to locate/read `model_file_id` records from `Gw.dat`.
-* Expand the exporter to output models extracted directly from the DAT.
+* [x] Likely requires running -image to download all assets prior: COMPLETE, entire game has been downloaded. 
+* Asset loader to locate/read `model_file_id` records from `Gw.dat`.
+* Reference GWToolbox's Armory window - it successfully renders thumbnails and selects all armors for all professions and genders in the game.
+* Generalize this data load-in to allow for browsing/selection/actions over many/all types of data in Guild Wars, such as: Armors, Weapons, NPCs (Monsters, Heroes, Friendly e.g. Xunlai, Story characters), Game Objects (Skinned and non-skinned.)
+* Expand the exporter to output models extracted directly from the DAT. UI/UX review needed.
 
 ### [ ] Model/Texture/Area/NPC/Character/../Any Browser & Search UI for Guildlite
 *Goal: Interactive library of models/textures/etc. - anything in game that could be served through a list usefully, usable for multiple panels and planned tools.*
-*Limitations: possibly bound by DAT/GWCA structure; MVP may be a 'seen objects' browser - unless -image resolves issue (likely will - add to guildlite controls?)*
 * ImGui Model Browser with search; categorize DAT contents (Objects, Armor, Items, Animations, Models, Terrain); connect to the asset loader + exporter (search "Chaos Axe" -> export).
-* Immediately usable in the Model Exporter Pick browser, .. Character Editor
+* Immediately usable in the Model Editor as model_id browser to transmog to
 * Text labels vs. wireframe/thumbnail preview; MVP likely searchable text WITH an empty placement image/wireframe.
 * Animations/pose selector in Character Editor
+* Below is a list of known NPC,model_id,existing_label,desc encountered:
+```
+#285,model 153069,warrior
+- Monster, fire djinn with floating animation. Likely attack animation? In Great Temple of Balthazar (GTOB)
+
+#1197-1199: Signposts
+#1197,model 350208,Warrior
+#1198,model 350209,Warrior
+#1199,model 350210,Warrior
+
+#5xxx-7xxx: Heros with all armors
+#6025,model 161906,Ritualist
+- Hero, Xandra, default armor
+#6026,model 161906,Ritualist
+- Hero, Xandra
+#6027,model 161906,Ritualist
+- Hero, Xandra
+```
 
 ### [~] Targeting Functionality & UI for Guildlite
 *Goal: A reliable and expected UI/UX for features and tools that (can) rely on a "target" in-game, knowing:*
@@ -58,41 +76,26 @@
 
 ### [~] Model Editor (MVP 1 built — client-side appearance editor)
 *Goal: A new 'Editor' panel that allows users to edit their character's visual appearance comprehensively.*
-**[~] MVP 1 SHIPPED** → `injector/src/{Editor,AppearanceApply,EditorConfig}` + the third Guildlite tool
-`[Editor]` in the toolbar. Investigation of GWToolbox's **Armory** (`ArmoryWindow.cpp`) + **TransmoModule**
-done: both mechanisms ported. The Editor **writes** appearance (mirror of the Exporter's read); all
-game-memory/vtable/packet writes are marshalled onto GW's game thread (`GW::GameThread::Enqueue`), and
-`AppearanceApply` is the one auditable place they live (the read/write split, like GameState/AppearanceApply).
-- [x] **Transmog** — whole-model swap into any NPC via emulated `AgentModel`/`NpcGeneralStats`/`NPCModelFile`
-  StoC packets (GWToolbox's proven path, NOT a raw `transmog_npc_id` write). NPC **picker list** from the
-  client-global `GetNPCArray()` (id + model + profession per row).
-- [x] **Scale** — emulated `AgentScale` packet (1..255%). Live 2026-07-07: scale ALONE doesn't visibly
-  resize (GW only re-applies scale on a model reload), **but paired with a Transmog it works — CONFIRMED
-  255% + transmog #285 rendered a giant.** So the reliable combo is transmog+scale; standalone scale is
+**[~] MVP 1 SHIPPED** → `injector/src/{Editor,AppearanceApply,EditorConfig}` + the third Guildlite tool `[Editor]` in the toolbar. Investigation of GWToolbox's **Armory** (`ArmoryWindow.cpp`) + **TransmoModule**. Done: both mechanisms ported. The Editor **writes** appearance (mirror of the Exporter's read); all game-memory/vtable/packet writes are marshalled onto GW's game thread (`GW::GameThread::Enqueue`), and `AppearanceApply` is the one auditable place they live (the read/write split, like GameState/AppearanceApply):
+- [x] **Transmog** — whole-model swap into any NPC via emulated `AgentModel`/`NpcGeneralStats`/`NPCModelFile` StoC packets (GWToolbox's proven path, NOT a raw `transmog_npc_id` write). NPC **picker list** from the client-global `GetNPCArray()` (id + model + profession per row).
+- [x] **Scale** — emulated `AgentScale` packet (1..255%). Live 2026-07-07: scale ALONE doesn't visibly resize (GW only re-applies scale on a model reload), **but paired with a Transmog it works — CONFIRMED 255% + transmog #285 rendered a giant.** So the reliable combo is transmog+scale; standalone scale is
   the field-set only (noted in-panel).
-- [x] **Equipment + dye** — per-slot spoof of `equip->items[slot]` (model_file_id + dye) then the
-  `EquipItem`/`RemoveItem` vtable to redraw. Dye is robust (recolour real gear); model swap reuses the
-  slot's real item type (experimental); weapons/costumes are the known-fragile bits (planned).
-- [x] **Profession / Sex** — direct `AgentLiving` field writes (experimental: many models don't re-skin
-  live from these — the reliable look-change path is transmog/equipment; called out honestly in-panel).
+- [x] **Equipment + dye** — per-slot spoof of `equip->items[slot]` (model_file_id + dye) then the  `EquipItem`/`RemoveItem` vtable to redraw. Dye is robust (recolour real gear); model swap reuses the slot's real item type (experimental); weapons/costumes are the known-fragile bits (planned).
+- [x] **Profession / Sex** — direct `AgentLiving` field writes (experimental: many models don't re-skin live from these — the reliable look-change path is transmog/equipment; called out honestly in-panel).
 - [x] **Apply / Revert** — a pre-edit snapshot per agent restores the true look; **Revert all**.
 - [x] **Savable/loadable Character configs** with labels (persisted `editor.json` via glaze).
-- [x] **Global states** — named looks bound to a **target set** (Self / Target / All players / All NPCs)
-  with **enable + priority**; several enabled at once, applied low-priority-first so the highest wins a
-  contested field ("All players as X", "Self as Y" compose). One-shot over agents present now.
-- [x] **Shared targeting** — Source = Player/Target (mirrors the Exporter); every edit + state works over
-  SSH via `edit ...` control verbs (apply/revert/transmog/scale/slot/save/load/states), so it is A/B-drivable
-  from the Mac even without an in-game /target.
-*Honest gaps (planned): edits are CLIENT-SIDE and reset on zone (no auto-reapply yet — re-Apply after a map
-change); NPC names are still encoded (picker shows ids); weapon redraw + costume/festival-hat tables need the
-signature-scanned game funcs; hair/face/skin-colour and true **geometry (transform matrices) / custom textures**
-are DAT/-image-era work (see Direct DAT Asset Reading + TexMod) — not in MVP 1.*
+- [x] **Global states** — named looks bound to a **target set** (Self / Target / All players / All NPCs) with **enable + priority**; several enabled at once, applied low-priority-first so the highest wins a contested field ("All players as X", "Self as Y" compose). One-shot over agents present now.
+- [x] **Shared targeting** — Source = Player/Target (mirrors the Exporter); every edit + state works over SSH via `edit ...` control verbs (apply/revert/transmog/scale/slot/save/load/states), so it is A/B-drivable from the Mac even without an in-game /target.
+*Honest gaps (planned): edits are CLIENT-SIDE and reset on zone (no auto-reapply yet — re-Apply after a map change); NPC names are still encoded (picker shows ids); weapon redraw + costume/festival-hat tables need the
+signature-scanned game funcs; hair/face/skin-colour and true **geometry (transform matrices) / custom textures** are DAT/-image-era work (see Direct DAT Asset Reading + TexMod)*
 
 ### [~] Review Submodule References for Completed Work and Capabilities
 *Goal: Use existing work in reference while building out Guildlite, submodules described selectively below as they are added/removed:*
 - [x] ModelMod: Export/import models into games
 - [x] GWToolbox: Uses GWCA for similar QOL capabilities and features
-- [ ] TexMod: Loads in custom textures
+- [ ] TexMod/gMod: Loads in custom textures
+- [ ] GWDatBrowser
+ - [ ] GuildWarsMapBrowser - References GWDatBrowser specifically: AtexAsm.h/cpp, AtexReader.h/cpp, GWUnpacker.h/cpp, xentax.h/cpp
 - Projects by @ldufr
  - [ ] Headquarter: Unclear. Bot framework?
  - [ ] OpenTyria: Server for Gw.exe, run Guild Wars completely locally
@@ -114,9 +117,9 @@ _**IMPORTANT**: The more GWCA/in-game commands we surface in chat commands - we 
 _**IMPORTANT**: Review GWToolbox commands, propose/implement/reference legitimately useful commands but do not wholesale implement all - GWTB is known for cruft and features without a functional use. Future goals such as template/team loading can be investigated in due time._
 _**IMPORTANT**: All commands must be documented in `Info` panel._
 
-### [ ] Investigate TexMod Integration
+### [ ] Investigate TexMod/gMod Integration
 *Goal: Load in existing texture modifications.*
-*Concession: In looking at existing code, determine if worth integrating vs. simplifying/optimizing ourselves and providing it as a simple tool, e.g. 'Textures' panel with load-in tools, options and improved functionality TexMod does not offer.*
+*Concession: In looking at existing code, determine if worth integrating vs. simplifying/optimizing ourselves and providing it as a simple tool, e.g. 'Textures' panel with load-in tools, options and improved functionality gMod does not offer. Likely our own tool under Editor or a new `Textures` panel?*
 
 ### [ ] Review Practicality of macOS - Gw.exe
 *Goal: Document practicality and options of reliably running Guild Wars on macOS with the lowest amount of dependencies/extra installs.*
@@ -134,10 +137,6 @@ _**IMPORTANT**: All commands must be documented in `Info` panel._
 *Multi-Gw.exe targetting to drive and reload independent clients*
 *UI: Surface all tools and options with saved/loadable state*
  - [x] Guildlite toolbar toggleable all tools
- - [x] Unify Controls+Overlay panels — done: `Controls` → **`Info`** (`injector/src/Info.{h,cpp}`), which now
-   leads with the old Overlay **Status** (health + screenshot/demo/unload actions), then a **Commands** crib,
-   then the controls reference. Standalone Overlay window removed. Toolbar reordered to
-   **[Editor] [Exporter] [Freecam] [Info]** (+ Demo for dev).
 
 ---
 
