@@ -10,3 +10,12 @@
 [submodule "third_party/GWCA"]
 	path = third_party/GWCA
 	url = git@github.com:joeysapp/GWCA.git
+[submodule "third_party/Headquarter"]
+	path = third_party/Headquarter
+	url = https://github.com/ldufr/Headquarter
+[submodule "third_party/nexus"]
+	path = third_party/nexus
+	url = https://github.com/ldufr/nexus
+[submodule "third_party/OpenTyria"]
+	path = third_party/OpenTyria
+	url = https://github.com/ldufr/OpenTyria
