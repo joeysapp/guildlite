@@ -1,30 +1,62 @@
-Review ModelMod submodule for relevant information and potential breakthroughs for current model-export work (reliable, clean, target exports in a single snapshot button) [NOTE: Submodule checked out to main with DX11 code - seems to be 1.2.x is DX11 alpha, 1.1.x is 64bit support, 1.0.x is base, may need to search GH release notes for last known DX9 build/best release to use in reference https://github.com/jmquigs/ModelMod/releases?page=1]
+## BUILD
+Complete the following two priority items that relate to the new Pick Mode in Model Exporter, requiring a number of UX/UI improvements to the model exporter Imgui panel as well as riogorous polish of the pick-mode selector list.
 
-# Background
-Last state of model exporting (first tooling provided by the Guildlite dll) was using A/B analysis and review of settings (./renders/MODEL-EXPORT-SETTINGS.md) There has been progress made and a classified and manually-confirmed models+renders+settings is in progress at ./RENDER-FEEDBACK (classifying output from `dev-tool` runs, an AI-driven visual inspection tool intended for general usage in Guildlite development.)
+- [ ] **Review — once-over Model Exporter coherence** Much of the logic provided outside of the new pick mode interferes/blocks the internals of pick mode but the UI/UX does not clearly communicate this to the user. Additionally, the picker models list can reorder itself and lose track of selected items resulting in users unable to deselect/reslect green-highlighted textures. In building the clean-full profile later specified, do multiple A/B tests comparing results and expected results.
+ - [ ] **`clean-full` profile**: Build a reliable profile for pick-mode use - possible options: `require_skinned + drop_effects + exclude_2d off`. `require_skinned` drops the HUD for free (HUD isn't skinned), `drop_effects` kills auras, `exclude_2d off` is POSSIBLY what finally brings the armor. One click → a complete **solo** character today. This is a pragmatic solo capture, it must reliably clear/set the entire state of the Exporter settings as well as provide a load/save surface in the UI and gw-ctl/gw-loop ssh controls to set and verify settings.
+- [ ] **Multi-frame (time-window) capture/collection**: Accumulate draws over N ms instead of one armed frame (ModelMod's `snap_ms`; comment: one begin/end "often misses data"). Catches geometry split across passes/frames and firms up whole-scene grabs. (The earlier ">1ms frame capture" note.) Extend the picker window to not shuffle/reorder additionally. Likely blocker to meaningfully resolving the isolation/gap issues.
+ - [ ] **Pick-mode polish**: Sort/group the pick list by agent so one character's pieces are contiguous (needs #1's per-agent key); hotkeys for cycle/mark; "mark all in filtered view".
 
-Before `tools/dev-tool` work is continued/refined/flattened it seems prudent to consider the ModelMod DX9 prior work for relevant help. It may be tertiary information for us - is there a chance we've gone about exporting wrong with vertex-shader approach instead of DAT exporing/otherwise? The model-exporter is certainly robust and promising (actual rendering) but if we can do exporting easier, consider that as a leapfrog. Consider that the "solo export" current goal could be done simply, then we pivot our renderer to be game-world/full renderer and export tool (all under the same hood.) Investigate.
+## GOAL
+The standing goal: **press one button, get a reliable, clean, complete export of the
+target — and nothing else.** Everything below is ordered against that. This section was
+rewritten 2026-07-06 to fold in the ModelMod-reference session (see `MODELMOD-FINDINGS.md`)
+and what it proved live on the client.
 
-# Initial Thoughts
-Cursory glance-over of several readmes:
-- Almost every markdown document has random newline breaks throughout. Looks like comments from a 80char maximum line length dev. Suggest to sanitize markdowns first if a possible issue, there is none of that here ever, there is a lot in this repo to go over
-- Dev notes make note of Rust-based global memory usage for a lot of the logic - unclear if this is a blocker for us as well
-- Note of software not working if a D3D9 renderer is used. Unclear if a blocker
-- Dev notes have interesting info about verts/skeleton rigging - as background for Guildlite, initial intent was a cross-platform renderer for GW - deemed low reward s.t. we are now completely reliant on D9 and the Windows client (fine as of now, just an inkling of "hmm.." for interest.)
- - **Importing** models is assuredly an interesting proposition (Prop Hunt, games, fun) but exporting and getting our exporting logic perfected is the priority. Things like **shader hooks** and novel player-facing config is more intriuging (perfect example: Minecraft Acid Shaders 2011)
-- The vertices discussion is very intriuging and sounds like a starting point for animations/skeleton capability (devguide MeshRelation note)
-- The snapshot explanation in the developer guide is very informative for our current state and specific struggles (placement and selection of things, prior attempts like iso=)
- - The screenshot and AI/human verification pipeline built for this capability is now more interesting reading the difficulties injection-based coding inherently has been driven. Curious to see if any past blockers/thought-impossible/too-much-time features could now be worked towards with the feature-agnostic loop chain we have built/been building.
-- **Question**: If / when model isolation is achieved, how granular are these models and meshes and geometries? Could we export an entire character as-is + their separated armor + weapon models at once? 
-- Note of the .mm... proprietary formats. Realizing we are ourselves doing some of this - I would imagine our best path for just _exporting_ would be human-readable for animation/node/skeleton information but - first foray into animation and how getting this information from live memory is "not simple (but probably doable.)"
--# p.s. .. BatGuano? a joke? (unimportant question, just an eyebrow raiser)
+## BACKGROUND
+The new model export Pick Mode has entered into a configuration state where it does not output anything - likely a per-map probe issue or bone isolation issue - but cannot be diagnosed/debugged in the Model Exporter's current state.
 
-**Background: Returned home, have Windows machine w/ Gw.exe. May need refresher/cleanup of tools to get build injected for output information / let us watch it for this build**
+The ModelMod tool was consulted to pivot the Model Exporter's filter-based export to selection-based for the MVP - clean solo target exports. Items are now reliably selected and exported using the Pick Mode but immediate issues have been identified with the initial build and need to be resolved before we can push the initial build to QA for testing.
 
-# Project Relevant Documents
-./README.md, ROADMAP.md, INJECTOR.md - Current state of beginning lightweight injector using GWCA and network protocols for macOS -> Windows dev
+Review the ./ROADMAP.md MODEL EXPORT immediate section for the immediate next-up build items. The following items are identified as likely quick resolvers to the issue:
+ - Review how the Pick Mode interacts with the rest of the tool - is it idempotent, and if so in Pick Mode should disable the rest of the tool or not - believed that the rest of the tool settings _do influence_ the capture as we are currently unable to export anything (but the final Snapshot export works in a variety of settings to be expected)
+ - Coherent reframing of Model Exporter filter/documentation against new ModelMod selection path. Knowing that the filtering logic is quite useful but needs full integration/parity and updated/relevant documentation with our new selection for single-export only. Full scene with object placement is a 100% future feature we will proide.
+ - Profile dropdown save/load with full gw-ctl/ssh integration
+ - Pick-mode polishing
 
-# After Models - Priorities
-1. Refine UI (Gw.exe and macOS build) - Basic bottom-left (~120px padded left to not block Gw menu) toggle menu to open and close all windows
-  - NOTE: Bug in Gw.exe where mouse captures are not perfect - can embellish in following build doc.
-2. Freecam tool
+## REFERENCE AND RULES
+- **HARD RULE:** Use the screenshot and blender rendering to get a full-view (all sides) rendering of picked capture.
+ - Delay between all steps of build->reload->load profile->select character->capture screenshot, on reload profile/settings are often not set and the game needs >1s to paint and populate its texture picker
+ - In buiding the clean-full profile, approximate a closest-best version we can use to begin with and A/B test with. Do this with intuition and several ssh->blender full renders and review.
+- ./README.md, ROADMAP.md, INJECTOR.md - Current state of beginning lightweight injector using GWCA and network protocols for macOS -> Windows dev
+
+### FINDINGS
+- **Bone-palette isolation is map/shader-specific** — great when calibrated (map 481), 0 on
+  map 280. Needs self-calibration (#1) before it's dependable.
+- **GW packs bone indices in a `D3DCOLOR` beta** (`XYZB1 + LASTBETA_D3DCOLOR`), rigid
+  single-bone, no explicit weights — read in raw byte order (byte 0 = the bone).
+
+### BELIEVED REMAINING BLOCKERS TO CLEAN SOLO EXPORT BUTTON
+1. **Isolation — one agent out of the crowd**: `require_skinned` keeps *every*
+   character in range, not just the subject; the bone-palette match (`isolate_by_bone`)
+   returned **0 on map 280** because its register calibration was taken on map 481. Fix:
+   take one Probe capture on 2–3 maps, solve which constant register block holds the
+   per-agent translation + the world→render scale, then make isolation **self-calibrating**
+   (scan for the register block whose per-agent translations actually separate, anchor to
+   the GWCA target's position). Unblocks: "mark whole character", crowd isolation, and the
+   single-button target export. This is the last hard piece of the original
+   "press a button and get your target reliably" item.
+2.  **Close the still-missing armor piece**: Depth-test-off inclusion
+   **DID NOT** recover the robe/skirt. but a piece of armor is still absent.
+   Diagnose: one capture with `log_draws` on + `exclude_2d off`, find the armor-sized
+   skinned draw and read its `reason` — most likely `dedup` (a shared vb/ib/range signature
+   colliding with another draw) or a distinct blend/stream state we drop. Unblocks: a
+   geometrically complete character. Remove comments about depth-test fixing this problem
+   in code and UI, and harden A/B renders that incorrectly signalled this issue being fixed.
+
+## LATER MODEL EXPORT FEATURES
+- [ ] **A pure "character" filter beyond `has_blend`**: GW vertex-animates foliage/water/terrain, so `has_blend` ("skinned") over-includes them (confirmed: the clean-solo render was full of flowers). Options: detect the character skinning **vertex shader** (distinct from the terrain/foliage shaders) — sturdier; or a **drop-huge-draws** size gate (terrain is 2048-tri / 2048² textured vs character pieces ≤~1200-tri / ≤1024²) — cheaper, partial.
+- [ ] **Animation: rig/pose from the captured substrate**: (Research->Build, or document how to begin using the rigging in external tools such as blender for later automation and animation rigging) The binding is already exported (`#vbld` = per-vertex bone indices/weights) and the palette is dumpable (Probe → manifest `probe[]`). Remaining work is assembly: reconstruct bone transforms from the palette and apply/attach a skeleton. Nobody in the ModelMod reference got here; the raw material is captured, so we're closer than they were.
+- [ ] **Non-skinned effects / spectral inclusion**: Auras/glows/some weapons aren't skinned (no bone palette), so agent-grouping can't collect them and they're easy to miss. Mark by draw-order adjacency to the agent, or leave to manual multi-select.
+
+## AFTER MODEL EXPORT CLEAN SOLO PROFILE CONFIRMED WORKING
+1. Freecam tool
