@@ -1,10 +1,31 @@
 ## BUILD
 Complete the following two priority items that relate to the new Pick Mode in Model Exporter, requiring a number of UX/UI improvements to the model exporter Imgui panel as well as riogorous polish of the pick-mode selector list.
 
-- [ ] **Review — once-over Model Exporter coherence** Much of the logic provided outside of the new pick mode interferes/blocks the internals of pick mode but the UI/UX does not clearly communicate this to the user. Additionally, the picker models list can reorder itself and lose track of selected items resulting in users unable to deselect/reslect green-highlighted textures. In building the clean-full profile later specified, do multiple A/B tests comparing results and expected results.
- - [ ] **`clean-full` profile**: Build a reliable profile for pick-mode use - possible options: `require_skinned + drop_effects + exclude_2d off`. `require_skinned` drops the HUD for free (HUD isn't skinned), `drop_effects` kills auras, `exclude_2d off` is POSSIBLY what finally brings the armor. One click → a complete **solo** character today. This is a pragmatic solo capture, it must reliably clear/set the entire state of the Exporter settings as well as provide a load/save surface in the UI and gw-ctl/gw-loop ssh controls to set and verify settings.
-- [ ] **Multi-frame (time-window) capture/collection**: Accumulate draws over N ms instead of one armed frame (ModelMod's `snap_ms`; comment: one begin/end "often misses data"). Catches geometry split across passes/frames and firms up whole-scene grabs. (The earlier ">1ms frame capture" note.) Extend the picker window to not shuffle/reorder additionally. Likely blocker to meaningfully resolving the isolation/gap issues.
- - [ ] **Pick-mode polish**: Sort/group the pick list by agent so one character's pieces are contiguous (needs #1's per-agent key); hotkeys for cycle/mark; "mark all in filtered view".
+**STATUS — shipped 2026-07-06 (all four items + the real blockers underneath).** The pick snap
+"outputs nothing" driver turned out to be two capture bugs the UX work exposed; both fixed. Details:
+
+- [x] **Review — once-over Model Exporter coherence** — root-caused, not just papered over. The
+  picker "reorder / can't deselect green / snap matches nothing" was **pointer-based `DrawKey`** (GW
+  recycles the vertex buffer every frame) → now a content **`PickSig`** (prim/vert/stride). Cursor
+  vs mark now distinct tints (**amber vs green**) so a green row can be deselected. Coherence banners
+  + per-section "not used by a Snap" notes added. A/B tested throughout via SSH → Blender renders.
+ - [x] **`clean-full` profile** — built, then A/B **corrected the recipe**: `require_skinned` was
+  WRONG (it drops GW's non-skinned dress/armor → the "missing armor"); now `require_skinned=false`,
+  size-gated scenery instead. Whole-state-reset profiles + dropdown/Apply/Save/Reload UI;
+  `drop_effects`/`export_skin_weights` now **persist** (were reverting on reload); `settings` verb +
+  gw-ctl/gw-loop docs for set-and-verify over SSH.
+- [x] **Multi-frame (time-window) capture** — pick snap now **accumulates across frames** until every
+  marked signature is grabbed (or times out); a single EndScene often lands on a minor pass and
+  misses the world draws (that was the `hook_calls=7` symptom). Content-sig dedupe prevents ghosting.
+ - [x] **Pick-mode polish** — running-window list (intermittent pieces stay markable), **Clear list**,
+  **Mark all in view**, stable `#id` rows (no shuffle). Per-agent grouping still gated behind
+  isolation self-calibration (unchanged; the hard isolation problem).
+
+**Emergent (beyond the brief):** non-skinned pieces are baked into **world space** → new
+`AlignWorldSpaceChunks` re-seats them onto the bind-pose body (`local = Rz(-facing)·(world-pos)`).
+Gives a **complete, assembled character** for root-attached garments (dress). Multi-bone limb armor
+(pauldrons/greaves, one draw across several bones, in the LIVE pose) only gets *near* — exact seating
+needs per-bone posing → ROADMAP **#pose / Rig-pose**. Left as documented future work per decision.
 
 ## GOAL
 The standing goal: **press one button, get a reliable, clean, complete export of the

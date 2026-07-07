@@ -22,6 +22,7 @@
 
 #include <d3d9.h>
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -39,6 +40,8 @@ namespace {
 
     bool capture_in_flight = false;
     bool pending_dry_run = false;
+    bool pending_is_pick = false; // this in-flight capture is a pick Snap (render-thread only)
+    int  pending_pick_n = 0;      // how many draws the Snap was asked to grab (for "matched X of N")
     Config pending_cfg;
     GameStateSnapshot pending_snapshot;
 
@@ -50,6 +53,8 @@ namespace {
     volatile int  pick_skinned_req = 0; // 0 none, 1 on, 2 off
     volatile int  pick_2d_req = 0;      // 0 none, 1 on, 2 off
     volatile bool pick_mark_req = false, pick_clear_req = false;
+    volatile bool pick_markall_req = false;
+    volatile bool pick_clearlist_req = false;
     volatile bool pick_marktarget_req = false;
     volatile bool pick_snap_req = false;
 
@@ -153,59 +158,97 @@ namespace {
         GL_DLLLOG("Exporter::Set: %s = %s", key.c_str(), val.c_str());
     }
 
+    // A profile is a ONE-CLICK, WHOLE-STATE recipe. It first resets every capture field to its
+    // default, then applies only the recipe's deltas -- so applying a profile can never leave a
+    // stale filter/toggle from a previous profile silently influencing the next capture, and the
+    // panel afterwards reflects exactly what will be captured. Only the environment (export dir +
+    // window visibility) is preserved. Same names drive the SSH path (gw-ctl 'profile <name>').
     void ApplyProfile(const std::string& name)
     {
-        if (name == "clean-self" || name == "clean-target") {
-            // The reproducible character recipe: NO iso (its bone-match drops the tall body
-            // meshes -- proven via draw_log); require_skinned is the deterministic,
-            // pose-independent "a character, not scenery" filter used instead.
+        // Validate the name BEFORE mutating anything, so an unknown profile is a no-op.
+        static const char* kKnown[] = {"clean-full", "clean-full-target", "clean-self",
+                                       "clean-target", "clean-solo", "clean-solo-target", "raw"};
+        bool known = false;
+        for (const char* k : kKnown) { if (name == k) { known = true; break; } }
+        if (!known) { GL_DLLLOG("Exporter::ApplyProfile: unknown profile '%s'", name.c_str()); return; }
+
+        const std::string keep_dir = g_config.export_dir;
+        const bool keep_vis = g_config.window_visible;
+        g_config = Config{};               // reset EVERY capture setting to its default
+        g_config.export_dir = keep_dir;    // ... but keep the user's environment
+        g_config.window_visible = keep_vis;
+
+        if (name == "clean-full" || name == "clean-full-target") {
+            // The most COMPLETE solo character in one Export Snapshot. A/B testing (2026-07-06)
+            // proved require_skinned was WRONG here: GW draws the dress/skirt (and some armor) as a
+            // normal DIP mesh it does NOT flag as skinned, so require_skinned silently dropped it --
+            // the "missing armor/robe" symptom. So keep require_skinned OFF and separate character
+            // from scenery by SIZE instead: filter_max_extent drops terrain/structures,
+            // filter_min_thickness drops HUD billboards (needed because exclude_2d is OFF to reach
+            // depth-test-off pieces), drop_effects kills additive auras. Best in a SOLO instance --
+            // with require_skinned off, nearby agents' meshes come in too, so isolate a
+            // target-in-a-crowd with the pick path instead.
             g_config.scope = CaptureScope::Filtered;
-            g_config.isolate_by_bone = false;
+            g_config.require_skinned = false;     // A/B: require_skinned dropped the non-skinned dress
+            g_config.drop_effects = true;
+            g_config.exclude_2d = false;          // include depth-test-off draws (reach z-off armor)
+            g_config.filter_max_extent = 150.f;   // drop terrain/structure-sized meshes (scenery gate)
+            g_config.filter_min_thickness = 1.5f; // drop HUD billboards let in by exclude_2d off
+            g_config.target = (name == "clean-full-target") ? TargetSource::Target : TargetSource::Player;
+        }
+        else if (name == "clean-self" || name == "clean-target") {
+            // Conservative character recipe: same as clean-full but keeps exclude_2d ON (drop the
+            // HUD the cheap way). Misses z-off armor but is the safest "just my body" grab.
+            g_config.scope = CaptureScope::Filtered;
             g_config.require_skinned = true;
-            g_config.require_texture = false;
-            g_config.drop_effects = true;         // kill enchant/aura/glow black panels
-            g_config.filter_max_extent = 150.f;   // drops the 600-1300u structures
-            g_config.filter_min_thickness = 1.5f; // drops HUD billboards
-            g_config.filter_center_radius = 0.f;
-            g_config.trim_outliers = true;
-            g_config.exclude_2d = true;
-            g_config.dedupe = true;
+            g_config.drop_effects = true;
+            g_config.filter_max_extent = 150.f;
+            g_config.filter_min_thickness = 1.5f;
             g_config.target = (name == "clean-target") ? TargetSource::Target : TargetSource::Player;
         }
         else if (name == "clean-solo" || name == "clean-solo-target") {
             // Solo self-capture -- you are ALONE in the instance (private district, empty
-            // explorable, guild hall). No crowd to isolate and no need to skin-gate (which
-            // also blocks static props/attachments), so instead: drop terrain by extent, HUD
-            // billboards by thickness, and the additive effect planes by blend mode. What's
-            // left is one clean body. Pair with removing armor in-game for a bare-skin base.
+            // explorable, guild hall). No crowd to isolate and no need to skin-gate (which also
+            // blocks static props/attachments), so drop terrain by extent, HUD billboards by
+            // thickness, and additive effect planes by blend mode. What's left is one clean body.
             g_config.scope = CaptureScope::Filtered;
-            g_config.isolate_by_bone = false;
             g_config.require_skinned = false;     // solo => no other characters to exclude
-            g_config.require_texture = false;
-            g_config.drop_effects = true;         // kill enchant/aura/glow black panels
-            g_config.filter_max_extent = 150.f;   // drop terrain/structure-sized meshes
-            g_config.filter_min_thickness = 1.5f; // drop HUD billboards/decals
-            g_config.filter_center_radius = 0.f;
-            g_config.trim_outliers = true;
-            g_config.exclude_2d = true;
-            g_config.dedupe = true;
+            g_config.drop_effects = true;
+            g_config.filter_max_extent = 150.f;
+            g_config.filter_min_thickness = 1.5f;
             g_config.target = (name == "clean-solo-target") ? TargetSource::Target : TargetSource::Player;
         }
         else if (name == "raw") {
-            // Whole scene, drop nothing but exact-duplicate redraws -- the diagnostic baseline.
+            // Whole scene, drop only exact-duplicate redraws (dedupe stays on by default) -- the
+            // diagnostic baseline. exclude_2d + trim off so nothing is hidden.
             g_config.scope = CaptureScope::WholeScene;
-            g_config.isolate_by_bone = false;
-            g_config.require_skinned = false;
-            g_config.require_texture = false;
-            g_config.drop_effects = false;
-            g_config.filter_max_extent = 0.f;
-            g_config.filter_min_thickness = 0.f;
-            g_config.trim_outliers = false;
             g_config.exclude_2d = false;
+            g_config.trim_outliers = false;
         }
-        else { GL_DLLLOG("Exporter::ApplyProfile: unknown profile '%s'", name.c_str()); return; }
         Settings::Save(g_config);
-        GL_DLLLOG("Exporter::ApplyProfile: %s applied", name.c_str());
+        GL_DLLLOG("Exporter::ApplyProfile: '%s' applied (whole capture state reset + recipe)", name.c_str());
+    }
+
+    // Log the whole live capture state to the DLL log -- the SSH "verify settings" surface
+    // (gw-ctl 'settings'; readable in the guildlite log, or fetch a capture-dry manifest which
+    // also carries settings[]). Log-only: this runs on the stub poll thread, which must NOT call
+    // into GWCA/D3D, so it deliberately touches nothing but g_config + the log.
+    void DumpSettings()
+    {
+        const Config& c = g_config;
+        GL_DLLLOG("Exporter settings: scope=%s target=%s detail=%s format=%s",
+                  c.scope == CaptureScope::Filtered ? "filtered" : "whole",
+                  c.target == TargetSource::Target ? "target" : "player",
+                  c.detail == DetailLevel::Advanced ? "advanced" : "base",
+                  c.format == OutputFormat::STL ? "stl" : "obj");
+        GL_DLLLOG("  require_skinned=%d drop_effects=%d exclude_2d=%d require_texture=%d dedupe=%d",
+                  c.require_skinned, c.drop_effects, c.exclude_2d, c.require_texture, c.dedupe);
+        GL_DLLLOG("  isolate_by_bone=%d tol=%.0f max_extent=%.1f min_thickness=%.2f center_radius=%.1f",
+                  c.isolate_by_bone, c.isolate_tolerance, c.filter_max_extent, c.filter_min_thickness,
+                  c.filter_center_radius);
+        GL_DLLLOG("  min_prims=%d max_prims=%d min_verts=%d trim=%d trim_k=%.1f up_axis=%d skin_weights=%d",
+                  c.filter_min_prims, c.filter_max_prims, c.filter_min_verts, c.trim_outliers, c.trim_k,
+                  c.up_axis, c.export_skin_weights);
     }
 
     // --- capture (was BeginCapture/FlushCapture) ---------------------------
@@ -217,6 +260,7 @@ namespace {
         }
         g_config.export_dir = export_dir_buf;
         pending_dry_run = dry_run;
+        pending_is_pick = false; // the filter-stack path, not a pick Snap
         pending_cfg = g_config;
         pending_snapshot = GameState::Gather(g_config.target);
         // Seed the render-thread isolation match from the target's GWCA world position
@@ -236,9 +280,18 @@ namespace {
     {
         if (!Game::Ready()) { status_line = "GWCA not ready -- cannot snap."; return; }
         if (capture_in_flight) return;
-        if (!Capture::HasSelection()) { status_line = "Pick: nothing selected to snap."; return; }
+        // Snap the MARKED set; fall back to the cursor only when nothing is marked. Guarding on
+        // the cursor alone was the "nothing selected to snap" bug: with a stable content key the
+        // cursor can still be absent from a given frame while marks are perfectly valid.
+        const int marks = Capture::PickMarkedCount();
+        if (marks == 0 && !Capture::HasSelection()) {
+            status_line = "Pick: nothing marked or selected to snap.";
+            return;
+        }
         g_config.export_dir = export_dir_buf;
         pending_dry_run = false;
+        pending_is_pick = true;
+        pending_pick_n = (marks > 0) ? marks : 1;
         pending_cfg = g_config;
         pending_snapshot = GameState::Gather(g_config.target);
         pending_cfg.has_match_pos = false;   // the pick is the filter; isolation not needed
@@ -265,8 +318,60 @@ namespace {
         status_line = "Marking all of the source's pieces (bone-palette match)...";
     }
 
+    // GW hands NON-skinned character meshes (dress/skirt/some armor) already baked into WORLD
+    // space, while skinned meshes arrive bind-pose-local at the origin (the bone palette poses
+    // them in-shader). Left alone they sit thousands of units apart -- the export renders as a
+    // speck. Re-seat each world-space piece into the agent's local frame so it sits ON the body:
+    //     local = Rz(-facing) * (world - agent_pos)      (facing rotates the horizontal x/y; z=up)
+    // Verified 2026-07-06 against a targeted capture. NOTE: the skinned body is BIND pose while
+    // these pieces are the LIVE pose, so the root/facing align but limb-level pose does not --
+    // "close, not exact". Exact assembly needs posing the body from the captured bone weights
+    // (see ROADMAP "rig/pose"). Needs a VALID snapshot (real Source agent -> pos + facing);
+    // skinned chunks are already local and left untouched.
+    void AlignWorldSpaceChunks(const GameStateSnapshot& snap, std::vector<MeshChunk>& chunks)
+    {
+        if (!snap.valid) return;
+        const float px = snap.pos_x, py = snap.pos_y, pz = snap.pos_z;
+        const float c = std::cos(snap.rotation), s = std::sin(snap.rotation);
+        for (auto& ch : chunks) {
+            if (ch.is_skinned || ch.positions.size() < 3) continue; // skinned = already local
+            const float cx = (ch.aabb_min[0] + ch.aabb_max[0]) * 0.5f;
+            const float cy = (ch.aabb_min[1] + ch.aabb_max[1]) * 0.5f;
+            const float cz = (ch.aabb_min[2] + ch.aabb_max[2]) * 0.5f;
+            if (cx * cx + cy * cy + cz * cz < 500.f * 500.f) continue; // already near local origin
+            float mn[3] = {0, 0, 0}, mx[3] = {0, 0, 0};
+            for (size_t i = 0; i + 2 < ch.positions.size(); i += 3) {
+                const float dx = ch.positions[i]     - px;
+                const float dy = ch.positions[i + 1] - py;
+                const float dz = ch.positions[i + 2] - pz;
+                const float lx =  dx * c + dy * s; // Rz(-facing) on the horizontal plane
+                const float ly = -dx * s + dy * c;
+                ch.positions[i]     = lx;
+                ch.positions[i + 1] = ly;
+                ch.positions[i + 2] = dz;          // z (up) is unchanged by a facing rotation
+                const float p[3] = {lx, ly, dz};
+                for (int k = 0; k < 3; ++k) {
+                    if (i == 0) { mn[k] = mx[k] = p[k]; }
+                    else { if (p[k] < mn[k]) mn[k] = p[k]; if (p[k] > mx[k]) mx[k] = p[k]; }
+                }
+            }
+            for (int k = 0; k < 3; ++k) { ch.aabb_min[k] = mn[k]; ch.aabb_max[k] = mx[k]; }
+            for (size_t i = 0; i + 2 < ch.normals.size(); i += 3) { // un-rotate normal directions
+                const float nx = ch.normals[i], ny = ch.normals[i + 1];
+                ch.normals[i]     =  nx * c + ny * s;
+                ch.normals[i + 1] = -nx * s + ny * c;
+            }
+        }
+    }
+
     void FlushCapture(IDirect3DDevice9* device)
     {
+        // Re-seat world-space non-skinned pieces (dress/skirt/armor GW bakes into world space)
+        // onto the bind-pose body before trimming/bounds, so the export is ONE assembled model.
+        // Only for single-character captures (pick snap or Filtered scope) with a valid agent.
+        if ((pending_is_pick || pending_cfg.scope == CaptureScope::Filtered) && pending_snapshot.valid) {
+            AlignWorldSpaceChunks(pending_snapshot, Capture::Chunks());
+        }
         // Drop far-placed effect/billboard fliers before anything else so textures,
         // stats and the manifest all describe the trimmed model, not the fliers.
         Capture::TrimOutliers(pending_cfg);
@@ -354,6 +459,12 @@ namespace {
         if (wr.ok) {
             last_output = wr.main_file.string();
             status_line = "Saved: " + last_output;
+            if (pending_is_pick) {
+                char b[96];
+                _snprintf_s(b, sizeof(b), _TRUNCATE, "  (Snap: %u of %d marked draws matched)",
+                            stats.draws_captured, pending_pick_n);
+                status_line += b;
+            }
             if (Game::Ready()) {
                 std::wstring msg = L"Guildlite: saved " + wr.main_file.filename().wstring() + L" (" +
                                    std::to_wstring(stats.draws_captured) + L" objects, " +
@@ -377,6 +488,15 @@ namespace {
     void DrawControlPanel(IDirect3DDevice9* device)
     {
         const bool gw_ready = Game::Ready();
+        const bool pick_on = Capture::PickActive();
+        // Shown under the filter/isolation/cleanup headers while Pick mode is on, because a
+        // Snap bypasses all of them -- without this the panel silently implies they apply.
+        const auto snapNote = [&]() {
+            if (pick_on) {
+                ImGui::TextColored(ImVec4(1.f, 0.75f, 0.3f, 1.f),
+                                   "Pick mode on: this section does NOT affect a Snap (only 'Export Snapshot').");
+            }
+        };
 
         ImGui::TextWrapped("Snapshot the live 3D geometry of the player or your target to disk.");
         if (!gw_ready) {
@@ -393,29 +513,72 @@ namespace {
             }
         }
 
+        // --- Profiles (one-click, whole-state recipes) + save/load -------------
+        if (ImGui::CollapsingHeader("Profiles (one-click setup)", ImGuiTreeNodeFlags_DefaultOpen)) {
+            static int prof_idx = 0;
+            const char* profiles[] = {"clean-full", "clean-full-target", "clean-self", "clean-target",
+                                      "clean-solo", "clean-solo-target", "raw"};
+            ImGui::SetNextItemWidth(220.f);
+            ImGui::Combo("##profile", &prof_idx, profiles, IM_ARRAYSIZE(profiles));
+            ImGui::SameLine();
+            if (ImGui::Button("Apply profile")) {
+                ApplyProfile(profiles[prof_idx]);
+                _snprintf_s(export_dir_buf, sizeof(export_dir_buf), _TRUNCATE, "%s", g_config.export_dir.c_str());
+                status_line = std::string("Applied profile '") + profiles[prof_idx] +
+                              "' -- whole capture state set; the panel below now reflects it.";
+            }
+            ImGui::TextDisabled("A profile RESETS every capture setting, then applies its recipe. clean-full =\n"
+                                "drop-effects + Exclude-2D OFF + size-gated (NO require-skinned, so non-skinned\n"
+                                "pieces like dresses/skirts survive): the most complete solo character in one\n"
+                                "Export Snapshot. Same names over SSH:  gw-ctl 'profile clean-full'.");
+            if (ImGui::Button("Save settings now")) {
+                Settings::Save(g_config);
+                status_line = "Settings saved to settings.json.";
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Reload from disk")) {
+                Settings::Load(g_config);
+                g_config.window_visible = true; // never let a reloaded 'closed' strand the panel
+                _snprintf_s(export_dir_buf, sizeof(export_dir_buf), _TRUNCATE, "%s", g_config.export_dir.c_str());
+                status_line = "Settings reloaded from settings.json.";
+            }
+            ImGui::SameLine();
+            ImGui::TextDisabled("(also auto-saved on every change + on close)");
+        }
+
         // --- Pick a draw (interactive select-one) ------------------------------
         if (ImGui::CollapsingHeader("Pick a draw (point-and-shoot)", ImGuiTreeNodeFlags_DefaultOpen)) {
             bool active = Capture::PickActive();
             if (ImGui::Checkbox("Pick mode", &active)) {
                 Capture::PickSetActive(active);
             }
-            ImGui::TextDisabled("Tints draws GREEN in-game and lists the frame's pickable draws below.\n"
-                                "Click rows (or Prev/Next + Mark) to MARK several -- body + each armor\n"
-                                "piece + weapon -- then Snap exports them together as one model. No\n"
-                                "filters, no isolation: you pick exactly what you want.");
+            ImGui::TextDisabled("Lists the frame's pickable draws below and tints marked ones GREEN in-game\n"
+                                "(the cursor is AMBER). Click rows (or Prev/Next + Mark) to MARK several --\n"
+                                "body + each armor piece + weapon -- then Snap exports them together as one\n"
+                                "model. No filters, no isolation: you pick exactly what you want.");
             if (active) {
                 bool skinned_only = Capture::PickSkinnedOnly();
                 if (ImGui::Checkbox("Skinned only (characters)", &skinned_only)) {
                     Capture::PickSetSkinnedOnly(skinned_only);
                 }
                 ImGui::SameLine();
-                ImGui::TextDisabled("cuts scene draws to just characters (turn off for effects/props)");
+                ImGui::TextDisabled("cuts the list to skinned characters. WARNING: GW draws some pieces\n"
+                                    "(dresses/skirts, some armor) as NON-skinned meshes -- this HIDES them.\n"
+                                    "If a piece is missing from the list, turn this OFF.");
                 bool include_2d = Capture::PickInclude2D();
                 if (ImGui::Checkbox("Include depth-test-off draws", &include_2d)) {
                     Capture::PickSetInclude2D(include_2d);
                 }
                 ImGui::SameLine();
-                ImGui::TextDisabled("reveals armor GW draws z-off (also brings the HUD in; pair with Skinned only)");
+                ImGui::TextDisabled("lists draws GW renders z-off (some armor; also the HUD -- pair with Skinned only)");
+
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.55f, 0.85f, 1.f, 1.f),
+                    "Snap exports EXACTLY the marked draws. The Scope/Filter and Isolation sections\n"
+                    "below (plus Trim) do NOT affect a Snap -- the pick IS the filter. They apply\n"
+                    "only to 'Export Snapshot'. (The up-axis/orientation remap still applies.)");
+                ImGui::TextDisabled("Green in-game = marked (will export).  Amber = cursor (Prev/Next focus).\n"
+                    "Click any row to mark/unmark it -- clicking a green row removes it from the set.");
 
                 // One-click whole-character grouping: mark all of the Source's skinned pieces
                 // at once (bone-palette match), sidestepping the scattered draw order.
@@ -423,7 +586,9 @@ namespace {
                 if (ImGui::Button("Mark whole character (Source's pieces)")) PickMarkTarget();
                 ImGui::EndDisabled();
                 ImGui::SameLine();
-                ImGui::TextDisabled("bone-palette match; if 0 get marked, re-Probe/widen tolerance");
+                ImGui::TextDisabled("EXPERIMENTAL: bone-palette match OVER-marks in a crowd (nearby agents,\n"
+                                    "shared-mesh pieces) -- the unsolved per-agent isolation problem. For a\n"
+                                    "clean result, mark pieces manually or use 'Mark all in view' when solo.");
 
                 const int n = Capture::PickCount();
                 const int sel = Capture::PickIndex();
@@ -441,9 +606,21 @@ namespace {
 
                 const bool loading = gw_ready && GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading;
                 const int to_snap = (marked > 0) ? marked : (Capture::HasSelection() ? 1 : 0);
+                ImGui::BeginDisabled(n == 0);
+                if (ImGui::Button("Mark all in view")) Capture::PickMarkAllFiltered();
+                ImGui::EndDisabled();
+                ImGui::SameLine();
                 ImGui::BeginDisabled(marked == 0);
                 if (ImGui::Button("Clear marks")) Capture::PickClearMarks();
                 ImGui::EndDisabled();
+                ImGui::SameLine();
+                ImGui::BeginDisabled(n == 0);
+                if (ImGui::Button("Clear list")) Capture::PickClearList();
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("The list is a running window of pieces drawn in the last few seconds\n"
+                                      "(some render only intermittently). Clear it when you switch targets.");
+                }
                 ImGui::SameLine();
                 ImGui::BeginDisabled(!gw_ready || loading || capture_in_flight || to_snap == 0);
                 char snaplabel[64];
@@ -451,15 +628,22 @@ namespace {
                 if (ImGui::Button(snaplabel, ImVec2(-1, 0))) PickSnap();
                 ImGui::EndDisabled();
 
-                ImGui::BeginChild("pick_list", ImVec2(0, 150), true);
+                ImGui::BeginChild("pick_list", ImVec2(0, 160), true);
                 for (int i = 0; i < n; ++i) {
                     const PickInfo r = Capture::PickRow(i);
                     const bool mk = Capture::PickRowMarked(i);
-                    char label[176];
-                    _snprintf_s(label, sizeof(label), _TRUNCATE, "%s #%d   %u tris  %u verts   %dx%d%s",
-                                mk ? "[x]" : "[ ]", i, r.tris, r.verts, r.tex_w, r.tex_h, r.skinned ? "  skinned" : "");
-                    // Click focuses the row (green preview) and toggles its export mark.
-                    if (ImGui::Selectable(label, mk || i == sel)) { Capture::PickSelect(i); Capture::PickToggleMarkRow(i); }
+                    const bool cur = (i == sel);
+                    // Stable per-draw ordinal (#id) + a hidden ##id give each row an identity that
+                    // does NOT shift when the list prunes/reorders, so a marked row stays findable
+                    // and clickable even as the frame's draw set churns.
+                    char label[192];
+                    _snprintf_s(label, sizeof(label), _TRUNCATE, "%s %s #%u   %u tris  %u verts   %dx%d%s##pk%u",
+                                mk ? "[x]" : "[ ]", cur ? ">" : " ", r.id, r.tris, r.verts,
+                                r.tex_w, r.tex_h, r.skinned ? "  skinned" : "", r.id);
+                    // Click moves the cursor here (amber) AND toggles this draw's export mark (green),
+                    // so clicking a green row removes its green -- the deselect that was impossible
+                    // when cursor and mark shared one colour.
+                    if (ImGui::Selectable(label, mk || cur)) { Capture::PickSelect(i); Capture::PickToggleMarkRow(i); }
                 }
                 ImGui::EndChild();
             }
@@ -523,6 +707,7 @@ namespace {
 
         // --- Scope / filter ----------------------------------------------------
         if (ImGui::CollapsingHeader("Scope / Filter")) {
+            snapNote();
             const char* items[] = {"Whole scene", "Filtered (isolate a model)"};
             int v = static_cast<int>(g_config.scope);
             if (ImGui::Combo("Scope", &v, items, 2)) {
@@ -570,6 +755,7 @@ namespace {
 
         // --- Isolation / calibration ------------------------------------------
         if (ImGui::CollapsingHeader("Isolation (bone-palette)", ImGuiTreeNodeFlags_DefaultOpen)) {
+            snapNote();
             ImGui::Checkbox("Isolate to Source agent", &g_config.isolate_by_bone);
             ImGui::SetNextItemWidth(120.f);
             ImGui::InputFloat("Match tolerance", &g_config.isolate_tolerance);
@@ -734,6 +920,8 @@ namespace Exporter {
         if (pick_skinned_req) { Capture::PickSetSkinnedOnly(pick_skinned_req == 1); pick_skinned_req = 0; }
         if (pick_2d_req)     { Capture::PickSetInclude2D(pick_2d_req == 1); pick_2d_req = 0; }
         if (pick_mark_req)   { pick_mark_req = false;  Capture::PickToggleMark(); }
+        if (pick_markall_req) { pick_markall_req = false; Capture::PickMarkAllFiltered(); }
+        if (pick_clearlist_req) { pick_clearlist_req = false; Capture::PickClearList(); }
         if (pick_clear_req)  { pick_clear_req = false; Capture::PickClearMarks(); }
         if (pick_marktarget_req) { pick_marktarget_req = false; PickMarkTarget(); }
         if (pick_snap_req)   { pick_snap_req = false; PickSnap(); }
@@ -745,14 +933,32 @@ namespace Exporter {
                 FlushCapture(device);
                 Capture::Reset();
                 capture_in_flight = false;
+                pending_is_pick = false;
             }
             else if (st == CaptureState::Failed) {
                 last_stats = Capture::Stats();
-                status_line = last_stats.hook_calls == 0
-                                  ? "Hook never fired this frame (see diagnostics below)."
-                                  : "Draws seen but none captured -- check the diagnostics/filters below.";
+                if (last_stats.hook_calls == 0) {
+                    status_line = "Hook never fired this frame (see diagnostics below).";
+                }
+                else if (pending_is_pick) {
+                    // A Snap saw draws but matched none of the marked signatures. The two usual
+                    // causes are named right here so the panel is self-diagnosing: the target
+                    // isn't issued as a TRIANGLELIST this frame (census shows strip/DIPUP high,
+                    // list low), or its buffer identity shifted between marking and snapping.
+                    char b[224];
+                    _snprintf_s(b, sizeof(b), _TRUNCATE,
+                        "Snap matched 0 of %d marked (seen=%u, list=%u). If 'DIP by type' shows "
+                        "strip/DIPUP high with list low, the target isn't a TRIANGLELIST -- not "
+                        "pickable yet; else its draw identity changed between mark and snap.",
+                        pending_pick_n, last_stats.draws_seen, last_stats.dip_trianglelist);
+                    status_line = b;
+                }
+                else {
+                    status_line = "Draws seen but none captured -- check the diagnostics/filters below.";
+                }
                 Capture::Reset();
                 capture_in_flight = false;
+                pending_is_pick = false;
             }
         }
 
@@ -805,14 +1011,18 @@ namespace Exporter {
             else if (a == "skinned") { pick_skinned_req = (tok.size() >= 3 && (tok[2] == "off" || tok[2] == "0")) ? 2 : 1; }
             else if (a == "2d")      { pick_2d_req = (tok.size() >= 3 && (tok[2] == "off" || tok[2] == "0")) ? 2 : 1; }
             else if (a == "mark")    pick_mark_req = true;
+            else if (a == "markall") pick_markall_req = true;
+            else if (a == "clearlist") pick_clearlist_req = true;
             else if (a == "clear" || a == "unmark") pick_clear_req = true;
             else if (a == "target" || a == "character") pick_marktarget_req = true;
             else GL_DLLLOG("Exporter::Command: unknown pick arg '%s'", a.c_str());
             return;
         }
         if (cmd == "mark")  { pick_mark_req = true; return; }
+        if (cmd == "markall") { pick_markall_req = true; return; }
         if (cmd == "clear") { pick_clear_req = true; return; }
         if (cmd == "snap")  { pick_snap_req = true; return; }
+        if (cmd == "settings" || cmd == "dump") { DumpSettings(); return; }
         // Capture verbs -- guarded so they no-op during a map load or an in-flight grab.
         // Short-circuit protects GetInstanceType() from being called before GWCA is up.
         const bool loading = !Game::Ready() || GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading;

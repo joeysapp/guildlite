@@ -20,19 +20,56 @@
   is *select-a-draw vs filter-a-scene* + preserving the skinning substrate we were discarding.
 - [x] **Skin-weight substrate** — capture + export GW's per-vertex bone indices (packed in a
   D3DCOLOR beta) as OBJ `#vbld` lines + manifest `weighted`. Verified: 30+ bones, real skeleton.
-- [x] **Pick mode** — interactive select-one-draw with in-game **green highlight**; stable
-  signature-keyed list; **skinned-only** and **include-depth-test-off** filters; **multi-select**
-  (mark several → snap as one model); control verbs `pick on/off/next/prev/skinned/2d/mark/clear/target`, `snap`.
-- [~] **Depth-test-off armor reach** — the fix that took a capture from body-only to a
-  near-complete character (head/body/robe/legs/feet). **CONFIRMED NOT WORKING. DOCUMENT AND REVIEW, DO NOT LEAVE OLD CODE/COMMENTS THAT ARE MISLEADING. THE ARMOR OF PLAYERS IS STILL NOT CAPTURED RELIABLY.**
+- [x] **Pick mode** — interactive select-one-draw with in-game highlight. Hardened 2026-07-06:
+  **content-keyed** stable list (`PickSig`=prim/vert/stride — survives GW recycling the vertex
+  buffer every frame, which was why snaps "matched nothing" and the list bloated 8→54);
+  **multi-frame accumulate** on snap (a single EndScene often lands on a minor pass and misses the
+  world draws); **running-window** list; distinct **green=marked / amber=cursor** tints (so a green
+  row can actually be de-selected); mark-all-in-view / clear-list; verbs
+  `pick on/off/next/prev/skinned/2d/mark/markall/clearlist/clear/target`, `snap`, `settings`.
+- [x] **Missing armor/robe — ROOT-CAUSED + fixed (it was NEVER a depth-test issue).** GW draws the
+  dress/skirt and some armor as meshes it does **not flag as skinned**, so `require_skinned` dropped
+  them and pick "Skinned only" hid them — the long-standing "coherent character, missing armor"
+  symptom. Fix: `clean-full` no longer uses `require_skinned` (it size-gates scenery instead);
+  "Skinned only" now warns it hides non-skinned pieces. Misleading depth-test "armor fix" claims removed.
+- [x] **Non-skinned world-space re-seating** — those non-skinned pieces are baked into **world
+  space** (skinned meshes are bind-pose-local at the origin), so a raw grab scattered them ~7000u
+  from the body and the export rendered as a speck. Now re-seated onto the body via
+  `local = Rz(-facing)·(world - agent_pos)` from the GWCA snapshot (`Exporter::AlignWorldSpaceChunks`).
+  Result: a **complete, correctly-oriented** character. Caveat below (#pose).
+- [~] **Exact assembly (#pose) — the "close, not exact" gap.** The skinned body is exported in
+  **bind pose**; the re-seated non-skinned pieces are the **live** pose. So root+facing align but
+  limb-level pose does not — the garment fits a slightly different stance than the neutral body.
+  A rigid transform can't close this. See FUTURE → **Rig/pose the body from the captured substrate**.
 - [~] **Whole-character grouping (`pick target`)** — built, but bone-palette-calibration-bound
-  (0 on map 280); gated behind #1.
+  (0 on map 280); gated behind isolation self-calibration.
 - [~] Armor/weapon systems: per-slot equipment, `model_file_id`s, dyes → manifest (identity only; per-slot **geometry** gating is DAT work).
-- [~] Character state / skeleton / animation structures: model/animation **state ids** + equipment identity via GWCA → manifest. Per-vertex bone binding now exported (`#vbld`); true skeletal/frame export is future (#7).
+- [~] Character state / skeleton / animation structures: model/animation **state ids** + equipment identity via GWCA → manifest. Per-vertex bone binding now exported (`#vbld`); true skeletal/frame export is future.
 
 ----
 
 # FUTURE ROADMAP / IDEAS
+
+### Rig/pose the captured character — exact assembly + animation (#pose)
+*Goal: make the re-seated non-skinned pieces line up EXACTLY, and unlock posed/animated export.*
+The one gap left in the "one button → complete character" path: we export the skinned body in
+**bind pose** while GW's non-skinned pieces (dress/skirt/armor) are baked in the **live** pose,
+so the rigid re-seating (`AlignWorldSpaceChunks`) gets root + facing right but limb-level pose is
+"close, not exact". Two regimes seen 2026-07-06:
+* **Root-attached single garment (dress/skirt)** — the rigid re-seat seats it well; symmetric, so a
+  residual facing error is invisible. This is the "close" MVP working as intended.
+* **Multi-bone limb armor (pauldrons/greaves)** — GW packs plates for *several bones* (both shoulders,
+  arms, legs) into ONE non-skinned draw, each baked at its own limb's live position. A single rigid
+  transform brings the chunk *near* the body but CANNOT seat each plate — confirmed: no whole-chunk
+  rotation seats them. This one genuinely needs per-bone placement (below), not a rotation tweak.
+The raw material to close it is already captured:
+* `#vbld` — per-vertex bone indices + weights (the mesh→bone binding), exported today.
+* The bone **palette** (per-agent bone transforms) — dumpable to the manifest via Probe (VS constants).
+Remaining work is assembly: reconstruct the bone transforms from the palette, then either (a) **pose
+the bind-pose body forward** into the live frame so it matches the non-skinned pieces, or (b) build a
+real skeleton + skinning so the export can be re-posed/animated in a DCC tool. Nobody in the ModelMod
+reference got here; we're better positioned (GWCA gives the world transform). Cheap near-term step:
+document how to hand-rig `#vbld` + palette in Blender for a one-off posed render.
 
 ### /chest command
 ### Investigate TexMod Integration

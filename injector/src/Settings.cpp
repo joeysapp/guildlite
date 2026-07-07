@@ -38,12 +38,16 @@ struct PersistConfig {
     float filter_min_thickness = 0.f;
     bool require_texture = false;
     bool require_skinned = false;
+    bool drop_effects = false;      // MUST persist: clean-* profiles set this on, and the dev
+                                    // loop reloads constantly -- omitting it silently reverted
+                                    // every profile's aura/effect cull back to off after a reload.
     bool trim_outliers = true;
     float trim_k = 6.f;
     float filter_center_radius = 0.f;
     int up_axis = 2;
     bool isolate_by_bone = false;
     float isolate_tolerance = 250.f;
+    bool export_skin_weights = true; // persist so the #vbld substrate toggle survives a reload
     bool window_visible = true;
 };
 
@@ -72,12 +76,14 @@ namespace {
         p.filter_min_thickness = c.filter_min_thickness;
         p.require_texture = c.require_texture;
         p.require_skinned = c.require_skinned;
+        p.drop_effects = c.drop_effects;
         p.trim_outliers = c.trim_outliers;
         p.trim_k = c.trim_k;
         p.filter_center_radius = c.filter_center_radius;
         p.up_axis = c.up_axis;
         p.isolate_by_bone = c.isolate_by_bone;
         p.isolate_tolerance = c.isolate_tolerance;
+        p.export_skin_weights = c.export_skin_weights;
         p.window_visible = c.window_visible;
         return p;
     }
@@ -104,12 +110,14 @@ namespace {
         c.filter_min_thickness = p.filter_min_thickness;
         c.require_texture = p.require_texture;
         c.require_skinned = p.require_skinned;
+        c.drop_effects = p.drop_effects;
         c.trim_outliers = p.trim_outliers;
         c.trim_k = p.trim_k;
         c.filter_center_radius = p.filter_center_radius;
         c.up_axis = p.up_axis;
         c.isolate_by_bone = p.isolate_by_bone;
         c.isolate_tolerance = p.isolate_tolerance;
+        c.export_skin_weights = p.export_skin_weights;
         c.window_visible = p.window_visible;
     }
 

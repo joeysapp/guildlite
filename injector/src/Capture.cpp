@@ -189,11 +189,36 @@ namespace {
         }
     };
 
-    // One entry in the live pick list: a stable draw signature (same object => same
-    // vb/ib/range each frame) plus the metadata the UI shows and a last-seen frame for
-    // ageing out despawned/culled draws.
+    // A CONTENT signature for a draw -- stable across frames, unlike DrawKey. GW recycles the
+    // vertex/index BUFFER for a skinned mesh every frame, so DrawKey (which embeds the buffer
+    // pointers) mints a fresh identity each frame: the pick list bloated with duplicates, marks
+    // and the cursor pointed at last frame's key, and a snap matched nothing. (prim,vert,stride)
+    // is fixed by the authored mesh + its vertex format, so the same piece keeps one identity --
+    // the same reason ModelMod matches a draw by primitive/vertex count. Collisions (two meshes
+    // identical in all three) are possible but rare and, for a manual pick, harmless (both mark
+    // together). Used for the pick list, marks, cursor and the snap match set; DrawKey still does
+    // the per-frame dedupe where pointer identity is exactly what we want.
+    struct PickSig {
+        uint32_t prims = 0;
+        uint32_t verts = 0;
+        uint32_t stride = 0;
+        bool operator<(const PickSig& o) const
+        {
+            if (prims != o.prims) return prims < o.prims;
+            if (verts != o.verts) return verts < o.verts;
+            return stride < o.stride;
+        }
+        bool operator==(const PickSig& o) const
+        {
+            return prims == o.prims && verts == o.verts && stride == o.stride;
+        }
+    };
+
+    // One entry in the live pick list: a stable content signature plus the metadata the UI shows
+    // and a last-seen frame for ageing out despawned/culled draws.
     struct PickEntry {
-        DrawKey key{};
+        PickSig key{};
+        uint32_t id = 0;   // stable first-seen ordinal (survives prune/reorder; the UI's #id)
         uint32_t verts = 0;
         uint32_t tris = 0;
         int tex_w = 0;
@@ -221,13 +246,17 @@ namespace {
         bool pick_skinned_only = false;       // list/cycle only skinned (character) draws
         bool pick_include_2d = false;         // also list depth-test-off draws (armor, HUD, ...)
         std::vector<PickEntry> pick_list;     // all pickable draws this session
-        std::map<DrawKey, size_t> pick_index; // draw signature -> index into pick_list
+        std::map<PickSig, size_t> pick_index; // content signature -> index into pick_list
+        std::map<PickSig, uint32_t> pick_id_of; // signature -> stable ordinal; persists across a
+                                                // prune so a re-seen draw reclaims its old #id
+        uint32_t pick_next_id = 0;             // next ordinal to hand out
         std::vector<size_t> pick_filtered;    // indices into pick_list passing the filter (UI view)
-        DrawKey pick_sel{};                    // navigation cursor (green preview)
+        PickSig pick_sel{};                    // navigation cursor (amber preview)
         bool pick_has_sel = false;
-        std::set<DrawKey> pick_marked;         // draws marked for export (multi-select)
+        std::set<PickSig> pick_marked;         // draws marked for export (multi-select; green)
         unsigned pick_frame = 0;
-        IDirect3DTexture9* pick_highlight = nullptr; // solid green tint, lazily created
+        IDirect3DTexture9* pick_highlight = nullptr;        // green tint = marked, lazily created
+        IDirect3DTexture9* pick_cursor_highlight = nullptr; // amber tint = cursor, lazily created
 
         // "Mark all of target": one-shot pass that marks every skinned draw whose bone
         // palette matches a seeded world position (the isolation signal), collecting a whole
@@ -240,7 +269,11 @@ namespace {
 
         // selected-draw capture: set by ArmSelected, honoured in the armed hook path.
         bool capture_selected = false;
-        std::set<DrawKey> capture_set;         // the draw signatures a pick-snap keeps
+        std::set<PickSig> capture_set;         // the content signatures a pick-snap keeps
+        std::set<PickSig> capture_done;        // signatures already grabbed this snap -- lets the
+                                               // snap span several frames (catch the world pass a
+                                               // single EndScene often misses) yet keep each piece
+                                               // exactly once (no ghosting across frames)
 
         void ResetData()
         {
@@ -252,6 +285,7 @@ namespace {
             }
             chunks.clear();
             seen.clear();
+            capture_done.clear();
             probes.clear();
             draw_log.clear();
             stats = CaptureStats{};
@@ -263,7 +297,18 @@ namespace {
     constexpr size_t kProbeMaxSamples = 6; // enough distinct agents to solve the isolation register
 
     constexpr size_t kPickListMax = 1024;  // cap on the live pick list (unique draw signatures)
-    constexpr unsigned kPickAgeFrames = 120; // drop a pick entry unseen for this many frames
+    // The pick list is a RUNNING WINDOW: an entry survives this many frames after it was last
+    // drawn. GW renders some character pieces only intermittently (LOD / alternating passes), so
+    // a short window meant a piece flickered out of the list before you could mark it -- and it
+    // then never made the snap. A wide window keeps every recently-seen piece markable; "Clear
+    // list" resets it when you switch targets. (Content-keyed, so this cannot bloat per frame.)
+    constexpr unsigned kPickAgeFrames = 600; // ~10s @60fps / ~20s @30fps
+    // A pick snap stays armed up to this many frames, accumulating marked signatures across
+    // EndScene passes until it has them all -- one EndScene often lands on a minor render pass
+    // (portrait/reflection/UI) and misses the world draws, so a single armed frame captures
+    // nothing. Roomy enough to also catch a marked piece that only renders every few frames.
+    // Bounded so a stale/off-screen mark can't arm forever.
+    constexpr int kPickSnapMaxFrames = 150;
 
     Engine g_engine;
 
@@ -561,32 +606,38 @@ namespace {
         return BoneMatchesPos(device, cfg.match_pos, cfg.isolate_tolerance);
     }
 
-    // Lazily create the solid-green 2x2 tint we swap onto the picked draw's stage-0
-    // texture to highlight it in-game. MANAGED pool so it survives a device Reset.
-    void EnsurePickHighlight(IDirect3DDevice9* device)
+    // A solid 2x2 tint we swap onto a picked draw's stage-0 texture to highlight it in-game.
+    // MANAGED pool so it survives a device Reset. argb is opaque ARGB.
+    IDirect3DTexture9* MakeTint(IDirect3DDevice9* device, uint32_t argb)
     {
-        if (g_engine.pick_highlight || !device) {
-            return;
-        }
         IDirect3DTexture9* tex = nullptr;
         if (FAILED(device->CreateTexture(2, 2, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr)) || !tex) {
-            return;
+            return nullptr;
         }
         D3DLOCKED_RECT lr{};
         if (SUCCEEDED(tex->LockRect(0, &lr, nullptr, 0))) {
             for (int y = 0; y < 2; ++y) {
                 uint32_t* row = reinterpret_cast<uint32_t*>(static_cast<uint8_t*>(lr.pBits) + y * lr.Pitch);
-                for (int x = 0; x < 2; ++x) row[x] = 0xFF00FF00u; // opaque green, ARGB
+                for (int x = 0; x < 2; ++x) row[x] = argb;
             }
             tex->UnlockRect(0);
         }
-        g_engine.pick_highlight = tex;
+        return tex;
+    }
+
+    // Lazily create both pick tints: GREEN = marked (in the export set), AMBER = cursor
+    // (Prev/Next focus). Two colours so the states are visually distinct in-game.
+    void EnsurePickHighlight(IDirect3DDevice9* device)
+    {
+        if (!device) return;
+        if (!g_engine.pick_highlight)        g_engine.pick_highlight = MakeTint(device, 0xFF00FF00u);        // green
+        if (!g_engine.pick_cursor_highlight) g_engine.pick_cursor_highlight = MakeTint(device, 0xFFFFC800u); // amber
     }
 
     // Upsert one pickable draw into the stable pick list (render thread only). A given
     // signature keeps its slot/index across frames, so the UI selection stays put; only
     // the last-seen frame is refreshed. New signatures append (metadata read once).
-    void PickRecord(IDirect3DDevice9* device, const DrawKey& key, UINT numVerts, UINT primCount)
+    void PickRecord(IDirect3DDevice9* device, const PickSig& key, UINT numVerts, UINT primCount)
     {
         const auto it = g_engine.pick_index.find(key);
         if (it != g_engine.pick_index.end()) {
@@ -615,6 +666,11 @@ namespace {
                 base->Release();
             }
         }
+        // Stable ordinal: reuse this signature's prior id if it was ever seen (survives an
+        // age-out then reappear), else mint the next one -- so #id never renumbers under the user.
+        const auto idit = g_engine.pick_id_of.find(key);
+        if (idit != g_engine.pick_id_of.end()) { e.id = idit->second; }
+        else { e.id = g_engine.pick_next_id++; g_engine.pick_id_of.emplace(key, e.id); }
         g_engine.pick_index.emplace(key, g_engine.pick_list.size());
         g_engine.pick_list.push_back(e);
     }
@@ -682,19 +738,25 @@ namespace {
             UINT so = 0, st = 0;
             device->GetStreamSource(0, &vb, &so, &st);
             device->GetIndices(&ib);
+            // DrawKey (pointer-based) is the per-FRAME dedupe identity -- correct here, since a
+            // shadow/main re-draw reuses the same buffers within a frame. PickSig (content-based)
+            // is the cross-FRAME identity a pick snap matches against, because GW recycles the
+            // buffers between frames (see PickSig).
             const DrawKey key{
                 reinterpret_cast<uintptr_t>(vb), reinterpret_cast<uintptr_t>(ib),
                 static_cast<uint32_t>(BaseVertexIndex), startIndex, primCount, MinVertexIndex};
+            const PickSig sig{primCount, NumVertices, static_cast<uint32_t>(st)};
             if (vb) vb->Release();
             if (ib) ib->Release();
 
-            // Selected-draw capture (pick snap): grab ONLY the marked signatures; every
-            // other draw is passed straight through, so no filter stack is needed.
-            if (g_engine.capture_selected && !g_engine.capture_set.count(key)) {
+            // Selected-draw capture (pick snap): grab ONLY the marked signatures; every other
+            // draw is passed straight through, so no filter stack is needed. capture_done skips a
+            // marked piece already grabbed on an earlier frame of this (multi-frame) snap.
+            if (g_engine.capture_selected && !g_engine.capture_set.count(sig)) {
                 return g_original_dip(device, Type, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
             }
-
-            const bool duplicate = g_engine.cfg.dedupe && !g_engine.seen.insert(key).second;
+            const bool sig_done = g_engine.capture_selected && g_engine.capture_done.count(sig) != 0;
+            const bool duplicate = sig_done || (g_engine.cfg.dedupe && !g_engine.seen.insert(key).second);
             if (!duplicate) {
                 MeshChunk chunk;
                 chunk.draw_index = g_engine.stats.draws_captured;
@@ -736,6 +798,7 @@ namespace {
                         isolation_drop = true;
                     }
                     if (keep) {
+                        if (g_engine.capture_selected) g_engine.capture_done.insert(sig); // grabbed
                         g_engine.stats.draws_captured++;
                         g_engine.stats.vertices += static_cast<uint32_t>(chunk.positions.size() / 3);
                         g_engine.stats.triangles += static_cast<uint32_t>(chunk.indices.size() / 3);
@@ -788,15 +851,10 @@ namespace {
             // renders with the depth test off (e.g. some armor) at the cost of HUD/UI noise.
             if (g_engine.pick_include_2d || zenable != D3DZB_FALSE) {
                 IDirect3DVertexBuffer9* pvb = nullptr;
-                IDirect3DIndexBuffer9* pib = nullptr;
                 UINT pso = 0, pst = 0;
                 device->GetStreamSource(0, &pvb, &pso, &pst);
-                device->GetIndices(&pib);
-                const DrawKey pk{
-                    reinterpret_cast<uintptr_t>(pvb), reinterpret_cast<uintptr_t>(pib),
-                    static_cast<uint32_t>(BaseVertexIndex), startIndex, primCount, MinVertexIndex};
+                const PickSig pk{primCount, NumVertices, static_cast<uint32_t>(pst)};
                 if (pvb) pvb->Release();
-                if (pib) pib->Release();
                 PickRecord(device, pk, NumVertices, primCount);
                 // "Mark all of target": auto-mark skinned draws whose bone palette matches the
                 // seeded agent position (one-shot pass, armed for this frame by PickCommit).
@@ -807,12 +865,18 @@ namespace {
                         g_engine.pick_marked.insert(pk);
                     }
                 }
-                const bool highlight = ((g_engine.pick_has_sel && pk == g_engine.pick_sel) ||
-                                        g_engine.pick_marked.count(pk) != 0);
-                if (highlight && g_engine.pick_highlight) {
+                // Two distinct tints so the states are never confused: GREEN = marked (in the
+                // export set), AMBER = cursor only (Prev/Next focus). Mark wins when a draw is
+                // both. This is what makes "click a green row to deselect it" work -- unmarking
+                // drops the draw to amber (still the cursor) instead of leaving it green.
+                const bool marked = g_engine.pick_marked.count(pk) != 0;
+                const bool is_cursor = g_engine.pick_has_sel && pk == g_engine.pick_sel;
+                IDirect3DTexture9* tint = marked ? g_engine.pick_highlight
+                                        : (is_cursor ? g_engine.pick_cursor_highlight : nullptr);
+                if (tint) {
                     IDirect3DBaseTexture9* saved = nullptr;
                     device->GetTexture(0, &saved);
-                    device->SetTexture(0, g_engine.pick_highlight);
+                    device->SetTexture(0, tint);
                     const HRESULT r = g_original_dip(device, Type, BaseVertexIndex, MinVertexIndex,
                                                      NumVertices, startIndex, primCount);
                     device->SetTexture(0, saved);
@@ -928,10 +992,13 @@ namespace Capture {
         g_engine.pick_has_sel = false;
         g_engine.pick_list.clear();
         g_engine.pick_index.clear();
+        g_engine.pick_id_of.clear();
+        g_engine.pick_next_id = 0;
         g_engine.pick_filtered.clear();
         g_engine.pick_marked.clear();
         g_engine.capture_set.clear();
         if (g_engine.pick_highlight) { g_engine.pick_highlight->Release(); g_engine.pick_highlight = nullptr; }
+        if (g_engine.pick_cursor_highlight) { g_engine.pick_cursor_highlight->Release(); g_engine.pick_cursor_highlight = nullptr; }
         g_engine.ResetData();
         g_engine.installed = false;
     }
@@ -955,15 +1022,30 @@ namespace Capture {
             return g_engine.chunks.empty() ? CaptureState::Idle : CaptureState::Ready;
         }
         g_engine.frames_since_arm++;
-        if (g_engine.recorded && g_engine.frames_since_arm >= 1) {
+
+        // Tally unique textures, disarm, and report Ready (or Failed if nothing was captured).
+        const auto finish = [&]() -> CaptureState {
             g_engine.armed = false;
-            g_engine.stats.unique_textures = 0;
             std::set<void*> tex;
             for (const auto& c : g_engine.chunks) {
                 if (c.texture_ptr) tex.insert(c.texture_ptr);
             }
             g_engine.stats.unique_textures = static_cast<uint32_t>(tex.size());
             return g_engine.chunks.empty() ? CaptureState::Failed : CaptureState::Ready;
+        };
+
+        // Pick snap: keep accumulating across EndScene passes until every marked signature is
+        // grabbed, or we time out. A single armed frame frequently lands on a minor render pass
+        // (portrait/reflection/UI) that misses the world draws entirely, so one frame captures
+        // nothing -- this window is what makes the snap reliable.
+        if (g_engine.capture_selected) {
+            const bool got_all = g_engine.capture_done.size() >= g_engine.capture_set.size();
+            const bool timed_out = g_engine.frames_since_arm > kPickSnapMaxFrames;
+            return (got_all || timed_out) ? finish() : CaptureState::Waiting;
+        }
+
+        if (g_engine.recorded && g_engine.frames_since_arm >= 1) {
+            return finish();
         }
         if (g_engine.frames_since_arm > 4 && !g_engine.recorded) {
             g_engine.armed = false;
@@ -1080,6 +1162,10 @@ namespace Capture {
                 g_engine.pick_filtered.push_back(i);
             }
         }
+        // Present the view in stable ordinal order so rows never shuffle under the user, even
+        // after a prune compacts pick_list or a draw ages out and later reappends.
+        std::sort(g_engine.pick_filtered.begin(), g_engine.pick_filtered.end(),
+                  [](size_t a, size_t b) { return g_engine.pick_list[a].id < g_engine.pick_list[b].id; });
         // Arm the "mark all of target" pass for exactly the next frame's hook.
         g_engine.pick_mark_armed = g_engine.pick_mark_pending;
         g_engine.pick_mark_pending = false;
@@ -1136,6 +1222,7 @@ namespace Capture {
         PickInfo r;
         if (index >= 0 && index < static_cast<int>(g_engine.pick_filtered.size())) {
             const PickEntry& e = g_engine.pick_list[g_engine.pick_filtered[index]];
+            r.id = e.id;
             r.verts = e.verts; r.tris = e.tris; r.tex_w = e.tex_w; r.tex_h = e.tex_h; r.skinned = e.skinned;
         }
         return r;
@@ -1160,7 +1247,7 @@ namespace Capture {
     void PickToggleMarkRow(int index)
     {
         if (index < 0 || index >= static_cast<int>(g_engine.pick_filtered.size())) return;
-        const DrawKey k = g_engine.pick_list[g_engine.pick_filtered[index]].key;
+        const PickSig k = g_engine.pick_list[g_engine.pick_filtered[index]].key;
         const auto it = g_engine.pick_marked.find(k);
         if (it == g_engine.pick_marked.end()) g_engine.pick_marked.insert(k);
         else g_engine.pick_marked.erase(it);
@@ -1176,14 +1263,36 @@ namespace Capture {
 
     void PickClearMarks() { g_engine.pick_marked.clear(); }
 
+    void PickClearList()
+    {
+        // Reset the running-window list when switching targets, so stale pieces from a previous
+        // agent/scene stop cluttering it. Marks and the cursor survive (keyed by content sig): a
+        // still-drawn marked piece simply re-appears and re-highlights, and stays snappable.
+        g_engine.pick_list.clear();
+        g_engine.pick_index.clear();
+        g_engine.pick_id_of.clear();
+        g_engine.pick_next_id = 0;
+        g_engine.pick_filtered.clear();
+    }
+
+    void PickMarkAllFiltered()
+    {
+        // Mark every draw currently in the filtered view (exactly what the UI lists). With
+        // "Skinned only" on this is "mark all characters"; a fast alternative to clicking each
+        // row. Snap then exports the union of the marks.
+        for (const size_t idx : g_engine.pick_filtered) {
+            g_engine.pick_marked.insert(g_engine.pick_list[idx].key);
+        }
+    }
+
     void ArmSelected(const Config& cfg)
     {
         // Export the marked set; if nothing is marked, fall back to the cursor draw so a
         // quick single snap still works without explicitly marking.
-        std::set<DrawKey> set = g_engine.pick_marked;
+        std::set<PickSig> set = g_engine.pick_marked;
         if (set.empty() && HasSelection()) set.insert(g_engine.pick_sel);
         if (set.empty()) return;
-        g_engine.ResetData();          // clears chunks/stats; pick list + marks survive
+        g_engine.ResetData();          // clears chunks/stats/capture_done; pick list + marks survive
         g_engine.cfg = cfg;
         g_engine.armed = true;
         g_engine.recorded = false;

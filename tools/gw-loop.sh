@@ -11,8 +11,11 @@
 #   tools/gw-loop.sh [--reload] [--profile NAME] [--target player|target]
 #                    [--set 'key value']... [--dest DIR] [--no-render]
 # Examples:
-#   tools/gw-loop.sh --reload --profile clean-self
+#   tools/gw-loop.sh --reload --profile clean-full          # one-click solo character (A/B this)
+#   tools/gw-loop.sh --profile clean-self                    # conservative body-only (exclude_2d on)
 #   tools/gw-loop.sh --profile clean-target --set 'filter_max_extent 120'
+# The printed summary line echoes drop_effects/require_skinned/max_ext read back from the
+# manifest, so a profile's effect is verified every run (the "verify settings" surface).
 set -uo pipefail
 
 HOST="${GW_HOST:-guildlite-win}"

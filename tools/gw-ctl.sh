@@ -18,9 +18,15 @@
 #   reload | unload          stub: hot-swap the freshly-built core / unload the stub
 #   capture | capture-dry     arm a model export (dry = diagnostics only, writes no files)
 #   screenshot                backbuffer -> Documents\guildlite\guildlite-shot.png
-#   profile <name>            clean-solo | clean-self | clean-target | raw
+#   profile <name>            clean-full | clean-full-target | clean-self | clean-target |
+#                             clean-solo | clean-solo-target | raw   (each RESETS all settings
+#                             then applies its recipe; clean-full = the one-click solo character)
 #   set <key> <value>         e.g. set drop_effects true ; set filter_max_extent 120
+#   settings                  log the whole live capture state to the guildlite log (verify a
+#                             profile/set took effect; a capture-dry manifest also carries it)
 #   target <player|target>    which agent seeds the capture
+#   pick on|off|next|prev|mark|markall|clearlist|clear|target   drive pick mode; `snap` exports
+#   snap                      export the marked pick set (or the cursor draw if none marked)
 #   demo                      toggle the ImGui demo window
 #
 # Host: $GW_HOST (default guildlite-win, the keepalive'd ssh alias; or bob@bobmobile.local).

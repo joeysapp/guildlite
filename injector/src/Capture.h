@@ -135,6 +135,8 @@ namespace Guildlite {
     // One row of the live pick list (Capture::PickRow) -- enough to identify a draw in the
     // UI without seeing it: triangle/vertex counts, stage-0 texture size, skinned flag.
     struct PickInfo {
+        uint32_t id = 0;   // stable first-seen ordinal -- shown in the UI and unchanged by
+                           // list prune/reorder, so a draw keeps its label even as rows shift
         uint32_t verts = 0;
         uint32_t tris = 0;
         int tex_w = 0;
@@ -177,7 +179,9 @@ namespace Guildlite {
         // draw highlights green in-game.
         void PickToggleMark();          // mark/unmark the cursor draw
         void PickToggleMarkRow(int index);
+        void PickMarkAllFiltered();     // mark every draw currently in the filtered (visible) view
         void PickClearMarks();
+        void PickClearList();           // empty the running-window list (marks survive, re-highlight)
         int  PickMarkedCount();
         bool PickRowMarked(int index);
         // Mark every skinned draw whose bone palette matches pos (world units) within tol --
