@@ -311,6 +311,11 @@ namespace {
     // nothing. Roomy enough to also catch a marked piece that only renders every few frames.
     // Bounded so a stale/off-screen mark can't arm forever.
     constexpr int kPickSnapMaxFrames = 150;
+    // A Filtered (single-character) capture accumulates over this many frames so its armed window
+    // spans a real WORLD pass, not just a minor EndScene pass (portrait/reflection/UI) -- the
+    // "seen=7, captured 0" miss. Content-sig dedupe (capture_done) keeps each piece once across the
+    // window, so accumulating frames can't ghost. WholeScene stays single-frame (diagnostic).
+    constexpr int kFilteredAccumFrames = 6;
 
     Engine g_engine;
 
@@ -757,7 +762,12 @@ namespace {
             if (g_engine.capture_selected && !g_engine.capture_set.count(sig)) {
                 return g_original_dip(device, Type, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
             }
-            const bool sig_done = g_engine.capture_selected && g_engine.capture_done.count(sig) != 0;
+            // Content-sig dedupe for pick snaps AND Filtered captures -- both accumulate across
+            // frames, so the same piece re-drawn next frame (with a recycled buffer -> new DrawKey)
+            // must not be captured twice. WholeScene keeps DrawKey-only dedupe (distinct meshes can
+            // share a prim/vert/stride sig, and there we want them all).
+            const bool sig_dedupe = g_engine.capture_selected || g_engine.cfg.scope == CaptureScope::Filtered;
+            const bool sig_done = sig_dedupe && g_engine.capture_done.count(sig) != 0;
             const bool duplicate = sig_done || (g_engine.cfg.dedupe && !g_engine.seen.insert(key).second);
             if (!duplicate) {
                 MeshChunk chunk;
@@ -800,7 +810,7 @@ namespace {
                         isolation_drop = true;
                     }
                     if (keep) {
-                        if (g_engine.capture_selected) g_engine.capture_done.insert(sig); // grabbed
+                        if (sig_dedupe) g_engine.capture_done.insert(sig); // grabbed this window
                         g_engine.stats.draws_captured++;
                         g_engine.stats.vertices += static_cast<uint32_t>(chunk.positions.size() / 3);
                         g_engine.stats.triangles += static_cast<uint32_t>(chunk.indices.size() / 3);
@@ -1046,6 +1056,18 @@ namespace Capture {
             return (got_all || timed_out) ? finish() : CaptureState::Waiting;
         }
 
+        // Filtered (single-character) capture: accumulate a few frames so the window spans a real
+        // world pass, not a minor EndScene pass (the "seen=7" miss). Sig-deduped, so no ghosting.
+        if (g_engine.cfg.scope == CaptureScope::Filtered) {
+            if (g_engine.recorded && g_engine.frames_since_arm >= kFilteredAccumFrames) return finish();
+            if (g_engine.frames_since_arm > kFilteredAccumFrames + 5 && !g_engine.recorded) {
+                g_engine.armed = false;
+                return CaptureState::Failed;
+            }
+            return CaptureState::Waiting;
+        }
+
+        // WholeScene: single frame (diagnostic baseline).
         if (g_engine.recorded && g_engine.frames_since_arm >= 1) {
             return finish();
         }

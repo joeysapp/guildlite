@@ -665,9 +665,10 @@ namespace {
                 }
                 ImGui::EndDisabled();
                 ImGui::SameLine();
-                ImGui::TextDisabled("One click = the whole character (body + dress/armor + textures),\n"
-                                    "size-gated -- the reliable alternative to manual picking. Keeps your\n"
-                                    "pose toggle. Best solo or on a clean target.");
+                ImGui::TextDisabled("One click EXPORTS the whole character straight to a file -- it does\n"
+                                    "NOT green-pick anything (the size filter grabs body + dress/armor +\n"
+                                    "textures directly; pick-selection can't tell a character from scenery).\n"
+                                    "Watch the status line / in-game chat for 'saved'. Keeps your pose toggle.");
 
                 const int n = Capture::PickCount();
                 const int sel = Capture::PickIndex();
