@@ -175,9 +175,11 @@ namespace {
 
         const std::string keep_dir = g_config.export_dir;
         const bool keep_vis = g_config.window_visible;
+        const bool keep_pose = g_config.pose_to_live; // pose is orthogonal to scene filtering
         g_config = Config{};               // reset EVERY capture setting to its default
-        g_config.export_dir = keep_dir;    // ... but keep the user's environment
+        g_config.export_dir = keep_dir;    // ... but keep the user's environment + pose choice
         g_config.window_visible = keep_vis;
+        g_config.pose_to_live = keep_pose;
 
         if (name == "clean-full" || name == "clean-full-target") {
             // The most COMPLETE solo character in one Export Snapshot. A/B testing (2026-07-06)
@@ -650,13 +652,22 @@ namespace {
 
                 // One-click whole-character grouping: mark all of the Source's skinned pieces
                 // at once (bone-palette match), sidestepping the scattered draw order.
-                ImGui::BeginDisabled(!gw_ready);
-                if (ImGui::Button("Mark whole character (Source's pieces)")) PickMarkTarget();
+                const bool wc_loading = gw_ready && GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading;
+                ImGui::BeginDisabled(!gw_ready || wc_loading || capture_in_flight);
+                if (ImGui::Button("Capture whole character (clean-full)")) {
+                    // 1:1 with `gw-ctl 'profile clean-full[-target]' capture`: apply the size-gated
+                    // clean-full recipe for the current Source (keeps GW's non-skinned dress/armor +
+                    // all textures automatically -- no hunting for a cape) and Export-Snapshot it.
+                    // ApplyProfile preserves pose_to_live, so a posed capture stays posed.
+                    ApplyProfile(g_config.target == TargetSource::Target ? "clean-full-target" : "clean-full");
+                    _snprintf_s(export_dir_buf, sizeof(export_dir_buf), _TRUNCATE, "%s", g_config.export_dir.c_str());
+                    BeginCapture(false);
+                }
                 ImGui::EndDisabled();
                 ImGui::SameLine();
-                ImGui::TextDisabled("EXPERIMENTAL: bone-palette match OVER-marks in a crowd (nearby agents,\n"
-                                    "shared-mesh pieces) -- the unsolved per-agent isolation problem. For a\n"
-                                    "clean result, mark pieces manually or use 'Mark all in view' when solo.");
+                ImGui::TextDisabled("One click = the whole character (body + dress/armor + textures),\n"
+                                    "size-gated -- the reliable alternative to manual picking. Keeps your\n"
+                                    "pose toggle. Best solo or on a clean target.");
 
                 const int n = Capture::PickCount();
                 const int sel = Capture::PickIndex();
