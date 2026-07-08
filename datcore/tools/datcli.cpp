@@ -82,24 +82,30 @@ static const char* item_category(const char* slot) {
 
 static void usage() {
     fprintf(stderr,
-            "usage:  <sel> = MFT index or hash:<n>;  <dat>/<catalog.tsv> optional ->\n"
-            "        $GUILDLITE_GW_DAT / ./Gw.dat  and  $GUILDLITE_DATA/{catalog,labels}\n"
-            "  datcli setup   [--dat <path>] [--force]     provision catalog + labels (START HERE)\n"
-            "  datcli info    [dat]\n"
-            "  datcli census  <dat> [limit]                (limit 0 = all entries)\n"
-            "  datcli index   <dat> [out.tsv] [limit]      build searchable catalog\n"
-            "  datcli search  <catalog.tsv> [--type T] [--min-tris N] [--max-tris N]\n"
-            "                               [--dim N] [--fmt C] [--hash H] [--limit N] [--dyeable]\n"
-            "                               [--labels labels.json] [--name QUERY]\n"
-            "  datcli show    <catalog.tsv> <mft|hash:N|murmur:HEX> [--labels labels.json]\n"
-            "  datcli label   <labels.json> <hash:N|N|murmur:HEX> <name>\n"
-            "                               [--category C] [--tag T]... [--source S] [--notes N]\n"
-            "  datcli tag-armor <armors.tsv> <composites.tsv> <catalog.tsv> <labels.json>\n"
-            "  datcli extract <dat> <sel> <outfile>\n"
-            "  datcli obj     <dat> <sel> <outfile.obj>\n"
-            "  datcli objtex  <dat> <sel> <outdir>         model + textures (OBJ+MTL+PNG)\n"
-            "  datcli tex     <dat> <sel> <outfile.png>\n"
-            "  datcli armor   <dat> <composites.tsv> <model_file_id> <outdir> [--gray]\n");
+            "usage:\n"
+            "  <sel> = MFT index or hash:<n>\n"
+            "  Flags for Gw.dat, catalog.tsv, etc. are optional; datcli uses $GUILDLITE_GW_DAT / ./Gw.dat\n"
+            "  and defaults data files to $GUILDLITE_DATA or Gw.dat's directory.\n\n"
+            "  datcli setup   [--dat <path>] [--force]     provision catalog + labels (START HERE)\n\n"
+            "  datcli index   [--dat <path>] [--out <catalog.tsv>] [--limit N]\n"
+            "  datcli tag-armor [--armors <armors.tsv>] [--composites <composites.tsv>] [--catalog <catalog.tsv>] [--labels <labels.json>]\n\n"
+            "Usage:\n"
+            "  datcli objtex  <sel> <outdir> [--dat <path>]\n"
+            "  datcli armor   <model_file_id> <outdir> [--dat <path>] [--composites <composites.tsv>] [--gray]\n"
+            "  datcli obj     <sel> <out.obj> [--dat <path>]\n"
+            "  datcli tex     <sel> <out.png> [--dat <path>]\n"
+            "  datcli extract <sel> <out> [--dat <path>]\n\n"
+            "Catalog/Search:\n"
+            "  datcli label   <sel> <name> [--labels <labels.json>] [--category C] [--tag T]... [--source S] [--notes N]\n"
+            "  datcli show    <sel> [--catalog <catalog.tsv>] [--labels <labels.json>]\n"
+            "  datcli search  [--catalog <catalog.tsv>] [--labels <labels.json>] [--type T] [--min-tris N] [--max-tris N]\n"
+            "                 [--dim N] [--fmt C] [--hash H] [--limit N] [--dyeable] [--name QUERY]\n\n"
+            "Debugging:\n"
+            "  datcli info    [--dat <path>]\n"
+            "  datcli census  [--dat <path>] [--limit N]\n"
+            "  datcli scan    [--dat <path>] [--limit N]\n"
+            "  datcli texscan [--dat <path>] [--limit N]\n"
+            );
 }
 
 static int cmd_tex(Dat& dat, size_t index, const char* out) {
@@ -394,36 +400,30 @@ static int cmd_index(Dat& dat, const char* outpath, size_t limit) {
     return 0;
 }
 
-static int cmd_search(const char* catpath, int argc, char** argv, int argstart) {
+static int cmd_search(const char* catpath, const std::vector<std::string>& args, size_t lim, const char* labels_path, bool explicit_labels) {
     std::vector<CatalogEntry> cat;
     if (!read_catalog_tsv(catpath, cat)) { fprintf(stderr, "cannot read catalog: %s\n", catpath); return 2; }
     int want_type = -1, min_tris = -1, max_tris = -1, min_dim = -1;
-    char want_fmt = 0; long want_hash = 0; size_t lim = 50;
-    const char* labels_path = nullptr; const char* name_q = nullptr;
+    char want_fmt = 0; long want_hash = 0;
+    const char* name_q = nullptr;
     bool dyeable_only = false;
-    for (int i = argstart; i < argc; ++i) {
-        if (!strcmp(argv[i], "--type") && i + 1 < argc) want_type = type_from_string(argv[++i]);
-        else if (!strcmp(argv[i], "--min-tris") && i + 1 < argc) min_tris = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "--max-tris") && i + 1 < argc) max_tris = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "--dim") && i + 1 < argc) min_dim = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "--fmt") && i + 1 < argc) want_fmt = argv[++i][0];
-        else if (!strcmp(argv[i], "--hash") && i + 1 < argc) want_hash = strtol(argv[++i], nullptr, 0);
-        else if (!strcmp(argv[i], "--limit") && i + 1 < argc) lim = strtoull(argv[++i], nullptr, 10);
-        else if (!strcmp(argv[i], "--labels") && i + 1 < argc) labels_path = argv[++i];
-        else if (!strcmp(argv[i], "--name") && i + 1 < argc) name_q = argv[++i];
-        else if (!strcmp(argv[i], "--dyeable")) dyeable_only = true;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i] == "--type" && i + 1 < args.size()) want_type = type_from_string(args[++i].c_str());
+        else if (args[i] == "--min-tris" && i + 1 < args.size()) min_tris = atoi(args[++i].c_str());
+        else if (args[i] == "--max-tris" && i + 1 < args.size()) max_tris = atoi(args[++i].c_str());
+        else if (args[i] == "--dim" && i + 1 < args.size()) min_dim = atoi(args[++i].c_str());
+        else if (args[i] == "--fmt" && i + 1 < args.size()) want_fmt = args[++i][0];
+        else if (args[i] == "--hash" && i + 1 < args.size()) want_hash = strtol(args[++i].c_str(), nullptr, 0);
+        else if (args[i] == "--name" && i + 1 < args.size()) name_q = args[++i].c_str();
+        else if (args[i] == "--dyeable") dyeable_only = true;
     }
-    // Labels auto-load from <data>/labels.json if present, so names show inline and --name
-    // works without --labels; an explicit --labels that fails to load is a hard error.
     Labels labels; bool have_labels = false;
-    {
-        std::string dl = data_dir("") + "/labels.json";
-        std::string lp = labels_path ? labels_path : dl;
-        if (labels_path || file_exists(lp)) {
-            std::string err;
-            if (labels.load(lp, &err)) have_labels = true;
-            else if (labels_path) { fprintf(stderr, "labels load error: %s\n", err.c_str()); return 2; }
-        }
+    if (labels_path && file_exists(labels_path)) {
+        std::string err;
+        if (labels.load(labels_path, &err)) have_labels = true;
+        else if (explicit_labels) { fprintf(stderr, "labels load error: %s\n", err.c_str()); return 2; }
+    } else if (explicit_labels) {
+        fprintf(stderr, "labels file not found: %s\n", labels_path); return 2;
     }
     std::unordered_set<std::string> name_keys;
     if (name_q) for (auto& k : labels.search(name_q)) name_keys.insert(k);
@@ -432,8 +432,6 @@ static int cmd_search(const char* catpath, int argc, char** argv, int argstart) 
     for (const auto& e : cat) {
         if (want_type >= 0 && e.type != want_type) continue;
         if (dyeable_only) {
-            // heuristic: a model with an empty (0,0) dye slot is (almost always) dyeable
-            // armor/weapon/item — the final texture is composed in-game from dye.
             if (e.type != FFNA_Type2) continue;
             bool dye = false;
             for (int tr : e.tex_refs) if (tr == 0 || tr == -16711935) dye = true;
@@ -457,7 +455,7 @@ static int cmd_search(const char* catpath, int argc, char** argv, int argstart) 
     return 0;
 }
 
-static int cmd_show(const char* catpath, const char* sel, const char* labels_path) {
+static int cmd_show(const char* catpath, const char* sel, const char* labels_path, bool explicit_labels) {
     std::vector<CatalogEntry> cat;
     if (!read_catalog_tsv(catpath, cat)) { fprintf(stderr, "cannot read catalog: %s\n", catpath); return 2; }
     const CatalogEntry* e = nullptr;
@@ -468,7 +466,7 @@ static int cmd_show(const char* catpath, const char* sel, const char* labels_pat
 
     printf("mft=%u hash=%d murmur=%08x type=%s usize=%d\n",
            e->mft, e->hash, e->murmur, type_to_string(e->type), e->usize);
-    if (labels_path) {
+    if (labels_path && file_exists(labels_path)) {
         Labels labels; std::string err;
         if (labels.load(labels_path, &err)) {
             if (const Label* l = labels.resolve(e->hash, e->murmur)) {
@@ -477,7 +475,12 @@ static int cmd_show(const char* catpath, const char* sel, const char* labels_pat
                 if (!l->tags.empty()) { printf("    tags:"); for (auto& t : l->tags) printf(" %s", t.c_str()); printf("\n"); }
                 if (!l->notes.empty()) printf("    notes: %s\n", l->notes.c_str());
             } else printf("  label: (none)\n");
-        } else fprintf(stderr, "  (labels load error: %s)\n", err.c_str());
+        } else {
+            if (explicit_labels) fprintf(stderr, "  (labels load error: %s)\n", err.c_str());
+            else printf("  (labels load error: %s)\n", err.c_str());
+        }
+    } else if (explicit_labels) {
+        fprintf(stderr, "labels file not found: %s\n", labels_path);
     }
     if (e->w > 0) printf("  texture: %dx%d fmt=%c\n", e->w, e->h, e->tex_fmt ? e->tex_fmt : '-');
     if (e->ntris > 0) printf("  model: %d submeshes, %d verts, %d tris, amat=%d\n", e->nsub, e->nverts, e->ntris, e->amat_ref);
@@ -498,9 +501,6 @@ static int cmd_show(const char* catpath, const char* sel, const char* labels_pat
     return 0;
 }
 
-// Export a full armor via the composite bridge: model_file_id -> composites.tsv
-// file_ids -> sub-models + their REAL detailed textures (the ones the model's own
-// FFNA refs don't point to). Groups each sub-model with the textures that follow it.
 static int cmd_armor(Dat& dat, const char* comp_path, uint32_t mfid, const char* outdir, bool gray) {
     FILE* cf = fopen(comp_path, "rb");
     if (!cf) { fprintf(stderr, "cannot read composites: %s\n", comp_path); return 2; }
@@ -645,29 +645,27 @@ static int cmd_tag_armor(const char* armors_path, const char* comp_path, const c
     return 0;
 }
 
-static int cmd_label(int argc, char** argv, int start) {
-    // start: <labels.json> <key> <name> [flags]
-    if (argc < start + 3) { usage(); return 1; }
-    const char* path = argv[start];
-    std::string key = argv[start + 1];
-    if (key.rfind("hash:", 0) != 0 && key.rfind("murmur:", 0) != 0) key = "hash:" + key; // bare number -> hash:
-    Label l; l.name = argv[start + 2]; l.source = "manual";
-    for (int i = start + 3; i < argc; ++i) {
-        if (!strcmp(argv[i], "--category") && i + 1 < argc) l.category = argv[++i];
-        else if (!strcmp(argv[i], "--tag") && i + 1 < argc) l.tags.push_back(argv[++i]);
-        else if (!strcmp(argv[i], "--source") && i + 1 < argc) l.source = argv[++i];
-        else if (!strcmp(argv[i], "--notes") && i + 1 < argc) l.notes = argv[++i];
+static int cmd_label(const std::vector<std::string>& args, const char* labels_path) {
+    if (args.size() < 3) { usage(); return 1; }
+    std::string key = args[1];
+    if (key.rfind("hash:", 0) != 0 && key.rfind("murmur:", 0) != 0) key = "hash:" + key;
+    Label l; l.name = args[2]; l.source = "manual";
+    for (size_t i = 3; i < args.size(); ++i) {
+        if (args[i] == "--category" && i + 1 < args.size()) l.category = args[++i];
+        else if (args[i] == "--tag" && i + 1 < args.size()) l.tags.push_back(args[++i]);
+        else if (args[i] == "--source" && i + 1 < args.size()) l.source = args[++i];
+        else if (args[i] == "--notes" && i + 1 < args.size()) l.notes = args[++i];
     }
     Labels labels; std::string err;
-    if (!labels.load(path, &err)) { fprintf(stderr, "labels load error: %s\n", err.c_str()); return 2; }
+    if (!labels.load(labels_path, &err)) {
+        if (file_exists(labels_path)) { fprintf(stderr, "labels load error: %s\n", err.c_str()); return 2; }
+    }
     labels.set(key, l);
-    if (!labels.save(path)) { fprintf(stderr, "cannot write %s\n", path); return 2; }
+    if (!labels.save(labels_path)) { fprintf(stderr, "cannot write %s\n", labels_path); return 2; }
     printf("labeled %s = \"%s\"  (%zu labels total)\n", key.c_str(), l.name.c_str(), labels.size());
     return 0;
 }
 
-// One-command provisioning: Gw.dat is the only requirement; build the whole compendium
-// (catalog + labels) into the data dir. Guides you through the one in-game step (composites).
 static int cmd_setup(const std::string& dat_hint, bool force) {
     std::string dat = resolve_dat(dat_hint);
     if (dat.empty()) { print_dat_help(dat_hint); return 2; }
@@ -716,98 +714,104 @@ int main(int argc, char** argv) {
     if (argc < 2) { usage(); return 1; }
 
     std::string cmd = argv[1];
+    if (cmd == "-h" || cmd == "--help") { usage(); return 0; }
+
+    std::unordered_set<std::string> cmds = {"setup", "search", "show", "label", "tag-armor", "info", "census", "scan", "texscan", "index", "extract", "obj", "objtex", "tex", "armor"};
+    std::vector<std::string> args;
+    std::string dat_arg, catalog_arg, labels_arg, composites_arg, armors_arg, out_arg;
+    size_t limit_arg = 0; bool has_limit = false;
+    bool force_arg = false, gray_arg = false;
+
+    if (cmds.find(cmd) == cmds.end()) {
+        dat_arg = cmd;
+        cmd = "census";
+        args.push_back("census");
+    } else {
+        args.push_back(cmd);
+    }
+
+    for (int i = 2; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--dat" && i + 1 < argc) dat_arg = argv[++i];
+        else if (arg == "--catalog" && i + 1 < argc) catalog_arg = argv[++i];
+        else if (arg == "--labels" && i + 1 < argc) labels_arg = argv[++i];
+        else if (arg == "--composites" && i + 1 < argc) composites_arg = argv[++i];
+        else if (arg == "--armors" && i + 1 < argc) armors_arg = argv[++i];
+        else if (arg == "--out" && i + 1 < argc) out_arg = argv[++i];
+        else if (arg == "--limit" && i + 1 < argc) { limit_arg = strtoull(argv[++i], nullptr, 10); has_limit = true; }
+        else if (arg == "--force") force_arg = true;
+        else if (arg == "--gray") gray_arg = true;
+        else args.push_back(arg);
+    }
 
     if (cmd == "setup") {
-        std::string hint; bool force = false;
-        for (int i = 2; i < argc; ++i) {
-            if (!strcmp(argv[i], "--dat") && i + 1 < argc) hint = argv[++i];
-            else if (!strcmp(argv[i], "--force")) force = true;
-        }
-        return cmd_setup(hint, force);
+        return cmd_setup(dat_arg, force_arg);
     }
 
-    // Catalog / label commands operate on files, not the dat. The catalog path is optional
-    // (defaults to <data>/catalog.tsv); labels auto-load from <data>/labels.json if present.
+    std::string datpath = resolve_dat(dat_arg);
+    std::string ddir = data_dir(datpath);
+    std::string def_cat = ddir + "/catalog.tsv";
+    std::string def_labels = ddir + "/labels.json";
+    std::string def_comps = ddir + "/composites.tsv";
+    
+    std::string cat_path = catalog_arg.empty() ? def_cat : catalog_arg;
+    std::string labels_path = labels_arg.empty() ? def_labels : labels_arg;
+    std::string comp_path = composites_arg.empty() ? def_comps : composites_arg;
+    std::string armors_path = armors_arg.empty() ? find_armors(ddir) : armors_arg;
+
     if (cmd == "search") {
-        std::string dc = data_dir("") + "/catalog.tsv";
-        bool have_cat = argc >= 3 && argv[2][0] != '-';
-        return cmd_search(have_cat ? argv[2] : dc.c_str(), argc, argv, have_cat ? 3 : 2);
+        size_t lim = has_limit ? limit_arg : 50;
+        return cmd_search(cat_path.c_str(), args, lim, labels_path.c_str(), !labels_arg.empty());
     }
     if (cmd == "show") {
-        auto is_sel = [](const char* s) { return !strncmp(s, "hash:", 5) || !strncmp(s, "murmur:", 7) || isdigit((unsigned char)s[0]); };
-        std::string dc = data_dir("") + "/catalog.tsv", dl = data_dir("") + "/labels.json";
-        std::string cat, sel; int pos;
-        if (argc >= 3 && is_sel(argv[2])) { cat = dc; sel = argv[2]; pos = 3; }
-        else if (argc >= 4) { cat = argv[2]; sel = argv[3]; pos = 4; }
-        else { usage(); return 1; }
-        const char* lp = nullptr;
-        for (int i = pos; i + 1 < argc; ++i) if (!strcmp(argv[i], "--labels")) lp = argv[i + 1];
-        std::string lpath = lp ? lp : (file_exists(dl) ? dl : std::string());
-        return cmd_show(cat.c_str(), sel.c_str(), lpath.empty() ? nullptr : lpath.c_str());
+        if (args.size() < 2) { usage(); return 1; }
+        return cmd_show(cat_path.c_str(), args[1].c_str(), labels_path.c_str(), !labels_arg.empty());
     }
-    if (cmd == "label") return cmd_label(argc, argv, 2);
+    if (cmd == "label") {
+        return cmd_label(args, labels_path.c_str());
+    }
     if (cmd == "tag-armor") {
-        if (argc < 6) { usage(); return 1; }
-        return cmd_tag_armor(argv[2], argv[3], argv[4], argv[5]);
+        if (armors_path.empty()) { fprintf(stderr, "armors.tsv not found\n"); return 1; }
+        return cmd_tag_armor(armors_path.c_str(), comp_path.c_str(), cat_path.c_str(), labels_path.c_str());
     }
 
-    bool bare = (cmd != "info" && cmd != "census" && cmd != "extract" && cmd != "obj" &&
-                 cmd != "scan" && cmd != "tex" && cmd != "texscan" && cmd != "objtex" &&
-                 cmd != "index" && cmd != "armor");
-    const char* dat_arg = bare ? argv[1] : (argc >= 3 ? argv[2] : nullptr);
-    std::string datpath = resolve_dat(dat_arg ? dat_arg : "");
-    if (datpath.empty()) { print_dat_help(dat_arg ? dat_arg : ""); return 1; }
-    if (bare) cmd = "census"; // `datcli <dat>` shorthand
+    if (datpath.empty()) { print_dat_help(dat_arg); return 1; }
 
     Dat dat;
-    fprintf(stderr, "opening %s ...\n", datpath.c_str());
+    if (cmd != "index") fprintf(stderr, "opening %s ...\n", datpath.c_str());
     if (!dat.open(datpath)) { fprintf(stderr, "error: %s\n", dat.error().c_str()); return 1; }
-    fprintf(stderr, "opened: %zu MFT entries\n", dat.num_files());
+    if (cmd != "index") fprintf(stderr, "opened: %zu MFT entries\n", dat.num_files());
 
     if (cmd == "info") return cmd_info(dat);
-    if (cmd == "census") {
-        size_t limit = 20000;
-        const char* limarg = bare ? (argc >= 3 ? argv[2] : nullptr) : (argc >= 4 ? argv[3] : nullptr);
-        if (limarg) limit = strtoull(limarg, nullptr, 10);
-        return cmd_census(dat, limit);
-    }
+    if (cmd == "census") return cmd_census(dat, has_limit ? limit_arg : 20000);
+    if (cmd == "scan") return cmd_scan(dat, has_limit ? limit_arg : 40000);
+    if (cmd == "texscan") return cmd_texscan(dat, has_limit ? limit_arg : 40000);
+    
     if (cmd == "index") {
-        std::string out = (argc >= 4) ? argv[3] : (std::string(datpath) + ".catalog.tsv");
-        size_t limit = (argc >= 5) ? strtoull(argv[4], nullptr, 10) : 0;
-        return cmd_index(dat, out.c_str(), limit);
+        std::string out = out_arg.empty() ? def_cat : out_arg;
+        return cmd_index(dat, out.c_str(), limit_arg);
     }
     if (cmd == "extract") {
-        if (argc < 5) { usage(); return 1; }
-        return cmd_extract(dat, resolve_index(dat, argv[3]), argv[4]);
+        if (args.size() < 3) { usage(); return 1; }
+        return cmd_extract(dat, resolve_index(dat, args[1].c_str()), args[2].c_str());
     }
     if (cmd == "obj") {
-        if (argc < 5) { usage(); return 1; }
-        return cmd_obj(dat, resolve_index(dat, argv[3]), argv[4]);
+        if (args.size() < 3) { usage(); return 1; }
+        return cmd_obj(dat, resolve_index(dat, args[1].c_str()), args[2].c_str());
     }
     if (cmd == "objtex") {
-        if (argc < 5) { usage(); return 1; }
-        return cmd_objtex(dat, resolve_index(dat, argv[3]), argv[4]);
-    }
-    if (cmd == "armor") {
-        if (argc < 6) { usage(); return 1; }
-        bool gray = false;
-        for (int i = 6; i < argc; ++i) if (!strcmp(argv[i], "--gray")) gray = true;
-        return cmd_armor(dat, argv[3], static_cast<uint32_t>(strtoul(argv[4], nullptr, 0)), argv[5], gray);
-    }
-    if (cmd == "scan") {
-        size_t limit = 40000;
-        if (argc >= 4) limit = strtoull(argv[3], nullptr, 10);
-        return cmd_scan(dat, limit);
+        if (args.size() < 3) { usage(); return 1; }
+        return cmd_objtex(dat, resolve_index(dat, args[1].c_str()), args[2].c_str());
     }
     if (cmd == "tex") {
-        if (argc < 5) { usage(); return 1; }
-        return cmd_tex(dat, resolve_index(dat, argv[3]), argv[4]);
+        if (args.size() < 3) { usage(); return 1; }
+        return cmd_tex(dat, resolve_index(dat, args[1].c_str()), args[2].c_str());
     }
-    if (cmd == "texscan") {
-        size_t limit = 40000;
-        if (argc >= 4) limit = strtoull(argv[3], nullptr, 10);
-        return cmd_texscan(dat, limit);
+    if (cmd == "armor") {
+        if (args.size() < 3) { usage(); return 1; }
+        return cmd_armor(dat, comp_path.c_str(), static_cast<uint32_t>(strtoul(args[1].c_str(), nullptr, 0)), args[2].c_str(), gray_arg);
     }
+    
     usage();
     return 1;
 }

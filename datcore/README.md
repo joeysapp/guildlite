@@ -126,8 +126,19 @@ verb dumps it once to `composites.tsv` (its `file_ids` are the same id-space as 
 
 ## Roadmap
 
-- Fix overall CLI usage: No required .tsv/.json position arguments, No required Gw.dat position arguments (settable via flags, default to builtin gen/placements). Improve the --help/no-arg calls.
-- Fix miss-parsing composite armors/etc into composite.json - many mft/hashed entries are pointing to non-existant texture numbers
+- Fix initial scan/decoding of composites/other models that may fail - initial population on Windows results in N / 214823 fails. Like dyed/composite models? Potentially player character models and character hair models that need "dying" (skinning)? Reference third_party/{GuildWarsMapBrowser,GWDatBrowser} for review to determiine why we are failing to decode 13,753 items.
+```
+$ datcore texscan --limit 214823
+opened: 214823 MFT entries
+texture scan of 214823 / 214823 entries
+  ATEX/ATTX textures        : 65455
+  decoded native (no asm)   : 51702 (79.0%)
+  need asm stage (partial)  : 0
+  decode failed             : 13753
+  
+$ datcore scan --limit 214823
+
+```
 - Fix texture selection (port `GetMesh` + AMAT) — the top correctness gap.
 - Find base character models / skins for all professions / genders
 - Find complete NPCs, areas, etc. - via range? Associativity?
