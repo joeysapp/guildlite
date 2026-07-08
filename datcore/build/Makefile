@@ -214,6 +214,30 @@ src/atex_stub.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/src/atex_stub.cpp.s
 .PHONY : src/atex_stub.cpp.s
 
+src/catalog.o: src/catalog.cpp.o
+.PHONY : src/catalog.o
+
+# target to build an object file
+src/catalog.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/src/catalog.cpp.o
+.PHONY : src/catalog.cpp.o
+
+src/catalog.i: src/catalog.cpp.i
+.PHONY : src/catalog.i
+
+# target to preprocess a source file
+src/catalog.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/src/catalog.cpp.i
+.PHONY : src/catalog.cpp.i
+
+src/catalog.s: src/catalog.cpp.s
+.PHONY : src/catalog.s
+
+# target to generate assembly for a file
+src/catalog.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/src/catalog.cpp.s
+.PHONY : src/catalog.cpp.s
+
 src/dat.o: src/dat.cpp.o
 .PHONY : src/dat.o
 
@@ -377,6 +401,9 @@ help:
 	@echo "... src/atex_stub.o"
 	@echo "... src/atex_stub.i"
 	@echo "... src/atex_stub.s"
+	@echo "... src/catalog.o"
+	@echo "... src/catalog.i"
+	@echo "... src/catalog.s"
 	@echo "... src/dat.o"
 	@echo "... src/dat.i"
 	@echo "... src/dat.s"

@@ -24,6 +24,7 @@ add_library(datcore STATIC
   src/atex_reader.cpp
   src/atex_decompress.cpp
   src/texture.cpp
+  src/catalog.cpp
 )
 target_include_directories(datcore PUBLIC include)
 target_include_directories(datcore PRIVATE third_party)   # vendored stb_image_write.h

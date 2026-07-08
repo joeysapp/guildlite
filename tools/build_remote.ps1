@@ -21,7 +21,7 @@ param(
     [string]$Config   = 'RelWithDebInfo',
     [string]$SrcDir   = 'src/guildlite',
     [string]$PluginDir= 'Documents/GWToolboxpp/plugins',
-    [ValidateSet('plugin','launcher','guildlite')] [string]$Kind = 'plugin',
+    [ValidateSet('plugin','launcher','guildlite','datcore')] [string]$Kind = 'plugin',
     [string]$InstallDir= '',
     [string]$Tarball  = '',
     [string]$VcpkgRoot= '',
@@ -132,6 +132,15 @@ function Get-BuildItems([string]$kind, [string]$config, [string]$gwtb, [string]$
             @{ Target = 'guildlite-core';   Name = 'guildlite-core.dll';   Path = (Join-Path $binDir 'guildlite-core.dll');   Verify = 'pe'; DeployDir = $install },
             @{ Target = 'guildlite-stub';   Name = 'guildlite-stub.dll';   Path = (Join-Path $binDir 'guildlite-stub.dll');   Verify = 'pe'; DeployDir = $install },
             @{ Target = 'guildlite';        Name = 'gwca.dll';             Path = (Join-Path $binDir 'gwca.dll');             Verify = 'pe'; DeployDir = $install }
+        )
+    }
+    if ($kind -eq 'datcore') {
+        # Portable Gw.dat extractor CLI. Standalone (no gwca/injection); the 32-bit
+        # MSVC build compiles the real ATEX x86 asm (full-fidelity textures). Deploy
+        # next to Gw.dat so it can be run in-place on the box.
+        $install = if ($installOverride) { Resolve-HomePath $installOverride } else { Join-Path $Profile2 'Documents\guildlite' }
+        return @(
+            @{ Target = 'datcli'; Name = 'datcli.exe'; Path = (Join-Path $binDir 'datcli.exe'); Verify = 'pe'; DeployDir = $install }
         )
     }
     return @(
@@ -286,8 +295,11 @@ try {
     if (-not $vcpkg) { throw "VCPKG_ROOT not resolvable" }
     $env:VCPKG_ROOT = $vcpkg
     $srcRoot = Resolve-HomePath $SrcDir
-    # plugin/launcher build the GWToolboxpp tree; guildlite builds our standalone injector/ tree.
-    $gwtb    = if ($Kind -eq 'guildlite') { Join-Path $srcRoot 'injector' } else { Join-Path $srcRoot 'GWToolboxpp' }
+    # plugin/launcher build the GWToolboxpp tree; guildlite builds our standalone injector/
+    # tree; datcore builds the portable Gw.dat extractor CLI (datcli.exe).
+    $gwtb    = if ($Kind -eq 'guildlite') { Join-Path $srcRoot 'injector' }
+               elseif ($Kind -eq 'datcore') { Join-Path $srcRoot 'datcore' }
+               else { Join-Path $srcRoot 'GWToolboxpp' }
 
     Log "run $RunId  config=$Config  cmake=$cmake  vcpkg=$vcpkg"
 

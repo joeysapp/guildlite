@@ -2891,6 +2891,8 @@ CMakeFiles/datcore.dir/src/model.cpp.o: /Users/zooey/etc/git/guildlite/datcore/s
   /Library/Developer/CommandLineTools/usr/lib/clang/16/include/stdarg.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/16/include/stddef.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/16/include/stdint.h \
+  /Users/zooey/etc/git/guildlite/datcore/include/datcore/amat_file.h \
+  /Users/zooey/etc/git/guildlite/datcore/include/datcore/dat.h \
   /Users/zooey/etc/git/guildlite/datcore/include/datcore/ffna_fvf.h \
   /Users/zooey/etc/git/guildlite/datcore/include/datcore/ffna_model.h \
   /Users/zooey/etc/git/guildlite/datcore/include/datcore/ffna_type.h \
@@ -5494,6 +5496,8 @@ CMakeFiles/datcore.dir/src/xentax.cpp.o: /Users/zooey/etc/git/guildlite/datcore/
 /Users/zooey/etc/git/guildlite/datcore/include/datcore/atex_decompress.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_u_int32_t.h:
+
+/Users/zooey/etc/git/guildlite/datcore/include/datcore/amat_file.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/alloca.h:
 

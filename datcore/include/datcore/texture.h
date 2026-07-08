@@ -14,6 +14,11 @@ struct Texture {
     bool ok() const { return width > 0 && height > 0 && !needed_asm; }
 };
 
+// Read just the ATEX/ATTX dimensions + format char ('1'/'3'/'5'/'N'/'A'/'L')
+// from the header — no decode, so it's fast enough to index every texture.
+// Returns false if the blob isn't an ATEX/ATTX texture.
+bool texture_info(const uint8_t* data, size_t size, int& width, int& height, char& fmt);
+
 // Decode a decompressed ATEX/ATTX blob to RGBA. Returns false if it is not a
 // decodable ATEX texture. On a decode that required a stubbed asm stage, returns
 // true with needed_asm=true and (partial) pixels — callers should check ok().

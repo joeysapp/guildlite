@@ -1,5 +1,6 @@
 #include "datcore/model.h"
 #include "datcore/ffna_model.h"
+#include "datcore/dat.h"
 
 #include <cstdio>
 #include <span>
@@ -7,7 +8,7 @@
 
 namespace datcore {
 
-bool parse_model(const uint8_t* data, size_t size, Model& out) {
+bool parse_model(const uint8_t* data, size_t size, Model& out, Dat* dat) {
     if (size < 5) return false;
     if (!(data[0] == 'f' && data[1] == 'f' && data[2] == 'n' && data[3] == 'a')) return false;
     if (data[4] != 2) return false; // FFNAType::Model
@@ -33,7 +34,21 @@ bool parse_model(const uint8_t* data, size_t size, Model& out) {
         }
     }
 
-    for (const auto& gm : mf.geometry_chunk.models) {
+    // Resolve the AMAT material file (0xFAD) for new-format models — it dictates
+    // texture ordering. Needs Dat access (the AMAT lives in another DAT entry).
+    AMAT_file amat;
+    if (dat) {
+        for (const auto& r : mf.AMAT_filenames_chunk.texture_filenames) {
+            int ai = dat->index_for_fileref(r.id0, r.id1);
+            if (ai < 0) continue;
+            std::vector<uint8_t> ab = dat->read_file(static_cast<size_t>(ai), true);
+            if (!ab.empty()) amat = AMAT_file(ab.data(), static_cast<uint32_t>(ab.size()));
+            break;
+        }
+    }
+
+    for (size_t mi = 0; mi < mf.geometry_chunk.models.size(); ++mi) {
+        const auto& gm = mf.geometry_chunk.models[mi];
         if (gm.vertices.empty() || gm.indices.empty()) continue;
         Submesh sm;
         sm.positions.reserve(gm.vertices.size());
@@ -58,10 +73,17 @@ bool parse_model(const uint8_t* data, size_t size, Model& out) {
         if (n0 != n1) take(n1, sm.indices_med);
         if (n1 != n2) take(n2, sm.indices_low);
 
+        // GW's real per-submodel diffuse texture selection (needs Dat for the AMAT).
+        if (dat) {
+            std::vector<int> ti = mf.submodel_texture_indices(static_cast<int>(mi), amat);
+            sm.diffuse_texture_ref = ti.empty() ? -1 : ti[0];
+        }
         out.submeshes.push_back(std::move(sm));
     }
     for (const auto& tf : mf.texture_filenames_chunk.texture_filenames)
         out.texture_refs.push_back({tf.id0, tf.id1});
+    for (const auto& af : mf.AMAT_filenames_chunk.texture_filenames)
+        out.amat_refs.push_back({af.id0, af.id1});
     return !out.submeshes.empty();
 }
 

@@ -32,6 +32,7 @@ enum FileType {
 };
 
 const char* type_to_string(int type);
+int type_from_string(const char* s);   // inverse of type_to_string; UNKNOWN if no match
 bool type_is_texture(int type);
 
 // One master-file-table entry. The first 0x18 bytes (offset..crc) come straight

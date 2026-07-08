@@ -21,6 +21,7 @@ struct Submesh {
     std::vector<uint32_t> indices_low;  // Low LOD (may be empty / == med)
     bool has_normals = false;
     bool has_uv0 = false;
+    int diffuse_texture_ref = -1;   // index into Model.texture_refs, or -1 (needs Dat; see parse_model)
 };
 
 // A texture cross-reference (id0,id1) from the model's 0xFA5 chunk; resolve to an
@@ -30,6 +31,7 @@ struct TexRef { uint16_t id0 = 0; uint16_t id1 = 0; };
 struct Model {
     std::vector<Submesh> submeshes;
     std::vector<TexRef> texture_refs;   // model's referenced texture files (0xFA5)
+    std::vector<TexRef> amat_refs;      // model's referenced material files (0xFAD)
     bool fully_parsed = false;          // false if the parser bailed partway
     size_t total_vertices() const {
         size_t n = 0; for (auto& s : submeshes) n += s.positions.size(); return n;
@@ -47,9 +49,15 @@ bool write_obj_textured(const Model& m, const std::string& obj_path,
                         const std::string& mtllib_basename,
                         const std::vector<int>& submesh_material);
 
+class Dat; // fwd (defined in datcore/dat.h)
+
 // Parse an in-memory decompressed FFNA type-2 blob. Returns false if it is not a
-// model or no geometry was recovered.
-bool parse_model(const uint8_t* data, size_t size, Model& out);
+// model or no geometry was recovered. If `dat` is provided, each submesh's
+// diffuse_texture_ref is resolved via GW's real per-submodel texture selection
+// (GetMesh logic + the AMAT material file, which may live in another DAT entry);
+// without it, diffuse_texture_ref stays -1. (`dat` is non-const because reads are
+// lazy.)
+bool parse_model(const uint8_t* data, size_t size, Model& out, Dat* dat = nullptr);
 
 // Write High-LOD geometry to a Wavefront OBJ (three.js / Blender friendly:
 // UV V-flipped, winding reversed). Returns false on file error.

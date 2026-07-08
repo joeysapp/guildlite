@@ -9,6 +9,7 @@
 #include "datcore/dat.h"
 #include "datcore/model.h"
 #include "datcore/texture.h"
+#include "datcore/catalog.h"
 
 #include <chrono>
 #include <cstdio>
@@ -20,12 +21,17 @@ using namespace datcore;
 
 static void usage() {
     fprintf(stderr,
-            "usage:\n"
+            "usage:  (<sel> = an MFT index, or hash:<n>)\n"
             "  datcli info    <dat>\n"
-            "  datcli census  <dat> [limit]     (limit 0 = all entries)\n"
-            "  datcli extract <dat> <index> <outfile>\n"
-            "  datcli obj     <dat> <index> <outfile.obj>\n"
-            "  datcli objtex  <dat> <index> <outdir>       model + textures (OBJ+MTL+PNG)\n");
+            "  datcli census  <dat> [limit]                (limit 0 = all entries)\n"
+            "  datcli index   <dat> [out.tsv] [limit]      build searchable catalog\n"
+            "  datcli search  <catalog.tsv> [--type T] [--min-tris N] [--max-tris N]\n"
+            "                               [--dim N] [--fmt C] [--hash H] [--limit N]\n"
+            "  datcli show    <catalog.tsv> <mft|hash:N|murmur:HEX>\n"
+            "  datcli extract <dat> <sel> <outfile>\n"
+            "  datcli obj     <dat> <sel> <outfile.obj>\n"
+            "  datcli objtex  <dat> <sel> <outdir>         model + textures (OBJ+MTL+PNG)\n"
+            "  datcli tex     <dat> <sel> <outfile.png>\n");
 }
 
 static int cmd_tex(Dat& dat, size_t index, const char* out) {
@@ -200,42 +206,54 @@ static int cmd_objtex(Dat& dat, size_t index, const char* outdir) {
         return 2;
     }
     Model m;
-    if (!parse_model(blob.data(), blob.size(), m)) { fprintf(stderr, "entry %zu: no geometry\n", index); return 2; }
+    if (!parse_model(blob.data(), blob.size(), m, &dat)) { fprintf(stderr, "entry %zu: no geometry\n", index); return 2; }
 
     char stem[64];
     snprintf(stem, sizeof(stem), "model_%zu", index);
     const std::string base = std::string(outdir) + "/" + stem;
 
-    // Resolve + decode each referenced texture -> PNG. Material k = k-th texture
-    // that decoded OK. (Real per-submesh texture binding lived in GetMesh, which
-    // the parser port drops; see below for the crude submesh->material mapping.)
+    // Decode only the textures actually used — each submesh's diffuse_texture_ref,
+    // resolved by parse_model via GW's GetMesh logic + AMAT. One MTL material per
+    // distinct texture ref, decoded once and reused.
     std::string mtl_body;
-    std::vector<int> mats; // material indices in texref order
+    std::vector<int> texref_to_mat(m.texture_refs.size(), -1);
     int num_mat = 0, partial = 0;
-    for (const auto& ref : m.texture_refs) {
+    auto ensure_material = [&](int tr) -> int {
+        if (tr < 0 || tr >= static_cast<int>(m.texture_refs.size())) return -1;
+        if (texref_to_mat[tr] >= 0) return texref_to_mat[tr];
+        const auto& ref = m.texture_refs[tr];
         int midx = dat.index_for_fileref(ref.id0, ref.id1);
-        if (getenv("DATCORE_DEBUG"))
-            fprintf(stderr, "[objtex] texref(%u,%u) -> mft %d\n", ref.id0, ref.id1, midx);
-        if (midx < 0) continue;
+        if (midx < 0) return -1;
         std::vector<uint8_t> tb = dat.read_file(static_cast<size_t>(midx), true);
         Texture tex;
-        if (!decode_texture(tb.data(), tb.size(), tex)) continue;
+        if (!decode_texture(tb.data(), tb.size(), tex)) return -1;
         char png[96];
         snprintf(png, sizeof(png), "%s_tex%d.png", stem, num_mat);
-        if (!write_png(tex, (std::string(outdir) + "/" + png).c_str())) continue;
+        if (!write_png(tex, (std::string(outdir) + "/" + png).c_str())) return -1;
         char mat[256];
         snprintf(mat, sizeof(mat), "newmtl mat%d\nKd 1 1 1\nmap_Kd %s\n%s", num_mat, png,
                  tex.needed_asm ? "# partial decode (asm stub — run on Windows for full fidelity)\n" : "");
         mtl_body += mat;
-        mats.push_back(num_mat);
         if (tex.needed_asm) ++partial;
-        ++num_mat;
-    }
+        texref_to_mat[tr] = num_mat;
+        return num_mat++;
+    };
 
-    // Crude submesh->material assignment: pair 1:1 where possible, else material 0.
     std::vector<int> submesh_mat(m.submeshes.size(), -1);
-    for (size_t s = 0; s < m.submeshes.size() && !mats.empty(); ++s)
-        submesh_mat[s] = mats[s < mats.size() ? s : 0];
+    for (size_t s = 0; s < m.submeshes.size(); ++s) {
+        int tr = m.submeshes[s].diffuse_texture_ref;
+        // GW's per-submodel index is occasionally out of range (off-by-one) on
+        // simple low-index props — clamp it into the available textures.
+        if (tr >= static_cast<int>(m.texture_refs.size())) tr = static_cast<int>(m.texture_refs.size()) - 1;
+        if (tr < 0 && !m.texture_refs.empty()) tr = 0;
+        int mat = ensure_material(tr);
+        // if that ref was null/undecodable, fall back to the first texture that decodes
+        for (int alt = 0; mat < 0 && alt < static_cast<int>(m.texture_refs.size()); ++alt)
+            mat = ensure_material(alt);
+        submesh_mat[s] = mat;
+        if (getenv("DATCORE_DEBUG"))
+            fprintf(stderr, "[objtex] submesh %zu -> texref %d -> mat %d\n", s, tr, submesh_mat[s]);
+    }
 
     if (num_mat > 0) {
         FILE* mf = fopen((base + ".mtl").c_str(), "wb");
@@ -253,13 +271,122 @@ static int cmd_objtex(Dat& dat, size_t index, const char* outdir) {
     return 0;
 }
 
+// Resolve an asset selector to an MFT index: a plain number is the MFT index;
+// "hash:N" (N decimal or 0x-hex) resolves the ANet file hash. Returns SIZE_MAX
+// if unresolvable (callers range-check).
+static size_t resolve_index(Dat& dat, const char* sel) {
+    if (strncmp(sel, "hash:", 5) == 0) {
+        int idx = dat.index_for_hash(static_cast<int>(strtol(sel + 5, nullptr, 0)));
+        return idx < 0 ? static_cast<size_t>(-1) : static_cast<size_t>(idx);
+    }
+    return strtoull(sel, nullptr, 0);
+}
+
+static void print_catalog_line(const CatalogEntry& e) {
+    printf("mft=%-6u hash=%-8d %-12s ", e.mft, e.hash, type_to_string(e.type));
+    if (e.w > 0) printf("%dx%d fmt=%c", e.w, e.h, e.tex_fmt ? e.tex_fmt : '-');
+    else if (e.ntris > 0) printf("%dsub %dv/%dt", e.nsub, e.nverts, e.ntris);
+    if (!e.tex_refs.empty()) {
+        printf("  tex=[");
+        for (size_t j = 0; j < e.tex_refs.size() && j < 6; ++j) printf("%s%d", j ? "," : "", e.tex_refs[j]);
+        printf("%s]", e.tex_refs.size() > 6 ? ",..." : "");
+    }
+    printf("\n");
+}
+
+static void index_progress(size_t done, size_t total) {
+    fprintf(stderr, "\r  indexing %zu / %zu ...", done, total); fflush(stderr);
+}
+
+static int cmd_index(Dat& dat, const char* outpath, size_t limit) {
+    std::vector<CatalogEntry> cat;
+    auto t0 = std::chrono::steady_clock::now();
+    build_catalog(dat, cat, limit, index_progress);
+    fprintf(stderr, "\r%50s\r", "");
+    if (!write_catalog_tsv(cat, outpath)) { fprintf(stderr, "cannot write %s\n", outpath); return 2; }
+    double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    size_t models = 0, exportable = 0, textures = 0;
+    for (const auto& e : cat) {
+        if (e.type == FFNA_Type2) { ++models; if (e.ntris > 0) ++exportable; }
+        if (e.w > 0) ++textures;
+    }
+    printf("indexed %zu entries in %.1fs -> %s\n", cat.size(), secs, outpath);
+    printf("  models=%zu (with geometry=%zu)  textures=%zu\n", models, exportable, textures);
+    return 0;
+}
+
+static int cmd_search(const char* catpath, int argc, char** argv, int argstart) {
+    std::vector<CatalogEntry> cat;
+    if (!read_catalog_tsv(catpath, cat)) { fprintf(stderr, "cannot read catalog: %s\n", catpath); return 2; }
+    int want_type = -1, min_tris = -1, max_tris = -1, min_dim = -1;
+    char want_fmt = 0; long want_hash = 0; size_t lim = 50;
+    for (int i = argstart; i < argc; ++i) {
+        if (!strcmp(argv[i], "--type") && i + 1 < argc) want_type = type_from_string(argv[++i]);
+        else if (!strcmp(argv[i], "--min-tris") && i + 1 < argc) min_tris = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--max-tris") && i + 1 < argc) max_tris = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--dim") && i + 1 < argc) min_dim = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--fmt") && i + 1 < argc) want_fmt = argv[++i][0];
+        else if (!strcmp(argv[i], "--hash") && i + 1 < argc) want_hash = strtol(argv[++i], nullptr, 0);
+        else if (!strcmp(argv[i], "--limit") && i + 1 < argc) lim = strtoull(argv[++i], nullptr, 10);
+    }
+    size_t matched = 0, shown = 0;
+    for (const auto& e : cat) {
+        if (want_type >= 0 && e.type != want_type) continue;
+        if (min_tris >= 0 && e.ntris < min_tris) continue;
+        if (max_tris >= 0 && e.ntris > max_tris) continue;
+        if (min_dim >= 0 && (e.w < min_dim || e.h < min_dim)) continue;
+        if (want_fmt && e.tex_fmt != want_fmt) continue;
+        if (want_hash && e.hash != static_cast<int32_t>(want_hash)) continue;
+        ++matched;
+        if (shown < lim) { print_catalog_line(e); ++shown; }
+    }
+    printf("-- %zu match(es)%s\n", matched, matched > shown ? "  (raise --limit for more)" : "");
+    return 0;
+}
+
+static int cmd_show(const char* catpath, const char* sel) {
+    std::vector<CatalogEntry> cat;
+    if (!read_catalog_tsv(catpath, cat)) { fprintf(stderr, "cannot read catalog: %s\n", catpath); return 2; }
+    const CatalogEntry* e = nullptr;
+    if (!strncmp(sel, "hash:", 5)) { long h = strtol(sel + 5, nullptr, 0); for (auto& c : cat) if (c.hash == h) { e = &c; break; } }
+    else if (!strncmp(sel, "murmur:", 7)) { uint32_t m = strtoul(sel + 7, nullptr, 16); for (auto& c : cat) if (c.murmur == m) { e = &c; break; } }
+    else { uint32_t mft = strtoul(sel, nullptr, 10); for (auto& c : cat) if (c.mft == mft) { e = &c; break; } }
+    if (!e) { fprintf(stderr, "not found: %s\n", sel); return 2; }
+
+    printf("mft=%u hash=%d murmur=%08x type=%s usize=%d\n",
+           e->mft, e->hash, e->murmur, type_to_string(e->type), e->usize);
+    if (e->w > 0) printf("  texture: %dx%d fmt=%c\n", e->w, e->h, e->tex_fmt ? e->tex_fmt : '-');
+    if (e->ntris > 0) printf("  model: %d submeshes, %d verts, %d tris, amat=%d\n", e->nsub, e->nverts, e->ntris, e->amat_ref);
+    if (!e->tex_refs.empty()) {
+        printf("  textures referenced:\n");
+        for (int tr : e->tex_refs) {
+            const CatalogEntry* t = nullptr;
+            for (auto& c : cat) if (c.hash == tr && c.w > 0) { t = &c; break; }
+            if (t) printf("    hash %-8d -> mft %-6u  %dx%d fmt=%c\n", tr, t->mft, t->w, t->h, t->tex_fmt ? t->tex_fmt : '-');
+            else   printf("    hash %-8d -> (unresolved)\n", tr);
+        }
+    }
+    if (e->w > 0 && e->hash) {
+        int users = 0;
+        for (auto& c : cat) for (int tr : c.tex_refs) if (tr == e->hash) { ++users; break; }
+        printf("  used by %d model(s)\n", users);
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) { usage(); return 1; }
 
     std::string cmd = argv[1];
+
+    // Catalog-only commands operate on a .tsv (argv[2]), not the dat.
+    if (cmd == "search") { if (argc < 3) { usage(); return 1; } return cmd_search(argv[2], argc, argv, 3); }
+    if (cmd == "show")   { if (argc < 4) { usage(); return 1; } return cmd_show(argv[2], argv[3]); }
+
     const char* datpath = nullptr;
     bool bare = (cmd != "info" && cmd != "census" && cmd != "extract" && cmd != "obj" &&
-                 cmd != "scan" && cmd != "tex" && cmd != "texscan" && cmd != "objtex");
+                 cmd != "scan" && cmd != "tex" && cmd != "texscan" && cmd != "objtex" &&
+                 cmd != "index" && cmd != "search" && cmd != "show");
     if (bare) { cmd = "census"; datpath = argv[1]; }
     else if (argc >= 3) { datpath = argv[2]; }
     if (!datpath) { usage(); return 1; }
@@ -276,17 +403,22 @@ int main(int argc, char** argv) {
         if (limarg) limit = strtoull(limarg, nullptr, 10);
         return cmd_census(dat, limit);
     }
+    if (cmd == "index") {
+        std::string out = (argc >= 4) ? argv[3] : (std::string(datpath) + ".catalog.tsv");
+        size_t limit = (argc >= 5) ? strtoull(argv[4], nullptr, 10) : 0;
+        return cmd_index(dat, out.c_str(), limit);
+    }
     if (cmd == "extract") {
         if (argc < 5) { usage(); return 1; }
-        return cmd_extract(dat, strtoull(argv[3], nullptr, 10), argv[4]);
+        return cmd_extract(dat, resolve_index(dat, argv[3]), argv[4]);
     }
     if (cmd == "obj") {
         if (argc < 5) { usage(); return 1; }
-        return cmd_obj(dat, strtoull(argv[3], nullptr, 10), argv[4]);
+        return cmd_obj(dat, resolve_index(dat, argv[3]), argv[4]);
     }
     if (cmd == "objtex") {
         if (argc < 5) { usage(); return 1; }
-        return cmd_objtex(dat, strtoull(argv[3], nullptr, 10), argv[4]);
+        return cmd_objtex(dat, resolve_index(dat, argv[3]), argv[4]);
     }
     if (cmd == "scan") {
         size_t limit = 40000;
@@ -295,7 +427,7 @@ int main(int argc, char** argv) {
     }
     if (cmd == "tex") {
         if (argc < 5) { usage(); return 1; }
-        return cmd_tex(dat, strtoull(argv[3], nullptr, 10), argv[4]);
+        return cmd_tex(dat, resolve_index(dat, argv[3]), argv[4]);
     }
     if (cmd == "texscan") {
         size_t limit = 40000;

@@ -127,6 +127,13 @@ const char* type_to_string(int type) {
     }
 }
 
+int type_from_string(const char* s) {
+    if (!s) return UNKNOWN;
+    for (int t = 0; t < FILETYPE_COUNT; ++t)
+        if (std::strcmp(type_to_string(t), s) == 0) return t;
+    return UNKNOWN;
+}
+
 bool type_is_texture(int type) {
     return (type >= ATEXDXT1 && type <= ATTXDXTL) || type == DDS;
 }

@@ -22,16 +22,32 @@ and deploys it to `Documents\guildlite` on the box.
 
 ## `datcli` commands
 
+`<sel>` = an MFT index, or `hash:<n>` (the stable ANet file hash).
+
 ```
 datcli info    <dat>                       master-file-table summary
 datcli census  <dat> [limit]               decompress + classify entries (type counts)
 datcli scan    <dat> [limit]               model geometry coverage (0xFA0 parse rate)
 datcli texscan <dat> [limit]               texture decode coverage (native vs asm-needed)
-datcli extract <dat> <index> <out>         write one decompressed entry to disk
-datcli obj     <dat> <index> <out.obj>     FFNA-2 model -> Wavefront OBJ (High LOD)
-datcli tex     <dat> <index> <out.png>     ATEX/ATTX texture -> PNG
-datcli objtex  <dat> <index> <outdir>      model + its textures -> OBJ + MTL + PNG bundle
+datcli index   <dat> [out.tsv] [limit]     build the searchable catalog (~42s full)
+datcli search  <catalog.tsv> [filters]     --type T --min-tris N --max-tris N
+                                           --dim N --fmt C --hash H --limit N
+datcli show    <catalog.tsv> <mft|hash:N|murmur:HEX>   full record + cross-refs
+datcli extract <dat> <sel> <out>           write one decompressed entry to disk
+datcli obj     <dat> <sel> <out.obj>       FFNA-2 model -> Wavefront OBJ (High LOD)
+datcli tex     <dat> <sel> <out.png>       ATEX/ATTX texture -> PNG
+datcli objtex  <dat> <sel> <outdir>        model + its textures -> OBJ + MTL + PNG bundle
 ```
+
+## Catalog (`Gw.dat.catalog.tsv`)
+
+`datcli index` writes a tab-separated, **greppable** record per entry:
+`mft · hash · murmur · type · usize · w · h · fmt · nsub · nverts · ntris · amat · texrefs`.
+Stable ids are `hash` (ANet file number, when present) and `murmur` (content hash) —
+`mft` is a per-dat-version handle, not stable. Full run: **77,411 models (32,467 with
+geometry), 65,455 textures**. Use `search`/`show`, plain `grep`/`awk`, or address any
+export by `hash:` so you never guess an MFT index. `texrefs` are the referenced
+textures' file-hashes (join back with `show`).
 
 ## Status (2026-07-07)
 
@@ -43,23 +59,22 @@ datcli objtex  <dat> <index> <outdir>      model + its textures -> OBJ + MTL + P
 
 ## Known issues / not done yet
 
-- **Texture SELECTION is wrong — models often get the same/shared texture.**
-  Texture *decode* is correct (verified pixel-for-pixel), but `objtex` picks which
-  texture goes on a submesh with a crude heuristic (the model's `0xFA5` texture-
-  filename refs, in order). GW's real per-submodel texture assignment lives in
-  GWMB's `GetMesh()` — the per-submodel `tex_indices`, the old-vs-new-model
-  `pixel_shader_type` split, and the **AMAT material file** (`0xFAD`, gives texture
-  ordering) — which this port dropped to stay DirectX-free.
-  **Evidence (2026-07-07, box `objtex` run in `../datcore-objtex-output`):** models
-  22/23/30/711/712/763/764/811/812/819 all emit a byte-identical `tex0.png`
-  (md5 `e3a7…`) because they all parse the same first ref `(44508,257) → mft 21`
-  (a lightmap/environment-looking texture, not a diffuse); 851/852 differ
-  `(8452,256) → 557`. So the parse reads model-specific data (not a constant bug),
-  but the *first* `0xFA5` ref is frequently a shared texture, not the model's skin.
-  Many models have 0 `0xFA5` entries entirely (textures only via AMAT) → no texture.
-  **Fix: port `GetMesh`'s texture-index resolution + the AMAT (`0xFAD`) parse**
-  (and sanity-check the raw `0xFA5` chunk bytes for a couple of these models while
-  doing it, to rule out any residual offset error).
+- **Texture selection — FIXED for the main model population (GetMesh + AMAT ported, 2026-07-07).**
+  `objtex` now picks each submesh's diffuse via GW's real per-submodel logic:
+  `FFNA_ModelFile::submodel_texture_indices()` (a faithful trim of GWMB's `GetMesh`
+  — old models read `texture_index_UV_mapping_maybe`, new models read
+  `unknown_tex_stuff1` reordered by the **AMAT `0xFAD`** file's `tex_infos`, resolved
+  through the DAT in `parse_model(..., Dat*)`). Verified: model 16509 assigns two
+  *distinct* textures to its two submeshes; larger scenery models export correctly
+  (previously every model emitted a byte-identical `tex0.png`).
+  **Remaining edge case:** simple low-index props (e.g. 819, 851) hit GW's
+  off-by-one / null-`(0,0)`-ref quirk — they request `texref 1` when only `texref 0`
+  is valid. `objtex` applies a defensive clamp + fallback to the nearest decodable
+  texture so they still get a reasonable diffuse, but their true intended texture
+  may differ, and some low-index items genuinely share one texture. Models with 0
+  `0xFA5` entries (textures only via AMAT-listed refs) still get no texture.
+  Also note: `objtex` exports only the *first* texture of GW's multitexture stack as
+  `map_Kd`; the blend flags / extra layers are not represented in OBJ/MTL.
 - **`0xBB8` model family (~54% of models) is undecoded** — a second FFNA-2 container
   (`0xBB8/0xBBA/0xBBB`) that GWMB doesn't parse either. Likely where character /
   creature models live. Raw RE needed (check OpenTyria / Headquarter).

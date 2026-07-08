@@ -5,6 +5,7 @@
 // All offset math / struct layout is byte-for-byte identical to the reference.
 #include "datcore/ffna_type.h"
 #include "datcore/ffna_fvf.h"
+#include "datcore/amat_file.h"
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -1210,4 +1211,86 @@ struct FFNA_ModelFile
         }
     }
 
+    // The texture-index selection extracted from GWMB's GetMesh (tex_indices only,
+    // no vertices/D3D). Returns the texture_filenames indices this submodel uses;
+    // element [0] is the diffuse. Old models read texture_index_UV_mapping_maybe;
+    // new models read unknown_tex_stuff1 reordered by the AMAT file's tex_infos.
+    std::vector<int> submodel_texture_indices(int model_index, const AMAT_file& amat) const
+    {
+        std::vector<int> tex_indices;
+        if (model_index < 0 || model_index >= static_cast<int>(geometry_chunk.models.size()))
+            return tex_indices;
+        const auto& sub_model = geometry_chunk.models[model_index];
+        const auto& tvs = geometry_chunk.tex_and_vertex_shader_struct;
+        const int num_tex_files = texture_filenames_chunk.actual_num_texture_filenames;
+
+        int sub_model_index = static_cast<int>(sub_model.unknown);
+        if (!tvs.uts0.empty()) sub_model_index %= static_cast<int>(tvs.uts0.size());
+
+        const bool with_uts = textures_parsed_correctly && !tvs.uts0.empty() &&
+            !tvs.tex_array.empty() && !tvs.texture_index_UV_mapping_maybe.empty();
+
+        int start = 0;
+        if (with_uts)
+            for (int i = 0; i < sub_model_index && i < static_cast<int>(tvs.uts0.size()); i++)
+                start += tvs.uts0[i].f0x7;
+
+        // Old model format (Prophecies / Factions)
+        if (with_uts && geometry_chunk.unknown_tex_stuff1.empty())
+        {
+            const int count = tvs.uts0[sub_model_index].f0x7;
+            for (int i = start; i < start + count; i++)
+            {
+                if (i >= static_cast<int>(tvs.tex_array.size()) ||
+                    i >= static_cast<int>(tvs.texture_index_UV_mapping_maybe.size())) break;
+                bool swapped = false;
+                uint8_t uv_set_index = tvs.tex_array[i];
+                if (uv_set_index == 255) continue;
+                if (uv_set_index == 253 && static_cast<int>(tvs.tex_array.size()) > i + 1 && i + 1 < start + count &&
+                    i + 1 < static_cast<int>(tvs.flags0.size()) && tvs.flags0[i] != tvs.flags0[i + 1])
+                    swapped = true;
+
+                uint8_t texture_index = tvs.texture_index_UV_mapping_maybe[i];
+                if (num_tex_files < texture_index && num_tex_files > 0)
+                    texture_index = static_cast<uint8_t>(num_tex_files - 1);
+
+                if (swapped && static_cast<int>(tvs.texture_index_UV_mapping_maybe.size()) > i + 1 &&
+                    i + 1 < start + count)
+                {
+                    uint8_t nxt = tvs.texture_index_UV_mapping_maybe[i + 1];
+                    if (num_tex_files > nxt) tex_indices.push_back(nxt);
+                }
+                if (swapped) i++;
+                tex_indices.push_back(texture_index);
+            }
+        }
+
+        // New model format (Nightfall / EotN) — AMAT drives texture order
+        if (textures_parsed_correctly && !geometry_chunk.unknown_tex_stuff1.empty() &&
+            !geometry_chunk.uts1.empty())
+        {
+            tex_indices.clear();
+            int tex_index_start = 0;
+            for (int i = 0; i < sub_model_index; i++)
+                tex_index_start += geometry_chunk.uts1[i % geometry_chunk.uts1.size()].num_textures_to_use;
+            const auto& uts1 = geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()];
+            for (int i = 0; i < uts1.num_textures_to_use; i++)
+            {
+                uint8_t texture_index =
+                    geometry_chunk.unknown_tex_stuff1[(tex_index_start + i) % geometry_chunk.unknown_tex_stuff1.size()];
+                if (texture_index > num_tex_files) texture_index &= 0x0F;
+                if (num_tex_files < texture_index && num_tex_files > 0) break;
+                tex_indices.push_back(texture_index);
+            }
+            const auto& tex_infos = amat.DX9S_chunk.sub_chunk_0.tex_infos;
+            if (!tex_indices.empty() && tex_infos.size() == tex_indices.size())
+            {
+                std::vector<int> actual(tex_indices.size());
+                for (size_t i = 0; i < tex_infos.size(); i++)
+                    actual[i] = tex_indices[tex_infos[i].tex_index % tex_indices.size()];
+                tex_indices = actual;
+            }
+        }
+        return tex_indices;
+    }
 };

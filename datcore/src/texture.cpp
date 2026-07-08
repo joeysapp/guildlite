@@ -9,6 +9,20 @@
 
 namespace datcore {
 
+bool texture_info(const uint8_t* data, size_t size, int& width, int& height, char& fmt) {
+    if (size < 12) return false;
+    uint32_t id2;
+    std::memcpy(&id2, data + 4, 4);
+    if ((id2 & 0xffffff) != 0x545844u) return false; // "DXT" — matches ProcessImageFile
+    uint16_t w, h;
+    std::memcpy(&w, data + 8, 2);
+    std::memcpy(&h, data + 10, 2);
+    width = w;
+    height = h;
+    fmt = static_cast<char>(id2 >> 24);
+    return true;
+}
+
 bool decode_texture(const uint8_t* data, size_t size, Texture& out) {
     if (size < 12) return false;
     // ProcessImageFile wants a mutable buffer; give it a private copy.
