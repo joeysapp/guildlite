@@ -184,10 +184,24 @@ CMakeFiles/datcore.dir/src/catalog.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/datcore.dir/src/catalog.cpp.s"
 	/usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/zooey/etc/git/guildlite/datcore/src/catalog.cpp -o CMakeFiles/datcore.dir/src/catalog.cpp.s
 
+CMakeFiles/datcore.dir/src/labels.cpp.o: CMakeFiles/datcore.dir/flags.make
+CMakeFiles/datcore.dir/src/labels.cpp.o: /Users/zooey/etc/git/guildlite/datcore/src/labels.cpp
+CMakeFiles/datcore.dir/src/labels.cpp.o: CMakeFiles/datcore.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/datcore.dir/src/labels.cpp.o"
+	/usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/datcore.dir/src/labels.cpp.o -MF CMakeFiles/datcore.dir/src/labels.cpp.o.d -o CMakeFiles/datcore.dir/src/labels.cpp.o -c /Users/zooey/etc/git/guildlite/datcore/src/labels.cpp
+
+CMakeFiles/datcore.dir/src/labels.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/datcore.dir/src/labels.cpp.i"
+	/usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/zooey/etc/git/guildlite/datcore/src/labels.cpp > CMakeFiles/datcore.dir/src/labels.cpp.i
+
+CMakeFiles/datcore.dir/src/labels.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/datcore.dir/src/labels.cpp.s"
+	/usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/zooey/etc/git/guildlite/datcore/src/labels.cpp -o CMakeFiles/datcore.dir/src/labels.cpp.s
+
 CMakeFiles/datcore.dir/src/atex_stub.cpp.o: CMakeFiles/datcore.dir/flags.make
 CMakeFiles/datcore.dir/src/atex_stub.cpp.o: /Users/zooey/etc/git/guildlite/datcore/src/atex_stub.cpp
 CMakeFiles/datcore.dir/src/atex_stub.cpp.o: CMakeFiles/datcore.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/datcore.dir/src/atex_stub.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/datcore.dir/src/atex_stub.cpp.o"
 	/usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/datcore.dir/src/atex_stub.cpp.o -MF CMakeFiles/datcore.dir/src/atex_stub.cpp.o.d -o CMakeFiles/datcore.dir/src/atex_stub.cpp.o -c /Users/zooey/etc/git/guildlite/datcore/src/atex_stub.cpp
 
 CMakeFiles/datcore.dir/src/atex_stub.cpp.i: cmake_force
@@ -208,6 +222,7 @@ datcore_OBJECTS = \
 "CMakeFiles/datcore.dir/src/atex_decompress.cpp.o" \
 "CMakeFiles/datcore.dir/src/texture.cpp.o" \
 "CMakeFiles/datcore.dir/src/catalog.cpp.o" \
+"CMakeFiles/datcore.dir/src/labels.cpp.o" \
 "CMakeFiles/datcore.dir/src/atex_stub.cpp.o"
 
 # External object files for target datcore
@@ -221,10 +236,11 @@ libdatcore.a: CMakeFiles/datcore.dir/src/atex_reader.cpp.o
 libdatcore.a: CMakeFiles/datcore.dir/src/atex_decompress.cpp.o
 libdatcore.a: CMakeFiles/datcore.dir/src/texture.cpp.o
 libdatcore.a: CMakeFiles/datcore.dir/src/catalog.cpp.o
+libdatcore.a: CMakeFiles/datcore.dir/src/labels.cpp.o
 libdatcore.a: CMakeFiles/datcore.dir/src/atex_stub.cpp.o
 libdatcore.a: CMakeFiles/datcore.dir/build.make
 libdatcore.a: CMakeFiles/datcore.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX static library libdatcore.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Linking CXX static library libdatcore.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/datcore.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/datcore.dir/link.txt --verbose=$(VERBOSE)
 

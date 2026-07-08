@@ -13,6 +13,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/zooey/etc/git/guildlite/datcore/src/atex_stub.cpp" "CMakeFiles/datcore.dir/src/atex_stub.cpp.o" "gcc" "CMakeFiles/datcore.dir/src/atex_stub.cpp.o.d"
   "/Users/zooey/etc/git/guildlite/datcore/src/catalog.cpp" "CMakeFiles/datcore.dir/src/catalog.cpp.o" "gcc" "CMakeFiles/datcore.dir/src/catalog.cpp.o.d"
   "/Users/zooey/etc/git/guildlite/datcore/src/dat.cpp" "CMakeFiles/datcore.dir/src/dat.cpp.o" "gcc" "CMakeFiles/datcore.dir/src/dat.cpp.o.d"
+  "/Users/zooey/etc/git/guildlite/datcore/src/labels.cpp" "CMakeFiles/datcore.dir/src/labels.cpp.o" "gcc" "CMakeFiles/datcore.dir/src/labels.cpp.o.d"
   "/Users/zooey/etc/git/guildlite/datcore/src/model.cpp" "CMakeFiles/datcore.dir/src/model.cpp.o" "gcc" "CMakeFiles/datcore.dir/src/model.cpp.o.d"
   "/Users/zooey/etc/git/guildlite/datcore/src/murmur3.cpp" "CMakeFiles/datcore.dir/src/murmur3.cpp.o" "gcc" "CMakeFiles/datcore.dir/src/murmur3.cpp.o.d"
   "/Users/zooey/etc/git/guildlite/datcore/src/texture.cpp" "CMakeFiles/datcore.dir/src/texture.cpp.o" "gcc" "CMakeFiles/datcore.dir/src/texture.cpp.o.d"

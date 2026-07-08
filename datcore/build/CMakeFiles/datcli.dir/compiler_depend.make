@@ -828,6 +828,7 @@ CMakeFiles/datcli.dir/tools/datcli.cpp.o: /Users/zooey/etc/git/guildlite/datcore
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/type_traits \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/typeinfo \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/unordered_map \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/unordered_set \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/utility \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/variant \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/vector \
@@ -982,7 +983,9 @@ CMakeFiles/datcli.dir/tools/datcli.cpp.o: /Users/zooey/etc/git/guildlite/datcore
   /Library/Developer/CommandLineTools/usr/lib/clang/16/include/stdarg.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/16/include/stddef.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/16/include/stdint.h \
+  /Users/zooey/etc/git/guildlite/datcore/include/datcore/catalog.h \
   /Users/zooey/etc/git/guildlite/datcore/include/datcore/dat.h \
+  /Users/zooey/etc/git/guildlite/datcore/include/datcore/labels.h \
   /Users/zooey/etc/git/guildlite/datcore/include/datcore/model.h \
   /Users/zooey/etc/git/guildlite/datcore/include/datcore/texture.h
 
@@ -990,6 +993,8 @@ CMakeFiles/datcli.dir/tools/datcli.cpp.o: /Users/zooey/etc/git/guildlite/datcore
 /Users/zooey/etc/git/guildlite/datcore/include/datcore/model.h:
 
 /Users/zooey/etc/git/guildlite/datcore/include/datcore/dat.h:
+
+/Users/zooey/etc/git/guildlite/datcore/include/datcore/catalog.h:
 
 /Library/Developer/CommandLineTools/usr/lib/clang/16/include/stdint.h:
 
@@ -1234,6 +1239,8 @@ CMakeFiles/datcli.dir/tools/datcli.cpp.o: /Users/zooey/etc/git/guildlite/datcore
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/in_out_result.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__variant/monostate.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/unordered_set:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__utility/priority_tag.h:
 
@@ -2214,6 +2221,8 @@ CMakeFiles/datcli.dir/tools/datcli.cpp.o: /Users/zooey/etc/git/guildlite/datcore
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/string:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/push_heap.h:
+
+/Users/zooey/etc/git/guildlite/datcore/include/datcore/labels.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_copy_constructible.h:
 

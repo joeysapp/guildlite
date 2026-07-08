@@ -10,8 +10,10 @@
 #include "datcore/model.h"
 #include "datcore/texture.h"
 #include "datcore/catalog.h"
+#include "datcore/labels.h"
 
 #include <chrono>
+#include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -27,7 +29,10 @@ static void usage() {
             "  datcli index   <dat> [out.tsv] [limit]      build searchable catalog\n"
             "  datcli search  <catalog.tsv> [--type T] [--min-tris N] [--max-tris N]\n"
             "                               [--dim N] [--fmt C] [--hash H] [--limit N]\n"
-            "  datcli show    <catalog.tsv> <mft|hash:N|murmur:HEX>\n"
+            "                               [--labels labels.json] [--name QUERY]\n"
+            "  datcli show    <catalog.tsv> <mft|hash:N|murmur:HEX> [--labels labels.json]\n"
+            "  datcli label   <labels.json> <hash:N|N|murmur:HEX> <name>\n"
+            "                               [--category C] [--tag T]... [--source S] [--notes N]\n"
             "  datcli extract <dat> <sel> <outfile>\n"
             "  datcli obj     <dat> <sel> <outfile.obj>\n"
             "  datcli objtex  <dat> <sel> <outdir>         model + textures (OBJ+MTL+PNG)\n"
@@ -239,21 +244,31 @@ static int cmd_objtex(Dat& dat, size_t index, const char* outdir) {
         return num_mat++;
     };
 
+    auto is_null_ref = [&](int i) {
+        return i >= 0 && i < static_cast<int>(m.texture_refs.size()) &&
+               m.texture_refs[i].id0 == 0 && m.texture_refs[i].id1 == 0;
+    };
     std::vector<int> submesh_mat(m.submeshes.size(), -1);
+    int dye_slots = 0;
     for (size_t s = 0; s < m.submeshes.size(); ++s) {
         int tr = m.submeshes[s].diffuse_texture_ref;
-        // GW's per-submodel index is occasionally out of range (off-by-one) on
-        // simple low-index props — clamp it into the available textures.
+        if (is_null_ref(tr)) ++dye_slots; // GW points this submesh at an empty (runtime-dyed) slot
         if (tr >= static_cast<int>(m.texture_refs.size())) tr = static_cast<int>(m.texture_refs.size()) - 1;
         if (tr < 0 && !m.texture_refs.empty()) tr = 0;
-        int mat = ensure_material(tr);
-        // if that ref was null/undecodable, fall back to the first texture that decodes
-        for (int alt = 0; mat < 0 && alt < static_cast<int>(m.texture_refs.size()); ++alt)
+        int mat = is_null_ref(tr) ? -1 : ensure_material(tr);
+        // Fall back to the LAST non-null texref — for dyeable armor that's the grayscale
+        // dye-mask/base, not an unrelated shared texture that may be listed first.
+        for (int alt = static_cast<int>(m.texture_refs.size()) - 1; mat < 0 && alt >= 0; --alt) {
+            if (is_null_ref(alt)) continue;
             mat = ensure_material(alt);
+        }
         submesh_mat[s] = mat;
         if (getenv("DATCORE_DEBUG"))
             fprintf(stderr, "[objtex] submesh %zu -> texref %d -> mat %d\n", s, tr, submesh_mat[s]);
     }
+    if (dye_slots > 0)
+        printf("  note: %d submesh(es) use an empty dye slot -> looks like DYEABLE armor/item; the DAT\n"
+               "        has no final texture (runtime-composed from dye). Exporting the grayscale base.\n", dye_slots);
 
     if (num_mat > 0) {
         FILE* mf = fopen((base + ".mtl").c_str(), "wb");
@@ -282,7 +297,8 @@ static size_t resolve_index(Dat& dat, const char* sel) {
     return strtoull(sel, nullptr, 0);
 }
 
-static void print_catalog_line(const CatalogEntry& e) {
+static void print_catalog_line(const CatalogEntry& e, const Label* lbl = nullptr) {
+    if (lbl && !lbl->name.empty()) printf("\"%s\"  ", lbl->name.c_str());
     printf("mft=%-6u hash=%-8d %-12s ", e.mft, e.hash, type_to_string(e.type));
     if (e.w > 0) printf("%dx%d fmt=%c", e.w, e.h, e.tex_fmt ? e.tex_fmt : '-');
     else if (e.ntris > 0) printf("%dsub %dv/%dt", e.nsub, e.nverts, e.ntris);
@@ -320,6 +336,7 @@ static int cmd_search(const char* catpath, int argc, char** argv, int argstart) 
     if (!read_catalog_tsv(catpath, cat)) { fprintf(stderr, "cannot read catalog: %s\n", catpath); return 2; }
     int want_type = -1, min_tris = -1, max_tris = -1, min_dim = -1;
     char want_fmt = 0; long want_hash = 0; size_t lim = 50;
+    const char* labels_path = nullptr; const char* name_q = nullptr;
     for (int i = argstart; i < argc; ++i) {
         if (!strcmp(argv[i], "--type") && i + 1 < argc) want_type = type_from_string(argv[++i]);
         else if (!strcmp(argv[i], "--min-tris") && i + 1 < argc) min_tris = atoi(argv[++i]);
@@ -328,7 +345,21 @@ static int cmd_search(const char* catpath, int argc, char** argv, int argstart) 
         else if (!strcmp(argv[i], "--fmt") && i + 1 < argc) want_fmt = argv[++i][0];
         else if (!strcmp(argv[i], "--hash") && i + 1 < argc) want_hash = strtol(argv[++i], nullptr, 0);
         else if (!strcmp(argv[i], "--limit") && i + 1 < argc) lim = strtoull(argv[++i], nullptr, 10);
+        else if (!strcmp(argv[i], "--labels") && i + 1 < argc) labels_path = argv[++i];
+        else if (!strcmp(argv[i], "--name") && i + 1 < argc) name_q = argv[++i];
     }
+    // --name implies labels; default to labels.json beside the catalog if unspecified
+    Labels labels; bool have_labels = false;
+    if (labels_path || name_q) {
+        std::string err;
+        if (!labels.load(labels_path ? labels_path : "labels.json", &err)) {
+            fprintf(stderr, "labels load error: %s\n", err.c_str()); return 2;
+        }
+        have_labels = true;
+    }
+    std::unordered_set<std::string> name_keys;
+    if (name_q) for (auto& k : labels.search(name_q)) name_keys.insert(k);
+
     size_t matched = 0, shown = 0;
     for (const auto& e : cat) {
         if (want_type >= 0 && e.type != want_type) continue;
@@ -337,14 +368,20 @@ static int cmd_search(const char* catpath, int argc, char** argv, int argstart) 
         if (min_dim >= 0 && (e.w < min_dim || e.h < min_dim)) continue;
         if (want_fmt && e.tex_fmt != want_fmt) continue;
         if (want_hash && e.hash != static_cast<int32_t>(want_hash)) continue;
+        if (name_q) {
+            bool m = (e.hash && name_keys.count(Labels::hash_key(e.hash))) ||
+                     name_keys.count(Labels::murmur_key(e.murmur));
+            if (!m) continue;
+        }
+        const Label* lbl = have_labels ? labels.resolve(e.hash, e.murmur) : nullptr;
         ++matched;
-        if (shown < lim) { print_catalog_line(e); ++shown; }
+        if (shown < lim) { print_catalog_line(e, lbl); ++shown; }
     }
     printf("-- %zu match(es)%s\n", matched, matched > shown ? "  (raise --limit for more)" : "");
     return 0;
 }
 
-static int cmd_show(const char* catpath, const char* sel) {
+static int cmd_show(const char* catpath, const char* sel, const char* labels_path) {
     std::vector<CatalogEntry> cat;
     if (!read_catalog_tsv(catpath, cat)) { fprintf(stderr, "cannot read catalog: %s\n", catpath); return 2; }
     const CatalogEntry* e = nullptr;
@@ -355,6 +392,17 @@ static int cmd_show(const char* catpath, const char* sel) {
 
     printf("mft=%u hash=%d murmur=%08x type=%s usize=%d\n",
            e->mft, e->hash, e->murmur, type_to_string(e->type), e->usize);
+    if (labels_path) {
+        Labels labels; std::string err;
+        if (labels.load(labels_path, &err)) {
+            if (const Label* l = labels.resolve(e->hash, e->murmur)) {
+                printf("  label: \"%s\"  category=%s  source=%s\n",
+                       l->name.c_str(), l->category.c_str(), l->source.c_str());
+                if (!l->tags.empty()) { printf("    tags:"); for (auto& t : l->tags) printf(" %s", t.c_str()); printf("\n"); }
+                if (!l->notes.empty()) printf("    notes: %s\n", l->notes.c_str());
+            } else printf("  label: (none)\n");
+        } else fprintf(stderr, "  (labels load error: %s)\n", err.c_str());
+    }
     if (e->w > 0) printf("  texture: %dx%d fmt=%c\n", e->w, e->h, e->tex_fmt ? e->tex_fmt : '-');
     if (e->ntris > 0) printf("  model: %d submeshes, %d verts, %d tris, amat=%d\n", e->nsub, e->nverts, e->ntris, e->amat_ref);
     if (!e->tex_refs.empty()) {
@@ -374,19 +422,46 @@ static int cmd_show(const char* catpath, const char* sel) {
     return 0;
 }
 
+static int cmd_label(int argc, char** argv, int start) {
+    // start: <labels.json> <key> <name> [flags]
+    if (argc < start + 3) { usage(); return 1; }
+    const char* path = argv[start];
+    std::string key = argv[start + 1];
+    if (key.rfind("hash:", 0) != 0 && key.rfind("murmur:", 0) != 0) key = "hash:" + key; // bare number -> hash:
+    Label l; l.name = argv[start + 2]; l.source = "manual";
+    for (int i = start + 3; i < argc; ++i) {
+        if (!strcmp(argv[i], "--category") && i + 1 < argc) l.category = argv[++i];
+        else if (!strcmp(argv[i], "--tag") && i + 1 < argc) l.tags.push_back(argv[++i]);
+        else if (!strcmp(argv[i], "--source") && i + 1 < argc) l.source = argv[++i];
+        else if (!strcmp(argv[i], "--notes") && i + 1 < argc) l.notes = argv[++i];
+    }
+    Labels labels; std::string err;
+    if (!labels.load(path, &err)) { fprintf(stderr, "labels load error: %s\n", err.c_str()); return 2; }
+    labels.set(key, l);
+    if (!labels.save(path)) { fprintf(stderr, "cannot write %s\n", path); return 2; }
+    printf("labeled %s = \"%s\"  (%zu labels total)\n", key.c_str(), l.name.c_str(), labels.size());
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) { usage(); return 1; }
 
     std::string cmd = argv[1];
 
-    // Catalog-only commands operate on a .tsv (argv[2]), not the dat.
+    // Catalog / label commands operate on files (argv[2..]), not the dat.
     if (cmd == "search") { if (argc < 3) { usage(); return 1; } return cmd_search(argv[2], argc, argv, 3); }
-    if (cmd == "show")   { if (argc < 4) { usage(); return 1; } return cmd_show(argv[2], argv[3]); }
+    if (cmd == "show") {
+        if (argc < 4) { usage(); return 1; }
+        const char* lp = nullptr;
+        for (int i = 4; i + 1 < argc; ++i) if (!strcmp(argv[i], "--labels")) lp = argv[i + 1];
+        return cmd_show(argv[2], argv[3], lp);
+    }
+    if (cmd == "label") return cmd_label(argc, argv, 2);
 
     const char* datpath = nullptr;
     bool bare = (cmd != "info" && cmd != "census" && cmd != "extract" && cmd != "obj" &&
                  cmd != "scan" && cmd != "tex" && cmd != "texscan" && cmd != "objtex" &&
-                 cmd != "index" && cmd != "search" && cmd != "show");
+                 cmd != "index" && cmd != "search" && cmd != "show" && cmd != "label");
     if (bare) { cmd = "census"; datpath = argv[1]; }
     else if (argc >= 3) { datpath = argv[2]; }
     if (!datpath) { usage(); return 1; }

@@ -262,6 +262,30 @@ src/dat.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/src/dat.cpp.s
 .PHONY : src/dat.cpp.s
 
+src/labels.o: src/labels.cpp.o
+.PHONY : src/labels.o
+
+# target to build an object file
+src/labels.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/src/labels.cpp.o
+.PHONY : src/labels.cpp.o
+
+src/labels.i: src/labels.cpp.i
+.PHONY : src/labels.i
+
+# target to preprocess a source file
+src/labels.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/src/labels.cpp.i
+.PHONY : src/labels.cpp.i
+
+src/labels.s: src/labels.cpp.s
+.PHONY : src/labels.s
+
+# target to generate assembly for a file
+src/labels.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/src/labels.cpp.s
+.PHONY : src/labels.cpp.s
+
 src/model.o: src/model.cpp.o
 .PHONY : src/model.o
 
@@ -407,6 +431,9 @@ help:
 	@echo "... src/dat.o"
 	@echo "... src/dat.i"
 	@echo "... src/dat.s"
+	@echo "... src/labels.o"
+	@echo "... src/labels.i"
+	@echo "... src/labels.s"
 	@echo "... src/model.o"
 	@echo "... src/model.i"
 	@echo "... src/model.s"

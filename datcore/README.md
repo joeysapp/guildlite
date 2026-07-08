@@ -30,9 +30,10 @@ datcli census  <dat> [limit]               decompress + classify entries (type c
 datcli scan    <dat> [limit]               model geometry coverage (0xFA0 parse rate)
 datcli texscan <dat> [limit]               texture decode coverage (native vs asm-needed)
 datcli index   <dat> [out.tsv] [limit]     build the searchable catalog (~42s full)
-datcli search  <catalog.tsv> [filters]     --type T --min-tris N --max-tris N
-                                           --dim N --fmt C --hash H --limit N
-datcli show    <catalog.tsv> <mft|hash:N|murmur:HEX>   full record + cross-refs
+datcli search  <catalog.tsv> [filters]     --type T --min-tris N --max-tris N --dim N
+                                           --fmt C --hash H --limit N --labels F --name Q
+datcli show    <catalog.tsv> <mft|hash:N|murmur:HEX> [--labels labels.json]
+datcli label   <labels.json> <hash:N|N|murmur:HEX> <name> [--category C] [--tag T]...
 datcli extract <dat> <sel> <out>           write one decompressed entry to disk
 datcli obj     <dat> <sel> <out.obj>       FFNA-2 model -> Wavefront OBJ (High LOD)
 datcli tex     <dat> <sel> <out.png>       ATEX/ATTX texture -> PNG
@@ -48,6 +49,17 @@ Stable ids are `hash` (ANet file number, when present) and `murmur` (content has
 geometry), 65,455 textures**. Use `search`/`show`, plain `grep`/`awk`, or address any
 export by `hash:` so you never guess an MFT index. `texrefs` are the referenced
 textures' file-hashes (join back with `show`).
+
+## Labels (`labels.json`)
+
+A dependency-free JSON store (`datcore/labels.{h,cpp}`) keyed by **stable id**
+(`hash:<n>` or `murmur:<hex>`), so labels survive dat rebuilds. Records are
+`{name, category, tags[], source, notes}`, written sorted for clean diffs and
+hand-editable. It is the shared sink for every label source — manual `datcli
+label`, community seed data, auto-derived map associations, and **in-game
+browse+label sessions whose `labels.json` is scp'd back to macOS** (the in-game
+tool links datcore and calls the same `Labels::save`). Consumed by `search
+--labels/--name` (search by name, names shown inline) and `show --labels`.
 
 ## Status (2026-07-07)
 

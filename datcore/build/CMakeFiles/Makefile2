@@ -88,12 +88,12 @@ clean: CMakeFiles/datcli.dir/clean
 CMakeFiles/datcore.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles --progress-num=3,4,5,6,7,8,9,10,11,12 "Built target datcore"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles --progress-num=3,4,5,6,7,8,9,10,11,12,13 "Built target datcore"
 .PHONY : CMakeFiles/datcore.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/datcore.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles 10
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles 11
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/datcore.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles 0
 .PHONY : CMakeFiles/datcore.dir/rule
@@ -105,7 +105,7 @@ datcore: CMakeFiles/datcore.dir/rule
 # codegen rule for target.
 CMakeFiles/datcore.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/datcore.dir/build.make CMakeFiles/datcore.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles --progress-num=3,4,5,6,7,8,9,10,11,12 "Finished codegen for target datcore"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles --progress-num=3,4,5,6,7,8,9,10,11,12,13 "Finished codegen for target datcore"
 .PHONY : CMakeFiles/datcore.dir/codegen
 
 # clean rule for target.
@@ -125,7 +125,7 @@ CMakeFiles/datcli.dir/all: CMakeFiles/datcore.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/datcli.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles 12
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles 13
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/datcli.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/zooey/etc/git/guildlite/datcore/build/CMakeFiles 0
 .PHONY : CMakeFiles/datcli.dir/rule

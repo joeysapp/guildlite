@@ -33,7 +33,9 @@ bool build_catalog(Dat& dat, std::vector<CatalogEntry>& out, size_t limit,
                     e.nverts = static_cast<int>(mod.total_vertices());
                     e.ntris = static_cast<int>(mod.total_triangles());
                     for (const auto& tr : mod.texture_refs)
-                        e.tex_refs.push_back(decode_filename(tr.id0, tr.id1));
+                        e.tex_refs.push_back((tr.id0 == 0 && tr.id1 == 0)
+                                             ? 0                                   // empty/dye slot (runtime-filled)
+                                             : decode_filename(tr.id0, tr.id1));
                     if (!mod.amat_refs.empty())
                         e.amat_ref = decode_filename(mod.amat_refs[0].id0, mod.amat_refs[0].id1);
                 }

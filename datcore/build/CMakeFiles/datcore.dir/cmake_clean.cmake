@@ -9,6 +9,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/datcore.dir/src/catalog.cpp.o.d"
   "CMakeFiles/datcore.dir/src/dat.cpp.o"
   "CMakeFiles/datcore.dir/src/dat.cpp.o.d"
+  "CMakeFiles/datcore.dir/src/labels.cpp.o"
+  "CMakeFiles/datcore.dir/src/labels.cpp.o.d"
   "CMakeFiles/datcore.dir/src/model.cpp.o"
   "CMakeFiles/datcore.dir/src/model.cpp.o.d"
   "CMakeFiles/datcore.dir/src/murmur3.cpp.o"
