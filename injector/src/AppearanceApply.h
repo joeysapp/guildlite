@@ -59,5 +59,20 @@ namespace AppearanceApply {
     // Returns the total number of non-empty NPCs seen (may exceed out.size() if capped).
     size_t NpcListSnapshot(std::vector<NpcRow>& out, uint32_t max_rows);
 
+    // One row of GW's client-global composite-model table: model_file_id -> the 11 DAT
+    // file-ids that make up an armor/item (sub-models + textures). This is the RUNTIME half
+    // of the armor item->texture bridge; the static half is datcore/data/armors.tsv, joined
+    // offline on model_file_id. The array index is taken as the model_file_id (that's the key
+    // GetCompositeModelInfo() looks up by). Dyeable-armor diffuse textures live here, not in
+    // the model's own FFNA texture refs -- see datcore/README.md.
+    struct CompositeRow {
+        uint32_t model_file_id = 0;
+        uint32_t class_flags = 0;
+        uint32_t file_ids[11] = {0};
+    };
+    // Snapshot every non-empty composite into out (cleared first). Reads the GW composite
+    // array, so call from the render thread on demand. Returns total non-empty seen.
+    size_t CompositeSnapshot(std::vector<CompositeRow>& out, uint32_t max_rows);
+
 } // namespace AppearanceApply
 } // namespace Guildlite

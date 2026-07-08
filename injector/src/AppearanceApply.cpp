@@ -10,6 +10,7 @@
 #include <GWCA/GameEntities/Item.h>
 #include <GWCA/GameEntities/NPC.h>
 #include <GWCA/Managers/AgentMgr.h>
+#include <GWCA/Managers/ItemMgr.h>       // GetCompositeModelInfoArray (armor item->file_ids bridge)
 #include <GWCA/Managers/GameThreadMgr.h>
 #include <GWCA/Managers/StoCMgr.h>
 #include <GWCA/Packets/StoC.h>
@@ -306,6 +307,32 @@ namespace AppearanceApply {
             ++total;
             if (out.size() < max_rows)
                 out.push_back({i, npc.model_file_id, static_cast<int>(npc.primary)});
+        }
+        return total;
+    }
+
+    size_t CompositeSnapshot(std::vector<CompositeRow>& out, uint32_t max_rows)
+    {
+        out.clear();
+        if (!Game::Ready()) return 0;
+        // Master composite table (loaded from the DAT at startup; the same source
+        // GWToolbox's Armory queries by model_file_id). Index i == model_file_id.
+        const auto& arr = GW::Items::GetCompositeModelInfoArray();
+        size_t total = 0;
+        const uint32_t n = arr.size();
+        for (uint32_t i = 0; i < n; ++i) {
+            const GW::CompositeModelInfo& c = arr[i];
+            bool empty = (c.class_flags == 0);
+            for (int k = 0; k < 11; ++k) if (c.file_ids[k]) empty = false;
+            if (empty) continue; // undefined slot
+            ++total;
+            if (out.size() < max_rows) {
+                CompositeRow r;
+                r.model_file_id = i;
+                r.class_flags = c.class_flags;
+                for (int k = 0; k < 11; ++k) r.file_ids[k] = c.file_ids[k];
+                out.push_back(r);
+            }
         }
         return total;
     }

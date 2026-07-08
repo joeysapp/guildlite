@@ -43,6 +43,15 @@ bool decode_texture(const uint8_t* data, size_t size, Texture& out) {
     return true;
 }
 
+void tint_gray(Texture& t) {
+    for (size_t i = 0; i + 3 < t.rgba.size(); i += 4) {
+        // Rec.601 luminance; alpha (i+3) is left untouched.
+        uint32_t lum = (t.rgba[i] * 77u + t.rgba[i + 1] * 150u + t.rgba[i + 2] * 29u) >> 8;
+        uint8_t g = static_cast<uint8_t>(lum > 255 ? 255 : lum);
+        t.rgba[i] = t.rgba[i + 1] = t.rgba[i + 2] = g;
+    }
+}
+
 bool write_png(const Texture& t, const std::string& path) {
     if (t.width <= 0 || t.height <= 0 || t.rgba.size() < static_cast<size_t>(t.width) * t.height * 4)
         return false;

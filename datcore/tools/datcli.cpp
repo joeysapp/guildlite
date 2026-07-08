@@ -28,7 +28,7 @@ static void usage() {
             "  datcli census  <dat> [limit]                (limit 0 = all entries)\n"
             "  datcli index   <dat> [out.tsv] [limit]      build searchable catalog\n"
             "  datcli search  <catalog.tsv> [--type T] [--min-tris N] [--max-tris N]\n"
-            "                               [--dim N] [--fmt C] [--hash H] [--limit N]\n"
+            "                               [--dim N] [--fmt C] [--hash H] [--limit N] [--dyeable]\n"
             "                               [--labels labels.json] [--name QUERY]\n"
             "  datcli show    <catalog.tsv> <mft|hash:N|murmur:HEX> [--labels labels.json]\n"
             "  datcli label   <labels.json> <hash:N|N|murmur:HEX> <name>\n"
@@ -36,7 +36,8 @@ static void usage() {
             "  datcli extract <dat> <sel> <outfile>\n"
             "  datcli obj     <dat> <sel> <outfile.obj>\n"
             "  datcli objtex  <dat> <sel> <outdir>         model + textures (OBJ+MTL+PNG)\n"
-            "  datcli tex     <dat> <sel> <outfile.png>\n");
+            "  datcli tex     <dat> <sel> <outfile.png>\n"
+            "  datcli armor   <dat> <composites.tsv> <model_file_id> <outdir> [--gray]\n");
 }
 
 static int cmd_tex(Dat& dat, size_t index, const char* out) {
@@ -337,6 +338,7 @@ static int cmd_search(const char* catpath, int argc, char** argv, int argstart) 
     int want_type = -1, min_tris = -1, max_tris = -1, min_dim = -1;
     char want_fmt = 0; long want_hash = 0; size_t lim = 50;
     const char* labels_path = nullptr; const char* name_q = nullptr;
+    bool dyeable_only = false;
     for (int i = argstart; i < argc; ++i) {
         if (!strcmp(argv[i], "--type") && i + 1 < argc) want_type = type_from_string(argv[++i]);
         else if (!strcmp(argv[i], "--min-tris") && i + 1 < argc) min_tris = atoi(argv[++i]);
@@ -347,6 +349,7 @@ static int cmd_search(const char* catpath, int argc, char** argv, int argstart) 
         else if (!strcmp(argv[i], "--limit") && i + 1 < argc) lim = strtoull(argv[++i], nullptr, 10);
         else if (!strcmp(argv[i], "--labels") && i + 1 < argc) labels_path = argv[++i];
         else if (!strcmp(argv[i], "--name") && i + 1 < argc) name_q = argv[++i];
+        else if (!strcmp(argv[i], "--dyeable")) dyeable_only = true;
     }
     // --name implies labels; default to labels.json beside the catalog if unspecified
     Labels labels; bool have_labels = false;
@@ -363,6 +366,14 @@ static int cmd_search(const char* catpath, int argc, char** argv, int argstart) 
     size_t matched = 0, shown = 0;
     for (const auto& e : cat) {
         if (want_type >= 0 && e.type != want_type) continue;
+        if (dyeable_only) {
+            // heuristic: a model with an empty (0,0) dye slot is (almost always) dyeable
+            // armor/weapon/item — the final texture is composed in-game from dye.
+            if (e.type != FFNA_Type2) continue;
+            bool dye = false;
+            for (int tr : e.tex_refs) if (tr == 0 || tr == -16711935) dye = true;
+            if (!dye) continue;
+        }
         if (min_tris >= 0 && e.ntris < min_tris) continue;
         if (max_tris >= 0 && e.ntris > max_tris) continue;
         if (min_dim >= 0 && (e.w < min_dim || e.h < min_dim)) continue;
@@ -422,6 +433,76 @@ static int cmd_show(const char* catpath, const char* sel, const char* labels_pat
     return 0;
 }
 
+// Export a full armor via the composite bridge: model_file_id -> composites.tsv
+// file_ids -> sub-models + their REAL detailed textures (the ones the model's own
+// FFNA refs don't point to). Groups each sub-model with the textures that follow it.
+static int cmd_armor(Dat& dat, const char* comp_path, uint32_t mfid, const char* outdir, bool gray) {
+    FILE* cf = fopen(comp_path, "rb");
+    if (!cf) { fprintf(stderr, "cannot read composites: %s\n", comp_path); return 2; }
+    uint32_t file_ids[11] = {0};
+    bool found = false;
+    char line[1024];
+    while (fgets(line, sizeof(line), cf)) {
+        if (line[0] == '#') continue;
+        unsigned id = 0, flags = 0, f[11] = {0};
+        int n = sscanf(line, "%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u",
+                       &id, &flags, &f[0], &f[1], &f[2], &f[3], &f[4], &f[5], &f[6], &f[7], &f[8], &f[9], &f[10]);
+        if (n >= 2 && id == mfid) { for (int k = 0; k < 11; ++k) file_ids[k] = f[k]; found = true; break; }
+    }
+    fclose(cf);
+    if (!found) { fprintf(stderr, "model_file_id %u not found in %s\n", mfid, comp_path); return 2; }
+
+    // Group: each FFNA sub-model, followed by the textures listed after it.
+    struct Group { std::vector<uint8_t> model; std::vector<int> tex_hashes; };
+    std::vector<Group> groups;
+    for (int k = 0; k < 11; ++k) {
+        uint32_t fid = file_ids[k];
+        if (!fid) continue;
+        int mi = dat.index_for_hash(static_cast<int>(fid));
+        if (mi < 0) continue;
+        std::vector<uint8_t> blob = dat.read_file(static_cast<size_t>(mi), true);
+        int type = dat.mft()[mi].type;
+        if (type == FFNA_Type2) groups.push_back({std::move(blob), {}});
+        else if (type_is_texture(type) && !groups.empty()) groups.back().tex_hashes.push_back(static_cast<int>(fid));
+    }
+    if (groups.empty()) { fprintf(stderr, "composite %u has no FFNA sub-models\n", mfid); return 2; }
+
+    char stem[64]; snprintf(stem, sizeof(stem), "armor_%u", mfid);
+    int parts = 0, texs = 0, partial = 0;
+    for (size_t gi = 0; gi < groups.size(); ++gi) {
+        Model m;
+        if (!parse_model(groups[gi].model.data(), groups[gi].model.size(), m, &dat)) continue;
+        char pstem[80]; snprintf(pstem, sizeof(pstem), "%s_part%zu", stem, gi);
+        const std::string base = std::string(outdir) + "/" + pstem;
+
+        std::string mtl_body; int num_mat = 0;
+        for (int th : groups[gi].tex_hashes) {   // export ALL of the piece's textures, not just the first
+            int ti = dat.index_for_hash(th);
+            if (ti < 0) continue;
+            std::vector<uint8_t> tb = dat.read_file(static_cast<size_t>(ti), true);
+            Texture tex;
+            if (!decode_texture(tb.data(), tb.size(), tex)) continue;
+            if (gray) tint_gray(tex);
+            char png[96]; snprintf(png, sizeof(png), "%s_tex%d.png", pstem, num_mat);
+            if (!write_png(tex, (std::string(outdir) + "/" + png).c_str())) continue;
+            if (num_mat == 0) {   // the first is the MTL's diffuse (map_Kd); GW blends the rest,
+                char mat[256];    // which OBJ/MTL can't represent -> they're exported for use in a DCC.
+                snprintf(mat, sizeof(mat), "newmtl mat0\nKd 1 1 1\nmap_Kd %s\n", png);
+                mtl_body += mat;
+            }
+            if (tex.needed_asm) ++partial;
+            ++num_mat; ++texs;
+        }
+        std::vector<int> submesh_mat(m.submeshes.size(), num_mat > 0 ? 0 : -1);
+        if (num_mat > 0) { FILE* mf = fopen((base + ".mtl").c_str(), "wb"); if (mf) { fputs(mtl_body.c_str(), mf); fclose(mf); } }
+        write_obj_textured(m, base + ".obj", num_mat > 0 ? (std::string(pstem) + ".mtl") : "", submesh_mat);
+        ++parts;
+    }
+    printf("armor %u -> %s/%s_part*.{obj,mtl,png}  (%d sub-models, %d textures%s%s)\n",
+           mfid, outdir, stem, parts, texs, gray ? ", gray-dyed" : "", partial ? ", some partial (asm on non-Windows)" : "");
+    return 0;
+}
+
 static int cmd_label(int argc, char** argv, int start) {
     // start: <labels.json> <key> <name> [flags]
     if (argc < start + 3) { usage(); return 1; }
@@ -461,7 +542,8 @@ int main(int argc, char** argv) {
     const char* datpath = nullptr;
     bool bare = (cmd != "info" && cmd != "census" && cmd != "extract" && cmd != "obj" &&
                  cmd != "scan" && cmd != "tex" && cmd != "texscan" && cmd != "objtex" &&
-                 cmd != "index" && cmd != "search" && cmd != "show" && cmd != "label");
+                 cmd != "index" && cmd != "search" && cmd != "show" && cmd != "label" &&
+                 cmd != "armor");
     if (bare) { cmd = "census"; datpath = argv[1]; }
     else if (argc >= 3) { datpath = argv[2]; }
     if (!datpath) { usage(); return 1; }
@@ -494,6 +576,12 @@ int main(int argc, char** argv) {
     if (cmd == "objtex") {
         if (argc < 5) { usage(); return 1; }
         return cmd_objtex(dat, resolve_index(dat, argv[3]), argv[4]);
+    }
+    if (cmd == "armor") {
+        if (argc < 6) { usage(); return 1; }
+        bool gray = false;
+        for (int i = 6; i < argc; ++i) if (!strcmp(argv[i], "--gray")) gray = true;
+        return cmd_armor(dat, argv[3], static_cast<uint32_t>(strtoul(argv[4], nullptr, 0)), argv[5], gray);
     }
     if (cmd == "scan") {
         size_t limit = 40000;

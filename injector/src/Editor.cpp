@@ -55,6 +55,7 @@ namespace {
     volatile bool g_read_req = false;
     volatile bool g_npcdump_req = false;   // log a window of the NPC table (SSH transmog A/B)
     volatile int  g_npcdump_min = 0;
+    volatile bool g_composite_dump_req = false; // dump composite-model table -> composites.tsv (armor bridge)
 
     std::filesystem::path EditorFile() { return Settings::Dir() / L"editor.json"; }
 
@@ -517,6 +518,21 @@ namespace Editor {
                 if (++shown >= 24) break;
             }
         }
+        if (g_composite_dump_req) {
+            g_composite_dump_req = false;
+            std::vector<AppearanceApply::CompositeRow> rows;
+            const size_t total = AppearanceApply::CompositeSnapshot(rows, 65536);
+            std::ofstream f(Settings::Dir() / L"composites.tsv", std::ios::binary | std::ios::trunc);
+            if (f) {
+                f << "#model_file_id\tclass_flags\tf0\tf1\tf2\tf3\tf4\tf5\tf6\tf7\tf8\tf9\tf10\n";
+                for (const auto& r : rows) {
+                    f << r.model_file_id << '\t' << r.class_flags;
+                    for (int k = 0; k < 11; ++k) f << '\t' << r.file_ids[k];
+                    f << '\n';
+                }
+            }
+            GL_DLLLOG("Editor: dumped %zu composites -> composites.tsv (%zu total non-empty)", rows.size(), total);
+        }
         if (!g_visible) return;
 
         ImGui::SetNextWindowSize(ImVec2(460, 640), ImGuiCond_FirstUseEver);
@@ -552,6 +568,7 @@ namespace Editor {
         if (cmd == "revert-all" || cmd == "revertall") { AppearanceApply::RevertAll(); g_status = "Reverted all."; return; }
         if (cmd == "read")        { g_read_req = true; return; }   // deferred to the render thread
         if (cmd == "npcs")        { g_npcdump_min = (t.size() >= 2) ? std::atoi(t[1].c_str()) : 0; g_npcdump_req = true; return; }
+        if (cmd == "composites")  { g_composite_dump_req = true; return; }  // -> Documents\guildlite\composites.tsv
         if (cmd == "source" && t.size() >= 2) {
             g_source = (t[1] == "target" || t[1] == "1") ? TargetSource::Target : TargetSource::Player;
             return;

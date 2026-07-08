@@ -24,6 +24,10 @@ bool texture_info(const uint8_t* data, size_t size, int& width, int& height, cha
 // true with needed_asm=true and (partial) pixels — callers should check ok().
 bool decode_texture(const uint8_t* data, size_t size, Texture& out);
 
+// Desaturate to grayscale in place — a stand-in "gray dye" for dyeable armor, so an
+// item's detailed texture is stored as a neutral gray (real dye colors are runtime).
+void tint_gray(Texture& t);
+
 // Write RGBA to a PNG (via vendored stb_image_write). Returns false on error.
 bool write_png(const Texture& t, const std::string& path);
 
