@@ -65,22 +65,12 @@ class Template:
     engine: str = 'BLENDER_EEVEE_NEXT'    
 
 TEMPLATES = {
-    # "diagnostic": Template("diagnostic", 50, 35, 10, 1.66, (0.18, 0.18, 0.20, 1), light_rig="inspection"),
-
     "diagnostic": Template("diagnostic", lens=50, yaw=35, pitch=10, distance=1.66, background=(0.18, 0.18, 1.20, 0.01), light_rig="inspection"),
-
     "portrait": Template("portrait", lens=85, yaw=15, pitch=4, distance=1.15, background=(0.12, 0.12, 0.12, 1), default_frame="torso", light_rig="three-point"),
-    
     "ortho": Template("ortho", lens=50, yaw=45, pitch=30, distance=1.5, background=(1, 1, 1, 1), ortho=True, light_rig="sun"),
-    
     "clay": Template("clay", lens=70, yaw=25, pitch=15, distance=1.4, background=(0.16, 0.16, 0.16, 1), engine='BLENDER_WORKBENCH', clay=True, light_rig="studio"),
-    
     "wireframe": Template("wireframe", lens=50, yaw=35, pitch=10, distance=1.66, background=(0.05, 0.05, 0.05, 1), engine='BLENDER_EEVEE_NEXT', wireframe=True, light_rig="inspection"),
-
-    # Batch rotates
     "turntable": Template("turntable", lens=55, yaw=0, pitch=10, distance=1.6, background=(0.18, 0.18, 0.20, 1), light_rig="inspection"),
-
-   # Animations
     "orbit-sun": Template("orbit-sun", lens=50, yaw=35, pitch=10, distance=1.66, background=(0.18, 0.18, 0.20, 1), light_rig="orbit-sun"),
 }
 
@@ -129,13 +119,11 @@ class CameraRig:
         bpy.context.scene.collection.objects.link(self.cam)
         bpy.context.scene.camera = self.cam
 
-    def apply_framing(self, mode, template, overrides):
-        distance_mult = overrides.get('distance') if overrides.get('distance') is not None else template.distance
+    def apply_framing(self, resolved):
+        distance_mult = resolved['distance']
         tgt_loc = self.center.copy()
         
-        if mode == 'auto':
-            mode = template.default_frame
-
+        mode = resolved['frame']
         if mode == 'full':
             pass
         elif mode == 'torso':
@@ -148,20 +136,11 @@ class CameraRig:
             tgt_loc.z -= self.size.z * 0.4
             distance_mult *= 0.4
 
-        lens = overrides.get('lens') if overrides.get('lens') is not None else template.lens            
-
-        yaw = overrides.get('yaw') if overrides.get('yaw') is not None else template.yaw
-        pitch = overrides.get('pitch') if overrides.get('pitch') is not None else template.pitch
-        roll = overrides.get('roll') if overrides.get('roll') is not None else 0.0
-        
-        is_ortho = overrides.get('orthographic') if overrides.get('orthographic') is not None else template.ortho
-        is_fisheye = overrides.get('fisheye')
-
-        self.cam.data.lens = lens
+        self.cam.data.lens = resolved['lens']
         dist = self.maxdim * distance_mult
 
-        yaw_rad = math.radians(yaw)
-        pitch_rad = math.radians(pitch)
+        yaw_rad = math.radians(resolved['yaw'])
+        pitch_rad = math.radians(resolved['pitch'])
 
         x = math.sin(yaw_rad) * math.cos(pitch_rad) * dist
         y = -math.cos(yaw_rad) * math.cos(pitch_rad) * dist
@@ -173,14 +152,14 @@ class CameraRig:
         direction = tgt_loc - cam_loc
         if direction.length > 0:
             rot_quat = direction.to_track_quat('-Z', 'Y')
-            roll_quat = Quaternion((0.0, 0.0, 1.0), math.radians(roll))
+            roll_quat = Quaternion((0.0, 0.0, 1.0), math.radians(resolved['roll']))
             self.cam.rotation_mode = 'QUATERNION'
             self.cam.rotation_quaternion = rot_quat @ roll_quat
 
-        if is_ortho:
+        if resolved['orthographic']:
             self.cam.data.type = 'ORTHO'
             self.cam.data.ortho_scale = self.maxdim * distance_mult * 1.1
-        elif is_fisheye:
+        elif resolved['fisheye']:
             self.cam.data.type = 'PANO'
             try:
                 self.cam.data.panorama_type = 'FISHEYE_EQUISOLID'
@@ -189,12 +168,12 @@ class CameraRig:
 
 
 class LightingRig:
-    def setup(self, template, overrides):
+    def setup(self, resolved):
         for obj in bpy.context.scene.objects:
             if obj.type == 'LIGHT':
                 bpy.data.objects.remove(obj, do_unlink=True)
                 
-        rig_type = overrides.get('light_rig') or template.light_rig
+        rig_type = resolved['light_rig']
         
         if rig_type == 'three-point':
             key = bpy.data.objects.new("key", bpy.data.lights.new("key", 'AREA'))
@@ -261,8 +240,8 @@ class LightingRig:
         world.use_nodes = True
         bg = world.node_tree.nodes.get("Background")
         if bg:
-            bg.inputs[0].default_value = template.background
-            bg.inputs[1].default_value = 1.0
+            bg.inputs[0].default_value = resolved['background']
+            bg.inputs[1].default_value = resolved.get('env_strength', 1.0)
 
 
 class Renderer:
@@ -275,11 +254,31 @@ class Renderer:
         self.center = (self.mn + self.mx) * 0.5
         self.size = self.mx - self.mn
 
-    def _setup_engine(self, template, overrides):
+    def _resolve_config(self, template, overrides):
+        frame = overrides.get('frame') if overrides.get('frame') and overrides.get('frame') != 'auto' else template.default_frame
+        bg = overrides.get('background') or template.background
+        passes = overrides.get('passes', 'beauty')
+        return {
+            'distance': overrides.get('distance') if overrides.get('distance') is not None else template.distance,
+            'lens': overrides.get('lens') if overrides.get('lens') is not None else template.lens,
+            'orthographic': bool(overrides.get('orthographic')) if overrides.get('orthographic') is not None else template.ortho,
+            'fisheye': bool(overrides.get('fisheye')) if overrides.get('fisheye') is not None else template.fisheye,
+            'yaw': overrides.get('yaw') if overrides.get('yaw') is not None else template.yaw,
+            'pitch': overrides.get('pitch') if overrides.get('pitch') is not None else template.pitch,
+            'roll': overrides.get('roll') if overrides.get('roll') is not None else template.roll,
+            'light_rig': overrides.get('light_rig') or template.light_rig,
+            'background': bg,
+            'env_strength': overrides.get('env_strength', 1.0),
+            'passes': passes,
+            'frame': frame,
+            'overlay': bool(overrides.get('overlay'))
+        }
+
+    def _setup_engine(self, template, resolved):
         scene = bpy.context.scene
         target_engine = template.engine
         
-        if overrides.get('fisheye'):
+        if resolved['fisheye']:
             target_engine = 'CYCLES'
             
         try:
@@ -294,9 +293,19 @@ class Renderer:
                 scene.render.engine = 'BLENDER_WORKBENCH'
         return scene.render.engine
 
-    def _setup_overlays(self, template, overrides):
+    def _setup_transparency(self, resolved):
         scene = bpy.context.scene
-        if overrides.get('overlay'):
+        bg = resolved['background']
+        # If RGBA and alpha < 1.0
+        if len(bg) == 4 and bg[3] < 1.0:
+            scene.render.film_transparent = True
+        else:
+            scene.render.film_transparent = False
+        scene.render.image_settings.color_mode = 'RGBA'
+
+    def _setup_overlays(self, resolved):
+        scene = bpy.context.scene
+        if resolved['overlay']:
             if hasattr(scene.render, 'use_stamp'):
                 scene.render.use_stamp = True
             if hasattr(scene.render, 'use_stamp_labels'):
@@ -314,12 +323,22 @@ class Renderer:
             if hasattr(scene.render, 'stamp_foreground'):
                 scene.render.stamp_foreground = (1.0, 1.0, 1.0, 1.0)
             
-            tris = sum(len(p.loop_triangles) for o in bpy.context.scene.objects if o.type == 'MESH' for p in [o.data])
-            mat_count = len(bpy.data.materials)
-            dist = overrides.get('distance')
-            scene.render.stamp_note_text = f"distance: {overrides.get('distance')} lens: {overrides.get('lens')}"
-            
-            # scene.render.stamp_note_text = f"File: {Path(self.obj_path).name} | Template: {template.name} | Tris: {tris} | Mats: {mat_count}"
+            # note formatting matching requested order
+            note = (
+                f"Distance: {resolved['distance']}\n"
+                f"Lens: {resolved['lens']}\n"
+                f"Orthographic: {resolved['orthographic']}\n"
+                f"Fisheye: {resolved['fisheye']}\n\n"
+                f"Yaw: {resolved['yaw']}\n"
+                f"Pitch: {resolved['pitch']}\n"
+                f"Roll: {resolved['roll']}\n\n"
+                f"Light_rig: {resolved['light_rig']}\n"
+                f"Background: {resolved['background']}\n"
+                f"Env_strength: {resolved['env_strength']}\n"
+                f"Passes: {resolved['passes']}\n"
+                f"Frame: {resolved['frame']}"
+            )
+            scene.render.stamp_note_text = note
 
     def _setup_wireframe(self, template):
         if template.wireframe:
@@ -349,9 +368,9 @@ class Renderer:
             sh.single_color = (0.5, 0.5, 0.5)
             sh.light = 'MATCAP'
 
-    def _setup_passes(self, overrides, out_path):
+    def _setup_passes(self, resolved, out_path):
         scene = bpy.context.scene
-        passes = overrides.get('passes', 'beauty')
+        passes = resolved['passes']
         if passes and passes != 'beauty':
             scene.use_nodes = True
             tree = getattr(scene, 'node_tree', None)
@@ -388,24 +407,27 @@ class Renderer:
                         tree.links.new(rl.outputs.get('AO'), file_out.inputs[p])
 
     def render(self, template_name, out_path, overrides):
-        template = TEMPLATES.get(template_name)
+        template = TEMPLATES.get(template_name, TEMPLATES["diagnostic"])
+        resolved = self._resolve_config(template, overrides)
+
         scene = bpy.context.scene
         scene.render.resolution_x = 600
         scene.render.resolution_y = 1000
         scene.render.image_settings.file_format = 'PNG'
         scene.render.filepath = out_path
         
-        self._setup_engine(template, overrides)
+        self._setup_engine(template, resolved)
+        self._setup_transparency(resolved)
         
         cam_rig = CameraRig(self.center, self.size)
-        cam_rig.apply_framing(overrides.get('frame', 'auto'), template, overrides)
+        cam_rig.apply_framing(resolved)
         
         lighting = LightingRig()
-        lighting.setup(template, overrides)
+        lighting.setup(resolved)
         
-        self._setup_overlays(template, overrides)
+        self._setup_overlays(resolved)
         self._setup_wireframe(template)
-        self._setup_passes(overrides, out_path)
+        self._setup_passes(resolved, out_path)
 
         for m in bpy.data.materials:
             try: m.surface_render_method = 'DITHERED'
@@ -418,19 +440,22 @@ class Renderer:
 
     def animate(self, template_name, out_path, overrides):
         template = TEMPLATES.get(template_name, TEMPLATES["orbit-sun"])
+        resolved = self._resolve_config(template, overrides)
+
         scene = bpy.context.scene
         scene.render.resolution_x = 600
         scene.render.resolution_y = 1000
         
-        self._setup_engine(template, overrides)
+        self._setup_engine(template, resolved)
+        self._setup_transparency(resolved)
         
         cam_rig = CameraRig(self.center, self.size)
-        cam_rig.apply_framing(overrides.get('frame', 'auto'), template, overrides)
+        cam_rig.apply_framing(resolved)
         
         lighting = LightingRig()
-        lighting.setup(template, overrides)
+        lighting.setup(resolved)
         
-        self._setup_overlays(template, overrides)
+        self._setup_overlays(resolved)
         self._setup_wireframe(template)
         
         fps = overrides.get('fps', 30)
@@ -443,7 +468,6 @@ class Renderer:
         
         try:
             scene.render.image_settings.media_type = 'VIDEO'
-            # scene.render.image_settings.file_format = 'FFMPEG'
             scene.render.ffmpeg.format = 'MPEG4'
             scene.render.ffmpeg.codec = 'H264'
             scene.render.filepath = out_path
@@ -519,7 +543,7 @@ def parser():
     shared_args.add_argument("-t", "--template", choices=list(TEMPLATES.keys()) + ["orbit-sun"], default="diagnostic", help="Render template")
     shared_args.add_argument("-o", "--output", help="Output file (render/animate) or output directory (batch)")
     
-    shared_args.add_argument("--distance", default=50, type=float, help="Camera distance multiplier")
+    shared_args.add_argument("--distance", type=float, help="Camera distance multiplier")
     shared_args.add_argument("--lens", type=float, help="Camera focal length (mm)")
     shared_args.add_argument("--orthographic", action="store_true", help="Use orthographic camera")
     shared_args.add_argument("--fisheye", action="store_true", help="Use fisheye camera")
@@ -527,9 +551,10 @@ def parser():
     shared_args.add_argument("--yaw", type=float, help="Yaw angle (orbit around center horizontally)")
     shared_args.add_argument("--pitch", type=float, help="Pitch angle (orbit around vertically) (deg)")
     shared_args.add_argument("--roll", type=float, help="Roll angle (orbit around origin to camera) (deg)")
-
     
-    shared_args.add_argument("--light_rig", "--light-rig", "--light", default="diagnostic", choices=["sun", "studio", "three-point", "dramatic", "inspection", "orbit-sun (animate)"], help="Override lighting rig")
+    shared_args.add_argument("-bg", "--background", help="Override background color (csv of RGB or RGBA floats, e.g. 1,0,0,0.5)")
+    shared_args.add_argument("-env", "--env-strength", type=float, default=1.0, help="Environment/Ambient lighting strength")
+    shared_args.add_argument("--light_rig", "--light-rig", "--light", choices=["sun", "studio", "three-point", "dramatic", "inspection", "orbit-sun"], help="Override lighting rig")
     shared_args.add_argument("--passes", default="beauty", help="Comma-separated list of passes (e.g. beauty,depth,normal,ao)")    
 
     shared_args.add_argument("--frame", choices=["auto", "full", "torso", "head", "feet"], default="auto", help="Framing/Composition focus")
@@ -593,6 +618,13 @@ def main():
             print("Error: Must run inside Blender.")
             sys.exit(1)
             
+        bg_val = None
+        if args.background:
+            parts = [float(x.strip()) for x in args.background.split(",")]
+            if len(parts) == 3:
+                parts.append(1.0)
+            bg_val = tuple(parts)
+            
         overrides = {
             'distance': args.distance,
             'lens': args.lens,
@@ -606,7 +638,9 @@ def main():
             'light_rig': args.light_rig,
             'frame': args.frame,            
             'passes': args.passes,
-
+            'background': bg_val,
+            'env_strength': args.env_strength,
+            
             'overlay': args.overlay if args.overlay else None
         }
         overrides = {k: v for k, v in overrides.items() if v is not None}
