@@ -24,7 +24,10 @@
 #   set <key> <value>         e.g. set drop_effects true ; set filter_max_extent 120
 #   settings                  log the whole live capture state to the guildlite log (verify a
 #                             profile/set took effect; a capture-dry manifest also carries it)
-#   target <player|target>    which agent seeds the capture
+#   target <player|target>    which agent SOURCE seeds the capture (export subject)
+#   select <self|none|nearest|ID>  set GW's in-game TARGET with no mouse (headless subject pick);
+#                             pairs with `target target`. If you `capture`/`snap` with source
+#                             `target` and nothing is targeted, it now falls back to self.
 #   pick on|off|next|prev|mark|markall|clearlist|clear|target   drive pick mode; `snap` exports
 #   snap                      export the marked pick set (or the cursor draw if none marked)
 #   demo                      toggle the ImGui demo window

@@ -16,6 +16,7 @@
 #include <GWCA/GameEntities/Agent.h>
 #include <GWCA/Managers/AgentMgr.h>
 #include <GWCA/Managers/ChatMgr.h>
+#include <GWCA/Managers/GameThreadMgr.h> // GW::GameThread::Enqueue -- run target changes on the game thread
 #include <GWCA/Managers/MapMgr.h>
 
 #include <imgui.h>
@@ -263,6 +264,21 @@ namespace {
                   c.up_axis, c.export_skin_weights);
     }
 
+    // The pose/reseat pipeline needs a valid agent (world pos + facing). When the export Source
+    // is Target but nothing is targeted, fall back to the player -- so a manual pick selection of
+    // your OWN character exports (and poses) without first /targeting yourself. This is the
+    // "if nothing is targeted, target self" ask, done at read time so it needs no game-thread hop.
+    GameStateSnapshot GatherSubject(TargetSource src, bool& fell_back_to_self)
+    {
+        fell_back_to_self = false;
+        GameStateSnapshot s = GameState::Gather(src);
+        if (!s.valid && src == TargetSource::Target) {
+            s = GameState::Gather(TargetSource::Player);
+            fell_back_to_self = s.valid;
+        }
+        return s;
+    }				
+
     // --- capture (was BeginCapture/FlushCapture) ---------------------------
     void BeginCapture(bool dry_run)
     {
@@ -275,7 +291,8 @@ namespace {
         pending_is_pick = false; // the filter-stack path, not a pick Snap
         pending_cfg = g_config;
         if (pending_cfg.pose_to_live) pending_cfg.probe_shader_constants = true; // pose needs palettes
-        pending_snapshot = GameState::Gather(g_config.target);
+        bool fell_back = false;
+        pending_snapshot = GatherSubject(g_config.target, fell_back); // no target -> self
         // Seed the render-thread isolation match from the target's GWCA world position
         // (the hook can't safely call GWCA), calibrated 1:1 to the bone-palette translation.
         pending_cfg.has_match_pos = pending_snapshot.valid;
@@ -284,7 +301,8 @@ namespace {
         pending_cfg.match_pos[2] = pending_snapshot.pos_z;
         Capture::Arm(pending_cfg);
         capture_in_flight = true;
-        status_line = dry_run ? "Refreshing diagnostics..." : "Capturing next frame...";
+        const char* base = dry_run ? "Refreshing diagnostics..." : "Capturing next frame...";
+        status_line = fell_back ? std::string(base) + " (no target -- exporting self)" : base;
     }
 
     // Snap exactly the draw currently selected in pick mode -- no filter stack, no
@@ -307,14 +325,17 @@ namespace {
         pending_pick_n = (marks > 0) ? marks : 1;
         pending_cfg = g_config;
         if (pending_cfg.pose_to_live) pending_cfg.probe_shader_constants = true; // pose needs palettes
-        pending_snapshot = GameState::Gather(g_config.target);
+        bool fell_back = false;
+        pending_snapshot = GatherSubject(g_config.target, fell_back); // no target -> self, so a
+                                                                      // manual pick of your own body still poses
         pending_cfg.has_match_pos = false;   // the pick is the filter; isolation not needed
         pending_cfg.trim_outliers = false;   // export exactly the marked draws, trim nothing
         pending_cfg.filter_center_radius = 0.f;
         pending_cfg.exclude_2d = false;      // a marked draw may be depth-test-off (e.g. armor)
         Capture::ArmSelected(pending_cfg);
         capture_in_flight = true;
-        status_line = "Snapping selected draw...";
+        status_line = fell_back ? "Snapping selected draw... (no target -- posing to self)"
+                                : "Snapping selected draw...";
     }
 
     // Mark every draw skinned to the Source agent's skeleton in one action (a whole
@@ -330,6 +351,46 @@ namespace {
         const float pos[3] = {s.pos_x, s.pos_y, s.pos_z};
         Capture::PickMarkMatching(pos, g_config.isolate_tolerance);
         status_line = "Marking all of the source's pieces (bone-palette match)...";
+    }
+
+    // In-game target control (SSH surface): set GW's current target so a headless capture can
+    // choose its subject without a mouse. GWCA game ACTIONS (and the agent-array read for
+    // "nearest") are not safe off the game thread, so everything runs inside a GameThread::Enqueue
+    // lambda (as AppearanceApply does). `what` = self | none/clear | nearest | <numeric agent id>.
+    void SelectInGame(const std::string& what)
+    {
+        if (!Game::Ready()) { status_line = "GWCA not ready -- cannot select."; return; }
+        if (what == "self" || what == "me" || what == "player") {
+            GW::GameThread::Enqueue([] { GW::Agents::ChangeTarget(GW::Agents::GetControlledCharacterId()); }, false);
+            status_line = "Target -> self.";
+        }
+        else if (what == "none" || what == "clear") {
+            GW::GameThread::Enqueue([] { GW::Agents::ChangeTarget(static_cast<uint32_t>(0)); }, false);
+            status_line = "Target cleared.";
+        }
+        else if (what == "nearest") {
+            GW::GameThread::Enqueue([] {
+                auto* agents = GW::Agents::GetAgentArray();
+                GW::Agent* self = GW::Agents::GetControlledCharacter();
+                if (!agents || !self) return;
+                float best = 3.4e38f; uint32_t best_id = 0;
+                for (GW::Agent* a : *agents) {
+                    if (!a || a->agent_id == self->agent_id || !a->GetIsLivingType()) continue;
+                    const float dx = a->pos.x - self->pos.x, dy = a->pos.y - self->pos.y;
+                    const float d2 = dx * dx + dy * dy;
+                    if (d2 < best) { best = d2; best_id = a->agent_id; }
+                }
+                if (best_id) GW::Agents::ChangeTarget(best_id);
+            }, false);
+            status_line = "Target -> nearest living agent.";
+        }
+        else {
+            const uint32_t id = static_cast<uint32_t>(std::strtoul(what.c_str(), nullptr, 10));
+            if (id == 0) { status_line = "select: expected self | none | nearest | <agentId>."; return; }
+            GW::GameThread::Enqueue([id] { GW::Agents::ChangeTarget(id); }, false);
+            status_line = "Target -> agent " + what + ".";
+        }
+        GL_DLLLOG("Exporter::SelectInGame: %s", what.c_str());
     }
 
     // A VS-constant triple (3 consecutive registers = one row-major [3x3|t] bone matrix) is a
@@ -1331,6 +1392,10 @@ namespace Exporter {
         const std::string& cmd = tok[0];
         if (cmd == "set" && tok.size() >= 3)     { SetConfig(tok[1], tok[2]); return; }
         if (cmd == "target" && tok.size() >= 2)  { SetConfig("target", tok[1]); return; }
+        // `select` sets the in-GAME target (self|none|nearest|<id>); distinct from `target`,
+        // which picks the export Source (player vs current target). Lets an SSH loop choose the
+        // subject with no mouse. Runs the actual ChangeTarget on the game thread (SelectInGame).
+        if (cmd == "select" && tok.size() >= 2)  { SelectInGame(tok[1]); return; }
         if (cmd == "profile" && tok.size() >= 2) { ApplyProfile(tok[1]); return; }
         // Pick mode: verbs set request flags the render thread applies (Draw), since the
         // pick list is render-thread-owned. "snap" grabs the currently selected draw.
