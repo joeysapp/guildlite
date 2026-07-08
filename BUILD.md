@@ -1,37 +1,31 @@
-# Pick Mode as Priority
-Guildlite `Exporter` recently gained a `Pick Mode` to select visible textures for export. This is the sole mode being used now with pose/animation and bone weight export always set to true.
+Guildlite has been built with a control surface provided over SSH/terminal through reading and evaluating ./control. This ingress is used in several ways, the primary and most regular use case being reloading the active dll into a new build.
 
-Perfecting the Pick Mode to be reliable and controllable over SSH is the #1 priorty for the `Model Export` tool.
+Most if not all of the available ./control commands can be found in the `Info` panel, accessed by left-clicking 'Info' in bottom right. 
 
-# Bind-Pose v. Bound/Skinned Render - When and Why
-Across all characters and equipment/armor tested, only sections of the player character can be exported/snapshotted as expected (rendered mid-animation) with the other half exported otherwise (in bind-pose.) This arrangement can flip, such that the first half is in bind-pose and the second is a posed/real state.
-
-The general flip-flop seems to be upper-body renders / lower-body renders, meaning a given pick snapshot will have an expected upper body (head, hair, face, neck, upper armor and skin, upper arms) in perfect snapshot pose and lower body in bind-pose (legs, shins and feet, gloves and hands.) This can swap as stated for the upper body to be in bind-pose and lower-body in rendered state, but is less common.
-
-Suggestions range from reviewing how a bound/skinned texture is captured, along with knowing that many of these items we do not classify as "skinned" - many player 'skins' (their physical skin, colored/hued to player settings like hair and face setting) end in bind-pose while some are posed perfectly.
-
-If required, can view all contents of ./render-analysis for png renderings of outputs of a bottom-half of a character is reliably in bind-pose while the rest is as expected. In bind-pose is lower body (armored skirt, armored shoes, upper neck texture.) 
-
-# Improved Guildlite UI/UX (Exporter, General)
-The following controls are proposed:
-- General controls usable over gw-ctl AND in chat (eventually if not now):
- - Log into a character, log out to character screen
- - Target a character/npc/item
-The following upgrades to Exporter are proposed:
-- Extend exporter state persist/save through reloads to include:
- - Selected rendered signatures (verts, faces, ?label)
-- **Review logic behind animation/pose bind toggles in exporter config. THEY ARE ALWAYS SET TO TRUE, but when toggled off not all items are exported in bind-pose. Likely related/similar issue to active main build issue.**
-- Review the export target button v. manual texture selection in build.
- - Both are working but export target seems to export in bind-pose more often. Have been disabling many, many textures resulting in export target single button working decently well
- - Exporting manually-selected textures DOES NOT WORK unless the character is targeted, which we need as a control surface for this to be verifiable. Secondary solution: If nothing is targeted, target self.
-
-# Proposed Build Steps
+# Build Steps
 - Analyze state, review previous attempts at 'stitching' renders
 - Build solutions - Extend control surface - Propose bone-animation solutions
+- analyze Pazzos captured pizza
+- analyze Pazzos complete control panel and surface as possible, e.g.:
+ - WASDFZX, R/EX. When freecam mode ON, intercept and do not pass-through model controls. Provide through two new toggles: Lock Camera, Lock Target (default: self). Show locked items next to selected items with an un-disable. 
+ - Integrate existing labels (MANY) into new datcore labels.json and determine how to meaningfully combine the two for cross-application use
 
-- ./build.sh --guildlite and wait
-- printf 'reload\n' > /tmp/gl-control; scp -q /tmp/gl-control guildlite-win:Documents/guildlite/control and wait
+- [~] ./build.sh --guildlite and wait
+- [~] printf 'reload\n' > /tmp/gl-control; scp -q /tmp/gl-control guildlite-win:Documents/guildlite/control and wait. The unforunate truth is there has been no review and extension of prior commands into new commands which must be remedied today. Some of the groups include but are not limited to the following manual discoveries (will need to add more flags/search context for models, objects, etc.):
+- [ ] Providing more programmatic surface for controls the better. Things I cannot do now, but could if this document successfully built
+ - Save/load more information to settings.json like texture selection (successful load-in when textures present, otherwise drop selection)
+ - Load into any targetted character and export model, ensure targetting a fluke/unrelated
+ - Model Exporter's NPC List jumps around constantly while at the end, accessing tunnels that are at the end of the render cycle. This is due to sweat/etc. on equipment - cannot be avoilded - but would ask for towels/wipedown for courtesy as I do the same.
 
-- Send controls to select N textures manually UNLESS persist through reload (good) and wait
-- Send controls to capture-dry or capture
-- Review until fix - exports are either IN bind-pose or as rendered in whatever posed/animated/bound/skinned state and bone position they are visually in
+--- 
+
+```
+Player/self, read from source and strike him! Current states are: scale=1, identity=unset, equipment=unset, saved_chars=unset
+
+Integrating the built tags.json will be interesting. I run a local deployment for building the frontend (React SPA) but realize the WebView plan will need some work/review. Hope to have a working labels/tags/compendium-concretized-and-combined-to-single-file textfile I can add to while not playing the game.
+```
+
+- [ ] Send controls to select N textures manually UNLESS persist through reload (good) and wait.
+- [~] Send controls to capture-dry or capture to review A/Bconfigurations
+- [ ] Send controls and help/info to both CLI and transmog faces - should see colored/uniq character
+- [ ] Review until fix - exports are either IN bind-pose or as rendered in whatever posed/animated/bound/skinned state and bone position they are visually in

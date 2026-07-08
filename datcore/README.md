@@ -137,7 +137,12 @@ texture scan of 214823 / 214823 entries
   decode failed             : 13753
   
 $ datcore scan --limit 214823
+...
 
+$ echo "edit transmog [6025..6027]" > /tmp/gl-control; scp -q /tmp/gl-control guildlite-win:Documents/guildlite/control
+..
+
+$ ssh guildlite-win "echo 'reload' > $HOM
 ```
 - Fix texture selection (port `GetMesh` + AMAT) — the top correctness gap.
 - Find base character models / skins for all professions / genders
