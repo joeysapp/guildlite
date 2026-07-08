@@ -20,6 +20,7 @@ The following controls are proposed:
 The following upgrades to Exporter are proposed:
 - Extend exporter state persist/save through reloads to include:
  - Selected rendered signatures (verts, faces, ?label)
+- **Review logic behind animation/pose bind toggles in exporter config. THEY ARE ALWAYS SET TO TRUE, but when toggled off not all items are exported in bind-pose. Likely related/similar issue to active main build issue.**
 - Review the export target button v. manual texture selection in build.
  - Both are working but export target seems to export in bind-pose more often. Have been disabling many, many textures resulting in export target single button working decently well
  - Exporting manually-selected textures DOES NOT WORK unless the character is targeted, which we need as a control surface for this to be verifiable. Secondary solution: If nothing is targeted, target self.
