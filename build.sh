@@ -62,6 +62,14 @@ for _a in "$@"; do
     esac
 done
 
+# --- native-on-macOS datcore shortcut ----------------------------------------
+# `./build.sh --datcore --local` builds the datcore CLI (datcli) locally with cmake +
+# Apple clang -- no Windows box. Geometry/catalog/labels work; textures need the remote
+# (Windows) build because of the x86 ATEX asm. Plain `--datcore` still builds on the box.
+_dc=0 _loc=0
+for _a in "$@"; do case "$_a" in --datcore) _dc=1 ;; --local|--native) _loc=1 ;; esac; done
+[ "$_dc" = 1 ] && [ "$_loc" = 1 ] && exec "$SCRIPT_DIR/tools/build_datcore_local.sh"
+
 # --- source env + helpers (auto-sourced interactively; explicit here for bash) --
 [ -f "$HOME/etc/term/windows-env.sh" ] && . "$HOME/etc/term/windows-env.sh"
 if ! command -v win-ssh >/dev/null 2>&1; then

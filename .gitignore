@@ -12,9 +12,27 @@ datcore/build
 # tmp
 renders
 RENDER-FEEDBACK
+*.log
 
 # session scratch / SSH verification pulls
 scratch-verify
 gl-loop
 guildlite-exports
+
+# datcore: Gw.dat is the only required input; the compendium is generated (datcli setup).
+# Keep datcore/data/armors.tsv (provided by us); ignore the rest.
+Gw.dat
+Gw.dat.census
+catalog.tsv
+composites.tsv
+labels.json
+datcore/bin
+datcore/data/catalog.tsv
+datcore/data/composites.tsv
+datcore/data/labels.json
+
+# datcore export scratch
+armor-output
+texout
+*-and-ingame-render.png
 

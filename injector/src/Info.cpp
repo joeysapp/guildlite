@@ -22,6 +22,7 @@ namespace {
         {"edit slot <n> dye a b c d", "recolour equipment slot n (dye values 0..13)"},
         {"edit save/load <name>",   "store / recall a named character look"},
         {"edit states",             "apply all enabled global states"},
+        {"edit composites",         "dump the model_file_id->DAT file-ids table -> Documents\\guildlite\\composites.tsv"},
     };
     const Entry kFreecamKeys[] = {
         {"W / S",   "fly forward / back"},

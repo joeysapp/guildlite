@@ -139,8 +139,11 @@ function Get-BuildItems([string]$kind, [string]$config, [string]$gwtb, [string]$
         # MSVC build compiles the real ATEX x86 asm (full-fidelity textures). Deploy
         # next to Gw.dat so it can be run in-place on the box.
         $install = if ($installOverride) { Resolve-HomePath $installOverride } else { Join-Path $Profile2 'Documents\guildlite' }
+        # Deploy datcli.exe + armors.tsv (the provided name/profession/slot data) next to
+        # Gw.dat so `datcli setup` finds everything in one dir on the box.
         return @(
-            @{ Target = 'datcli'; Name = 'datcli.exe'; Path = (Join-Path $binDir 'datcli.exe'); Verify = 'pe'; DeployDir = $install }
+            @{ Target = 'datcli'; Name = 'datcli.exe'; Path = (Join-Path $binDir 'datcli.exe');     Verify = 'pe';   DeployDir = $install },
+            @{ Target = 'datcli'; Name = 'armors.tsv'; Path = (Join-Path $gwtb 'data\armors.tsv');  Verify = 'data'; DeployDir = $install }
         )
     }
     return @(

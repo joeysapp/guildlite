@@ -13,6 +13,7 @@
 #include "datcore/labels.h"
 
 #include <chrono>
+#include <filesystem>
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
@@ -20,11 +21,71 @@
 #include <string>
 
 using namespace datcore;
+namespace fs = std::filesystem;
+
+static bool file_exists(const std::string& p) {
+    std::error_code ec; return !p.empty() && fs::is_regular_file(p, ec);
+}
+
+// Resolve Gw.dat: explicit hint -> $GUILDLITE_GW_DAT -> ./Gw.dat -> Documents. "" if none.
+static std::string resolve_dat(const std::string& hint) {
+    std::vector<std::string> c;
+    if (!hint.empty()) c.push_back(hint);
+    if (const char* e = getenv("GUILDLITE_GW_DAT")) c.push_back(e);
+    c.push_back("Gw.dat");
+    if (const char* h = getenv("HOME")) {
+        c.push_back(std::string(h) + "/Documents/Guild Wars/Gw.dat");
+        c.push_back(std::string(h) + "/Documents/guildlite/Gw.dat");
+    }
+    if (const char* u = getenv("USERPROFILE")) {
+        c.push_back(std::string(u) + "\\Documents\\Guild Wars\\Gw.dat");
+        c.push_back(std::string(u) + "\\Documents\\guildlite\\Gw.dat");
+    }
+    for (const auto& p : c) if (file_exists(p)) return p;
+    return "";
+}
+
+static void print_dat_help(const std::string& hint) {
+    std::string tried = hint.empty() ? "" : (std::string(" (tried '") + hint + "')");
+    fprintf(stderr,
+        "error: Gw.dat not found%s.\n"
+        "  Provide it: pass the path, set GUILDLITE_GW_DAT=/path/to/Gw.dat, or place it\n"
+        "  at ./Gw.dat or <Documents>/Guild Wars/Gw.dat. A partial Gw.dat only holds assets\n"
+        "  loaded in-game; for a COMPLETE archive run Guild Wars' image download: Gw.exe -image\n",
+        tried.c_str());
+}
+
+// Compendium dir (catalog/composites/labels): $GUILDLITE_DATA, else Gw.dat's dir, else ".".
+static std::string data_dir(const std::string& dat) {
+    if (const char* e = getenv("GUILDLITE_DATA")) return e;
+    if (!dat.empty()) { fs::path p(dat); if (p.has_parent_path()) return p.parent_path().string(); }
+    return ".";
+}
+
+// armors.tsv (provided by us): $GUILDLITE_ARMORS -> <data>/armors.tsv -> repo copy.
+static std::string find_armors(const std::string& ddir) {
+    if (const char* e = getenv("GUILDLITE_ARMORS")) if (file_exists(e)) return e;
+    for (const std::string& p : { ddir + "/armors.tsv", std::string("datcore/data/armors.tsv"),
+                                  std::string("data/armors.tsv") })
+        if (file_exists(p)) return p;
+    return "";
+}
+
+// Equipment category from the GWToolbox ItemType/slot name.
+static const char* item_category(const char* slot) {
+    static const char* weapons[] = {"Axe","Sword","Staff","Wand","Spear","Shield",
+                                     "Scythe","Offhand","Hammer","Daggers","Bow"};
+    for (const char* w : weapons) if (!strcmp(slot, w)) return "weapon";
+    if (!strncmp(slot, "Costume", 7)) return "costume";
+    return "armor";
+}
 
 static void usage() {
     fprintf(stderr,
-            "usage:  (<sel> = an MFT index, or hash:<n>)\n"
-            "  datcli info    <dat>\n"
+            "usage:  <sel> = MFT index or hash:<n>;  <dat>/<catalog.tsv> optional ->\n"
+            "        $GUILDLITE_GW_DAT / ./Gw.dat  and  $GUILDLITE_DATA/{catalog,labels}\n"
+            "  datcli setup   [--dat <path>] [--force]     provision catalog + labels (START HERE)\n"
+            "  datcli info    [dat]\n"
             "  datcli census  <dat> [limit]                (limit 0 = all entries)\n"
             "  datcli index   <dat> [out.tsv] [limit]      build searchable catalog\n"
             "  datcli search  <catalog.tsv> [--type T] [--min-tris N] [--max-tris N]\n"
@@ -352,14 +413,17 @@ static int cmd_search(const char* catpath, int argc, char** argv, int argstart) 
         else if (!strcmp(argv[i], "--name") && i + 1 < argc) name_q = argv[++i];
         else if (!strcmp(argv[i], "--dyeable")) dyeable_only = true;
     }
-    // --name implies labels; default to labels.json beside the catalog if unspecified
+    // Labels auto-load from <data>/labels.json if present, so names show inline and --name
+    // works without --labels; an explicit --labels that fails to load is a hard error.
     Labels labels; bool have_labels = false;
-    if (labels_path || name_q) {
-        std::string err;
-        if (!labels.load(labels_path ? labels_path : "labels.json", &err)) {
-            fprintf(stderr, "labels load error: %s\n", err.c_str()); return 2;
+    {
+        std::string dl = data_dir("") + "/labels.json";
+        std::string lp = labels_path ? labels_path : dl;
+        if (labels_path || file_exists(lp)) {
+            std::string err;
+            if (labels.load(lp, &err)) have_labels = true;
+            else if (labels_path) { fprintf(stderr, "labels load error: %s\n", err.c_str()); return 2; }
         }
-        have_labels = true;
     }
     std::unordered_set<std::string> name_keys;
     if (name_q) for (auto& k : labels.search(name_q)) name_keys.insert(k);
@@ -535,33 +599,49 @@ static int cmd_tag_armor(const char* armors_path, const char* comp_path, const c
 
     FILE* af = fopen(armors_path, "rb");
     if (!af) { fprintf(stderr, "cannot read armors: %s\n", armors_path); return 2; }
+    auto make_label = [](char** f) {
+        Label l;
+        l.name = f[2];
+        const char* c = item_category(f[4]);
+        l.category = c;
+        l.source = "armor-join";
+        l.tags = { f[3], f[4], f[5] };                              // profession, slot/weapon-type, campaign
+        if (strcmp(c, "weapon") != 0) l.tags.push_back("dyeable");  // armor/costume are dyeable
+        return l;
+    };
     char line[512];
-    int armors = 0, no_comp = 0, labeled = 0;
+    int items = 0, unresolved = 0, labeled = 0;
     while (fgets(line, sizeof(line), af)) {
         if (line[0] == '#') continue;
         char* fields[7] = {0}; int nf = 0;
         for (char* t = strtok(line, "\t\r\n"); t && nf < 7; t = strtok(nullptr, "\t\r\n")) fields[nf++] = t;
         if (nf < 7) continue;
         uint32_t mfid = static_cast<uint32_t>(strtoul(fields[0], nullptr, 10));
-        ++armors;
+        ++items;
         auto it = comp.find(mfid);
-        if (it == comp.end()) { ++no_comp; continue; }
-        for (int fid : it->second) {
-            auto ht = hash_type.find(fid);
-            if (ht == hash_type.end() || ht->second != FFNA_Type2) continue; // only geometry sub-models
-            Label l;
-            l.name = fields[2];
-            l.category = "armor";
-            l.source = "armor-join";
-            l.tags = { fields[3], fields[4], fields[5], "dyeable" }; // profession, slot, campaign
-            labels.set(Labels::hash_key(fid), std::move(l));
-            ++labeled;
+        if (it != comp.end()) {
+            // composite (armor / costume): label each FFNA sub-model hash (male + female)
+            bool any = false;
+            for (int fid : it->second) {
+                auto ht = hash_type.find(fid);
+                if (ht == hash_type.end() || ht->second != FFNA_Type2) continue;
+                labels.set(Labels::hash_key(fid), make_label(fields));
+                ++labeled; any = true;
+            }
+            if (!any) ++unresolved;
+        } else {
+            // no composite: a single-model item (weapon) whose model_file_id IS the DAT hash
+            auto ht = hash_type.find(static_cast<int>(mfid));
+            if (ht != hash_type.end() && ht->second == FFNA_Type2) {
+                labels.set(Labels::hash_key(static_cast<int>(mfid)), make_label(fields));
+                ++labeled;
+            } else ++unresolved;
         }
     }
     fclose(af);
     if (!labels.save(labels_path)) { fprintf(stderr, "cannot write %s\n", labels_path); return 2; }
-    printf("tag-armor: %d armors (%d without a loaded composite) -> %d sub-model hashes labeled -> %s (%zu labels total)\n",
-           armors, no_comp, labeled, labels_path, labels.size());
+    printf("tag-armor: %d items (%d unresolved) -> %d hashes labeled (armor via composites, weapons direct) -> %s (%zu labels total)\n",
+           items, unresolved, labeled, labels_path, labels.size());
     return 0;
 }
 
@@ -586,18 +666,84 @@ static int cmd_label(int argc, char** argv, int start) {
     return 0;
 }
 
+// One-command provisioning: Gw.dat is the only requirement; build the whole compendium
+// (catalog + labels) into the data dir. Guides you through the one in-game step (composites).
+static int cmd_setup(const std::string& dat_hint, bool force) {
+    std::string dat = resolve_dat(dat_hint);
+    if (dat.empty()) { print_dat_help(dat_hint); return 2; }
+    const std::string ddir = data_dir(dat);
+    std::error_code ec; fs::create_directories(ddir, ec);
+    const std::string cat = ddir + "/catalog.tsv";
+    const std::string labels = ddir + "/labels.json";
+    const std::string comps = ddir + "/composites.tsv";
+    printf("datcore setup\n  Gw.dat   : %s\n  data dir : %s\n", dat.c_str(), ddir.c_str());
+
+    if (force || !file_exists(cat)) {
+        Dat d;
+        if (!d.open(dat)) { fprintf(stderr, "error: cannot open %s: %s\n", dat.c_str(), d.error().c_str()); return 2; }
+        printf("  [1/2] indexing the dat (scans everything, ~40s)...\n");
+        cmd_index(d, cat.c_str(), 0);
+    } else {
+        printf("  [1/2] catalog exists: %s  (--force to rebuild)\n", cat.c_str());
+    }
+
+    // armors.tsv is provided by us; place it in the data dir so it's found + scp-able together.
+    std::string armors = find_armors(ddir);
+    if (!armors.empty() && !file_exists(ddir + "/armors.tsv")) {
+        fs::copy_file(armors, ddir + "/armors.tsv", fs::copy_options::overwrite_existing, ec);
+        armors = ddir + "/armors.tsv";
+    }
+
+    if (armors.empty()) {
+        printf("  [2/2] labels SKIPPED: armors.tsv not found. Provide datcore/data/armors.tsv\n"
+               "        (or set GUILDLITE_ARMORS) -- that's where names/professions/slots come from.\n");
+    } else if (file_exists(comps)) {
+        printf("  [2/2] labeling (armors x composites x catalog)...\n");
+        cmd_tag_armor(armors.c_str(), comps.c_str(), cat.c_str(), labels.c_str());
+    } else {
+        printf("  [2/2] labels SKIPPED: %s/composites.tsv not found.\n"
+               "        Composites (model->texture) live in GAME MEMORY, so this one step is in-game:\n"
+               "          1. in Guildlite, run:  edit composites\n"
+               "          2. scp  Documents\\guildlite\\composites.tsv  ->  %s/\n"
+               "          3. re-run:  datcli setup\n", ddir.c_str(), ddir.c_str());
+    }
+    printf("done -> catalog=%s labels=%s.  try:  datcli search --name ranger\n",
+           file_exists(cat) ? "ok" : "-", file_exists(labels) ? "ok" : "pending");
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) { usage(); return 1; }
 
     std::string cmd = argv[1];
 
-    // Catalog / label commands operate on files (argv[2..]), not the dat.
-    if (cmd == "search") { if (argc < 3) { usage(); return 1; } return cmd_search(argv[2], argc, argv, 3); }
+    if (cmd == "setup") {
+        std::string hint; bool force = false;
+        for (int i = 2; i < argc; ++i) {
+            if (!strcmp(argv[i], "--dat") && i + 1 < argc) hint = argv[++i];
+            else if (!strcmp(argv[i], "--force")) force = true;
+        }
+        return cmd_setup(hint, force);
+    }
+
+    // Catalog / label commands operate on files, not the dat. The catalog path is optional
+    // (defaults to <data>/catalog.tsv); labels auto-load from <data>/labels.json if present.
+    if (cmd == "search") {
+        std::string dc = data_dir("") + "/catalog.tsv";
+        bool have_cat = argc >= 3 && argv[2][0] != '-';
+        return cmd_search(have_cat ? argv[2] : dc.c_str(), argc, argv, have_cat ? 3 : 2);
+    }
     if (cmd == "show") {
-        if (argc < 4) { usage(); return 1; }
+        auto is_sel = [](const char* s) { return !strncmp(s, "hash:", 5) || !strncmp(s, "murmur:", 7) || isdigit((unsigned char)s[0]); };
+        std::string dc = data_dir("") + "/catalog.tsv", dl = data_dir("") + "/labels.json";
+        std::string cat, sel; int pos;
+        if (argc >= 3 && is_sel(argv[2])) { cat = dc; sel = argv[2]; pos = 3; }
+        else if (argc >= 4) { cat = argv[2]; sel = argv[3]; pos = 4; }
+        else { usage(); return 1; }
         const char* lp = nullptr;
-        for (int i = 4; i + 1 < argc; ++i) if (!strcmp(argv[i], "--labels")) lp = argv[i + 1];
-        return cmd_show(argv[2], argv[3], lp);
+        for (int i = pos; i + 1 < argc; ++i) if (!strcmp(argv[i], "--labels")) lp = argv[i + 1];
+        std::string lpath = lp ? lp : (file_exists(dl) ? dl : std::string());
+        return cmd_show(cat.c_str(), sel.c_str(), lpath.empty() ? nullptr : lpath.c_str());
     }
     if (cmd == "label") return cmd_label(argc, argv, 2);
     if (cmd == "tag-armor") {
@@ -605,17 +751,16 @@ int main(int argc, char** argv) {
         return cmd_tag_armor(argv[2], argv[3], argv[4], argv[5]);
     }
 
-    const char* datpath = nullptr;
     bool bare = (cmd != "info" && cmd != "census" && cmd != "extract" && cmd != "obj" &&
                  cmd != "scan" && cmd != "tex" && cmd != "texscan" && cmd != "objtex" &&
-                 cmd != "index" && cmd != "search" && cmd != "show" && cmd != "label" &&
-                 cmd != "armor" && cmd != "tag-armor");
-    if (bare) { cmd = "census"; datpath = argv[1]; }
-    else if (argc >= 3) { datpath = argv[2]; }
-    if (!datpath) { usage(); return 1; }
+                 cmd != "index" && cmd != "armor");
+    const char* dat_arg = bare ? argv[1] : (argc >= 3 ? argv[2] : nullptr);
+    std::string datpath = resolve_dat(dat_arg ? dat_arg : "");
+    if (datpath.empty()) { print_dat_help(dat_arg ? dat_arg : ""); return 1; }
+    if (bare) cmd = "census"; // `datcli <dat>` shorthand
 
     Dat dat;
-    fprintf(stderr, "opening %s ...\n", datpath);
+    fprintf(stderr, "opening %s ...\n", datpath.c_str());
     if (!dat.open(datpath)) { fprintf(stderr, "error: %s\n", dat.error().c_str()); return 1; }
     fprintf(stderr, "opened: %zu MFT entries\n", dat.num_files());
 

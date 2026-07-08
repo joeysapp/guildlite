@@ -1,0 +1,1584 @@
+#model_file_id	hex	name	profession	slot	campaign	dye_tint
+4	0x004	Pumpkin Crown	None	Costume_Headpiece	BonusMissionPack	9
+10	0x00A	Elite Profane Boots	Necromancer	Boots	Prophecies	20
+39	0x027	Elite Profane Tunic	Necromancer	Chestpiece	Prophecies	20
+50	0x032	Charr Hide Boots	Warrior	Boots	Prophecies	3
+51	0x033	Charr Hide Cuirass	Warrior	Chestpiece	Prophecies	3
+52	0x034	Charr Hide Gauntlets	Warrior	Gloves	Prophecies	3
+53	0x035	Charr Hide Helm	Warrior	Headpiece	Prophecies	3
+54	0x036	Charr Hide Leggings	Warrior	Leggings	Prophecies	3
+55	0x037	Tyrian Boots	Warrior	Boots	Prophecies	19
+56	0x038	Tyrian Cuirass	Warrior	Chestpiece	Prophecies	19
+57	0x039	Tyrian Gauntlets	Warrior	Gloves	Prophecies	19
+58	0x03A	Tyrian Helm	Warrior	Headpiece	Prophecies	19
+59	0x03B	Tyrian Leggings	Warrior	Leggings	Prophecies	19
+60	0x03C	Wyvern Boots	Warrior	Boots	Prophecies	3
+61	0x03D	Wyvern Hauberk	Warrior	Chestpiece	Prophecies	3
+62	0x03E	Wyvern Gauntlets	Warrior	Gloves	Prophecies	3
+63	0x03F	Wyvern Helm	Warrior	Headpiece	Prophecies	3
+64	0x040	Wyvern Leggings	Warrior	Leggings	Prophecies	3
+65	0x041	Gladiator Boots	Warrior	Boots	Prophecies	3
+66	0x042	Gladiator Hauberk	Warrior	Chestpiece	Prophecies	3
+67	0x043	Gladiator Gauntlets	Warrior	Gloves	Prophecies	3
+68	0x044	Gladiator Helm	Warrior	Headpiece	Prophecies	3
+69	0x045	Gladiator Leggings	Warrior	Leggings	Prophecies	3
+70	0x046	Templar Boots	Warrior	Boots	Prophecies	3
+71	0x047	Templar Cuirass	Warrior	Chestpiece	Prophecies	3
+72	0x048	Templar Gauntlets	Warrior	Gloves	Prophecies	3
+73	0x049	Templar Helm	Warrior	Headpiece	Prophecies	3
+74	0x04A	Templar Leggings	Warrior	Leggings	Prophecies	3
+80	0x050	Platemail Boots	Warrior	Boots	Prophecies	3
+81	0x051	Platemail Cuirass	Warrior	Chestpiece	Prophecies	3
+82	0x052	Platemail Gauntlets	Warrior	Gloves	Prophecies	3
+83	0x053	Platemail Helm	Warrior	Headpiece	Prophecies	3
+84	0x054	Platemail Leggings	Warrior	Leggings	Prophecies	3
+90	0x05A	Ascalon Boots	Warrior	Boots	Prophecies	19
+91	0x05B	Ascalon Cuirass	Warrior	Chestpiece	Prophecies	19
+92	0x05C	Ascalon Gauntlets	Warrior	Gloves	Prophecies	19
+93	0x05D	Ascalon Helm	Warrior	Headpiece	Prophecies	19
+94	0x05E	Ascalon Leggings	Warrior	Leggings	Prophecies	19
+142	0x08E	Hunter Mask	Ranger	Headpiece	Prophecies	7
+143	0x08F	Simple Mask	Ranger	Headpiece	Prophecies	7
+144	0x090	Traveler Mask	Ranger	Headpiece	Prophecies	7
+145	0x091	Tamer Mask	Ranger	Headpiece	Prophecies	7
+146	0x092	Krytan Mask	Ranger	Headpiece	Prophecies	7
+147	0x093	Fur-Lined Mask	Ranger	Headpiece	Prophecies	7
+148	0x094	Ascalon Boots	Ranger	Boots	Prophecies	7
+149	0x095	Ascalon Vest	Ranger	Chestpiece	Prophecies	7
+150	0x096	Ascalon Gloves	Ranger	Gloves	Prophecies	7
+151	0x097	Ascalon Leggings	Ranger	Leggings	Prophecies	7
+156	0x09C	Druid Boots	Ranger	Boots	Prophecies	7
+157	0x09D	Druid Vest	Ranger	Chestpiece	Prophecies	7
+158	0x09E	Druid Gloves	Ranger	Gloves	Prophecies	7
+159	0x09F	Druid Leggings	Ranger	Leggings	Prophecies	7
+160	0x0A0	Fur-Lined Boots	Ranger	Boots	Prophecies	7
+161	0x0A1	Fur-Lined Vest	Ranger	Chestpiece	Prophecies	7
+162	0x0A2	Fur-Lined Gloves	Ranger	Gloves	Prophecies	7
+163	0x0A3	Fur-Lined Leggings	Ranger	Leggings	Prophecies	7
+164	0x0A4	Studded Leather Boots	Ranger	Boots	Prophecies	7
+165	0x0A5	Studded Leather Vest	Ranger	Chestpiece	Prophecies	7
+166	0x0A6	Studded Leather Gloves	Ranger	Gloves	Prophecies	7
+167	0x0A7	Studded Leather Leggings	Ranger	Leggings	Prophecies	7
+168	0x0A8	Drakescale Boots	Ranger	Boots	Prophecies	7
+169	0x0A9	Drakescale Vest	Ranger	Chestpiece	Prophecies	7
+170	0x0AA	Drakescale Gloves	Ranger	Gloves	Prophecies	7
+171	0x0AB	Drakescale Leggings	Ranger	Leggings	Prophecies	7
+172	0x0AC	Tyrian Boots	Ranger	Boots	Prophecies	7
+173	0x0AD	Tyrian Vest	Ranger	Chestpiece	Prophecies	7
+174	0x0AE	Tyrian Gloves	Ranger	Gloves	Prophecies	7
+175	0x0AF	Tyrian Leggings	Ranger	Leggings	Prophecies	7
+177	0x0B1	Shing Jea Boots	Warrior	Boots	Factions	3
+178	0x0B2	Shing Jea Cuirass	Warrior	Chestpiece	Factions	3
+179	0x0B3	Shing Jea Gauntlets	Warrior	Gloves	Factions	3
+180	0x0B4	Shing Jea Helm	Warrior	Headpiece	Factions	3
+181	0x0B5	Shing Jea Leggings	Warrior	Leggings	Factions	3
+182	0x0B6	Canthan Boots	Warrior	Boots	Factions	3
+183	0x0B7	Canthan Cuirass	Warrior	Chestpiece	Factions	3
+184	0x0B8	Canthan Gauntlets	Warrior	Gloves	Factions	3
+185	0x0B9	Canthan Helm	Warrior	Headpiece	Factions	3
+186	0x0BA	Canthan Leggings	Warrior	Leggings	Factions	3
+187	0x0BB	Elite Canthan Boots	Warrior	Boots	Factions	3
+188	0x0BC	Elite Canthan Cuirass	Warrior	Chestpiece	Factions	3
+189	0x0BD	Elite Canthan Gauntlets	Warrior	Gloves	Factions	3
+190	0x0BE	Elite Canthan Helm	Warrior	Headpiece	Factions	3
+191	0x0BF	Elite Canthan Leggings	Warrior	Leggings	Factions	3
+230	0x0E6	Ascalon Sandals	Monk	Boots	Prophecies	1
+231	0x0E7	Ascalon Vestments	Monk	Chestpiece	Prophecies	1
+232	0x0E8	Ascalon Handwraps	Monk	Gloves	Prophecies	1
+233	0x0E9	Ascalon Pants	Monk	Leggings	Prophecies	1
+238	0x0EE	Sacred Sandals	Monk	Boots	Prophecies	1
+239	0x0EF	Sacred Vestments	Monk	Chestpiece	Prophecies	1
+240	0x0F0	Sacred Handwraps	Monk	Gloves	Prophecies	1
+241	0x0F1	Sacred Pants	Monk	Leggings	Prophecies	1
+242	0x0F2	Dragon Foot Design	Monk	Boots	Prophecies	10
+243	0x0F3	Dragon Chest Design	Monk	Chestpiece	Prophecies	10
+244	0x0F4	Dragon Arm Design	Monk	Gloves	Prophecies	10
+245	0x0F5	Dragon Scalp Design	Monk	Headpiece	Prophecies	10
+246	0x0F6	Dragon Leg Design	Monk	Leggings	Prophecies	10
+247	0x0F7	Tyrian Sandals	Monk	Boots	Prophecies	15
+248	0x0F8	Tyrian Vestments	Monk	Chestpiece	Prophecies	1
+249	0x0F9	Tyrian Handwraps	Monk	Gloves	Prophecies	1
+250	0x0FA	Tyrian Pants	Monk	Leggings	Prophecies	1
+251	0x0FB	Woven Sandals	Monk	Boots	Prophecies	5
+252	0x0FC	Woven Vestments	Monk	Chestpiece	Prophecies	5
+253	0x0FD	Woven Handwraps	Monk	Gloves	Prophecies	5
+254	0x0FE	Woven Pants	Monk	Leggings	Prophecies	5
+255	0x0FF	Censor Sandals	Monk	Boots	Prophecies	1
+256	0x100	Censor Vestments	Monk	Chestpiece	Prophecies	1
+257	0x101	Censor Handwraps	Monk	Gloves	Prophecies	1
+258	0x102	Censor Pants	Monk	Leggings	Prophecies	1
+259	0x103	Star Foot Design	Monk	Boots	Prophecies	10
+260	0x104	Star Chest Design	Monk	Chestpiece	Prophecies	10
+261	0x105	Star Arm Design	Monk	Gloves	Prophecies	10
+262	0x106	Star Scalp Design	Monk	Headpiece	Prophecies	10
+263	0x107	Star Leg Design	Monk	Leggings	Prophecies	10
+264	0x108	Luxon Boots	Warrior	Boots	Factions	3
+265	0x109	Luxon Cuirass	Warrior	Chestpiece	Factions	3
+266	0x10A	Luxon Gauntlets	Warrior	Gloves	Factions	3
+267	0x10B	Luxon Helm	Warrior	Headpiece	Factions	3
+268	0x10C	Luxon Leggings	Warrior	Leggings	Factions	3
+269	0x10D	Elite Luxon Boots	Warrior	Boots	Factions	3
+270	0x10E	Elite Luxon Cuirass	Warrior	Chestpiece	Factions	3
+271	0x10F	Elite Luxon Gauntlets	Warrior	Gloves	Factions	3
+272	0x110	Elite Luxon Helm	Warrior	Headpiece	Factions	3
+273	0x111	Elite Luxon Leggings	Warrior	Leggings	Factions	3
+274	0x112	Kurzick Boots	Warrior	Boots	Factions	3
+275	0x113	Kurzick Cuirass	Warrior	Chestpiece	Factions	3
+319	0x13F	Ascalon Boots	Necromancer	Boots	Prophecies	20
+320	0x140	Ascalon Tunic	Necromancer	Chestpiece	Prophecies	20
+321	0x141	Ascalon Gloves	Necromancer	Gloves	Prophecies	20
+322	0x142	Ascalon Leggings	Necromancer	Leggings	Prophecies	20
+323	0x143	Necrotic Boots	Necromancer	Boots	Prophecies	20
+324	0x144	Necrotic Tunic	Necromancer	Chestpiece	Prophecies	20
+325	0x145	Necrotic Gloves	Necromancer	Gloves	Prophecies	20
+326	0x146	Necrotic Leggings	Necromancer	Leggings	Prophecies	20
+327	0x147	Cabal Boots	Necromancer	Boots	Prophecies	20
+328	0x148	Cabal Tunic	Necromancer	Chestpiece	Prophecies	20
+329	0x149	Cabal Gloves	Necromancer	Gloves	Prophecies	20
+330	0x14A	Cabal Leggings	Necromancer	Leggings	Prophecies	20
+331	0x14B	Profane Boots	Necromancer	Boots	Prophecies	20
+332	0x14C	Profane Tunic	Necromancer	Chestpiece	Prophecies	20
+333	0x14D	Profane Gloves	Necromancer	Gloves	Prophecies	20
+334	0x14E	Profane Leggings	Necromancer	Leggings	Prophecies	20
+335	0x14F	Fanatic Boots	Necromancer	Boots	Prophecies	20
+336	0x150	Fanatic Tunic	Necromancer	Chestpiece	Prophecies	20
+337	0x151	Fanatic Gloves	Necromancer	Gloves	Prophecies	20
+338	0x152	Fanatic Leggings	Necromancer	Leggings	Prophecies	20
+339	0x153	Foot Scar Pattern	Necromancer	Boots	Prophecies	36
+340	0x154	Chest Scar Pattern	Necromancer	Chestpiece	Prophecies	36
+341	0x155	Arm Scar Pattern	Necromancer	Gloves	Prophecies	36
+342	0x156	Leg Scar Pattern	Necromancer	Leggings	Prophecies	36
+344	0x158	Ragged Scar Pattern	Necromancer	Headpiece	Prophecies	20
+345	0x159	Tyrian Boots	Necromancer	Boots	Prophecies	20
+346	0x15A	Tyrian Tunic	Necromancer	Chestpiece	Prophecies	20
+347	0x15B	Tyrian Gloves	Necromancer	Gloves	Prophecies	20
+348	0x15C	Tyrian Leggings	Necromancer	Leggings	Prophecies	20
+353	0x161	Kurzick Gauntlets	Warrior	Gloves	Factions	3
+354	0x162	Kurzick Helm	Warrior	Headpiece	Factions	3
+355	0x163	Kurzick Leggings	Warrior	Leggings	Factions	3
+356	0x164	Elite Kurzick Boots	Warrior	Boots	Factions	3
+357	0x165	Elite Kurzick Cuirass	Warrior	Chestpiece	Factions	3
+358	0x166	Elite Kurzick Gauntlets	Warrior	Gloves	Factions	3
+359	0x167	Elite Kurzick Helm	Warrior	Headpiece	Factions	3
+360	0x168	Elite Kurzick Leggings	Warrior	Leggings	Factions	3
+367	0x16F	Shing Jea Boots	Ranger	Boots	Factions	22
+368	0x170	Shing Jea Vest	Ranger	Chestpiece	Factions	22
+385	0x181	Elite Profane Gloves	Necromancer	Gloves	Prophecies	20
+396	0x18C	Elite Profane Leggings	Necromancer	Leggings	Prophecies	20
+405	0x195	Costume Mask	Mesmer	Headpiece	Prophecies	33
+406	0x196	Discreet Mask	Mesmer	Headpiece	Prophecies	33
+407	0x197	Imposing Mask	Mesmer	Headpiece	Prophecies	33
+408	0x198	Sleek Mask	Mesmer	Headpiece	Prophecies	33
+409	0x199	Animal Mask	Mesmer	Headpiece	Prophecies	33
+410	0x19A	Ascalon Footwear	Mesmer	Boots	Prophecies	33
+411	0x19B	Ascalon Attire	Mesmer	Chestpiece	Prophecies	33
+412	0x19C	Ascalon Gloves	Mesmer	Gloves	Prophecies	33
+413	0x19D	Ascalon Hose	Mesmer	Leggings	Prophecies	33
+414	0x19E	Courtly Footwear	Mesmer	Boots	Prophecies	34
+415	0x19F	Courtly Attire	Mesmer	Chestpiece	Prophecies	34
+416	0x1A0	Courtly Gloves	Mesmer	Gloves	Prophecies	34
+417	0x1A1	Courtly Hose	Mesmer	Leggings	Prophecies	34
+418	0x1A2	Enchanter Footwear	Mesmer	Boots	Prophecies	33
+419	0x1A3	Enchanter Attire	Mesmer	Chestpiece	Prophecies	33
+420	0x1A4	Enchanter Gloves	Mesmer	Gloves	Prophecies	33
+421	0x1A5	Enchanter Hose	Mesmer	Leggings	Prophecies	33
+422	0x1A6	Performer Footwear	Mesmer	Boots	Prophecies	33
+423	0x1A7	Performer Attire	Mesmer	Chestpiece	Prophecies	33
+424	0x1A8	Performer Gloves	Mesmer	Gloves	Prophecies	33
+425	0x1A9	Performer Hose	Mesmer	Leggings	Prophecies	33
+426	0x1AA	Rogue Footwear	Mesmer	Boots	Prophecies	33
+427	0x1AB	Rogue Attire	Mesmer	Chestpiece	Prophecies	33
+428	0x1AC	Rogue Gloves	Mesmer	Gloves	Prophecies	33
+429	0x1AD	Rogue Hose	Mesmer	Leggings	Prophecies	33
+434	0x1B2	Tyrian Footwear	Mesmer	Boots	Prophecies	33
+435	0x1B3	Tyrian Attire	Mesmer	Chestpiece	Prophecies	33
+436	0x1B4	Tyrian Gloves	Mesmer	Gloves	Prophecies	33
+437	0x1B5	Tyrian Hose	Mesmer	Leggings	Prophecies	33
+438	0x1B6	Shing Jea Gloves	Ranger	Gloves	Factions	22
+439	0x1B7	Shing Jea Leggings	Ranger	Leggings	Factions	22
+440	0x1B8	Canthan Boots	Ranger	Boots	Factions	22
+441	0x1B9	Canthan Vest	Ranger	Chestpiece	Factions	22
+457	0x1c9	Yule Cap	None	Costume_Headpiece	BonusMissionPack	9
+476	0x1DC	Stormforged Shoes	Elementalist	Boots	Prophecies	8
+477	0x1DD	Stormforged Robes	Elementalist	Chestpiece	Prophecies	8
+478	0x1DE	Stormforged Gloves	Elementalist	Gloves	Prophecies	8
+479	0x1DF	Stormforged Leggings	Elementalist	Leggings	Prophecies	8
+480	0x1E0	Stoneforged Shoes	Elementalist	Boots	Prophecies	8
+481	0x1E1	Stoneforged Robes	Elementalist	Chestpiece	Prophecies	8
+482	0x1E2	Stoneforged Gloves	Elementalist	Gloves	Prophecies	8
+483	0x1E3	Stoneforged Leggings	Elementalist	Leggings	Prophecies	8
+484	0x1E4	Flameforged Shoes	Elementalist	Boots	Prophecies	8
+485	0x1E5	Flameforged Robes	Elementalist	Chestpiece	Prophecies	8
+486	0x1E6	Flameforged Gloves	Elementalist	Gloves	Prophecies	8
+487	0x1E7	Flameforged Leggings	Elementalist	Leggings	Prophecies	8
+488	0x1E8	Krytan Shoes (collector)	Elementalist	Boots	Prophecies	8
+489	0x1E9	Krytan Robes (collector)	Elementalist	Chestpiece	Prophecies	8
+490	0x1EA	Krytan Gloves (collector)	Elementalist	Gloves	Prophecies	8
+491	0x1EB	Krytan Leggings (collector)	Elementalist	Leggings	Prophecies	8
+492	0x1EC	Tyrian Shoes	Elementalist	Boots	Prophecies	8
+493	0x1ED	Tyrian Robes	Elementalist	Chestpiece	Prophecies	8
+494	0x1EE	Tyrian Gloves	Elementalist	Gloves	Prophecies	8
+495	0x1EF	Tyrian Leggings	Elementalist	Leggings	Prophecies	8
+496	0x1F0	Ascalon Shoes	Elementalist	Boots	Prophecies	8
+497	0x1F1	Ascalon Robes	Elementalist	Chestpiece	Prophecies	8
+498	0x1F2	Ascalon Gloves	Elementalist	Gloves	Prophecies	8
+499	0x1F3	Ascalon Leggings	Elementalist	Leggings	Prophecies	8
+500	0x1F4	Iceforged Shoes	Elementalist	Boots	Prophecies	8
+501	0x1F5	Iceforged Robes	Elementalist	Chestpiece	Prophecies	8
+502	0x1F6	Iceforged Gloves	Elementalist	Gloves	Prophecies	8
+503	0x1F7	Iceforged Leggings	Elementalist	Leggings	Prophecies	8
+504	0x1F8	Canthan Gloves	Ranger	Gloves	Factions	22
+505	0x1F9	Canthan Leggings	Ranger	Leggings	Factions	22
+506	0x1FA	Elite Canthan Boots	Ranger	Boots	Factions	22
+507	0x1FB	Elite Canthan Vest	Ranger	Chestpiece	Factions	22
+508	0x1FC	Elite Canthan Gloves	Ranger	Gloves	Factions	22
+509	0x1FD	Elite Canthan Leggings	Ranger	Leggings	Factions	22
+510	0x1FE	Luxon Boots	Ranger	Boots	Factions	22
+511	0x1FF	Luxon Vest	Ranger	Chestpiece	Factions	22
+512	0x200	Luxon Gloves	Ranger	Gloves	Factions	22
+513	0x201	Luxon Leggings	Ranger	Leggings	Factions	22
+514	0x202	Elite Luxon Boots	Ranger	Boots	Factions	22
+515	0x203	Elite Luxon Vest	Ranger	Chestpiece	Factions	22
+522	0x20A	Obsidian Boots	Warrior	Boots	Core	3
+523	0x20B	Obsidian Cuirass	Warrior	Chestpiece	Core	3
+524	0x20C	Obsidian Gauntlets	Warrior	Gloves	Core	3
+525	0x20D	Obsidian Helm	Warrior	Headpiece	Core	3
+526	0x20E	Obsidian Leggings	Warrior	Leggings	Core	3
+527	0x20F	Obsidian Boots	Ranger	Boots	Core	7
+528	0x210	Obsidian Vest	Ranger	Chestpiece	Core	7
+529	0x211	Obsidian Gloves	Ranger	Gloves	Core	7
+530	0x212	Obsidian Leggings	Ranger	Leggings	Core	7
+531	0x213	Obsidian Sandals	Monk	Boots	Core	1
+532	0x214	Obsidian Vestments	Monk	Chestpiece	Core	1
+533	0x215	Obsidian Handwraps	Monk	Gloves	Core	1
+534	0x216	Obsidian Pants	Monk	Leggings	Core	1
+535	0x217	Obsidian Boots	Necromancer	Boots	Core	20
+537	0x219	Obsidian Gloves	Necromancer	Gloves	Core	20
+538	0x21A	Obsidian Leggings	Necromancer	Leggings	Core	20
+539	0x21B	Obsidian Footwear	Mesmer	Boots	Core	33
+540	0x21C	Obsidian Attire	Mesmer	Chestpiece	Core	33
+541	0x21D	Obsidian Gloves	Mesmer	Gloves	Core	33
+542	0x21E	Obsidian Hose	Mesmer	Leggings	Core	33
+543	0x21F	Obsidian Shoes	Elementalist	Boots	Core	25
+544	0x220	Obsidian Robes	Elementalist	Chestpiece	Core	25
+545	0x221	Obsidian Gloves	Elementalist	Gloves	Core	25
+546	0x222	Obsidian Leggings	Elementalist	Leggings	Core	25
+547	0x223	Obsidian Tunic	Necromancer	Chestpiece	Core	20
+580	0x244	Elite Charr Hide Boots	Warrior	Boots	Prophecies	3
+581	0x245	Elite Charr Hide Cuirass	Warrior	Chestpiece	Prophecies	3
+582	0x246	Elite Charr Hide Gauntlets	Warrior	Gloves	Prophecies	3
+583	0x247	Elite Charr Hide Helm	Warrior	Headpiece	Prophecies	3
+584	0x248	Elite Charr Hide Leggings	Warrior	Leggings	Prophecies	3
+587	0x24B	Elite Woven Sandals	Monk	Boots	Prophecies	15
+588	0x24C	Elite Woven Vestments	Monk	Chestpiece	Prophecies	15
+589	0x24D	Elite Woven Handwraps	Monk	Gloves	Prophecies	15
+590	0x24E	Elite Woven Pants	Monk	Leggings	Prophecies	15
+591	0x24F	Elite Judge Sandals	Monk	Boots	Prophecies	1
+592	0x250	Elite Judge Vestments	Monk	Chestpiece	Prophecies	1
+593	0x251	Elite Judge Handwraps	Monk	Gloves	Prophecies	1
+594	0x252	Elite Judge Pants	Monk	Leggings	Prophecies	1
+595	0x253	Elite Cabal Boots	Necromancer	Boots	Prophecies	20
+596	0x254	Elite Cabal Tunic	Necromancer	Chestpiece	Prophecies	20
+597	0x255	Elite Cabal Gloves	Necromancer	Gloves	Prophecies	20
+598	0x256	Elite Cabal Leggings	Necromancer	Leggings	Prophecies	20
+601	0x259	Elite Elegant Footwear	Mesmer	Boots	Prophecies	33
+602	0x25A	Elite Elegant Attire	Mesmer	Chestpiece	Prophecies	33
+603	0x25B	Elite Elegant Gloves	Mesmer	Gloves	Prophecies	33
+604	0x25C	Elite Elegant Hose	Mesmer	Leggings	Prophecies	33
+605	0x25D	Elite Rogue Footwear	Mesmer	Boots	Prophecies	33
+606	0x25E	Elite Rogue Attire	Mesmer	Chestpiece	Prophecies	33
+607	0x25F	Elite Rogue Gloves	Mesmer	Gloves	Prophecies	33
+608	0x260	Elite Rogue Hose	Mesmer	Leggings	Prophecies	33
+609	0x261	Elite Stoneforged Shoes	Elementalist	Boots	Prophecies	31
+610	0x262	Elite Stoneforged Robes	Elementalist	Chestpiece	Prophecies	31
+611	0x263	Elite Stoneforged Gloves	Elementalist	Gloves	Prophecies	31
+612	0x264	Elite Stoneforged Leggings	Elementalist	Leggings	Prophecies	31
+613	0x265	Elite Flameforged Shoes	Elementalist	Boots	Prophecies	8
+614	0x266	Elite Flameforged Robes	Elementalist	Chestpiece	Prophecies	8
+615	0x267	Elite Flameforged Gloves	Elementalist	Gloves	Prophecies	8
+616	0x268	Elite Flameforged Leggings	Elementalist	Leggings	Prophecies	8
+621	0x26d	Horns of Grenth	None	Costume_Headpiece	BonusMissionPack	9
+623	0x26F	Elite Studded Leather Boots	Ranger	Boots	Prophecies	7
+624	0x270	Elite Studded Leather Vest	Ranger	Chestpiece	Prophecies	7
+625	0x271	Elite Studded Leather Gloves	Ranger	Gloves	Prophecies	7
+626	0x272	Elite Studded Leather Leggings	Ranger	Leggings	Prophecies	7
+636	0x27C	Elite Fur-Lined Boots	Ranger	Boots	Prophecies	7
+637	0x27D	Elite Fur-Lined Vest	Ranger	Chestpiece	Prophecies	7
+638	0x27E	Elite Fur-Lined Gloves	Ranger	Gloves	Prophecies	7
+639	0x27F	Elite Fur-Lined Leggings	Ranger	Leggings	Prophecies	7
+640	0x280	Elite Noble Footwear	Mesmer	Boots	Prophecies	33
+641	0x281	Elite Noble Attire	Mesmer	Chestpiece	Prophecies	33
+642	0x282	Elite Noble Gloves	Mesmer	Gloves	Prophecies	33
+643	0x283	Elite Noble Hose	Mesmer	Leggings	Prophecies	33
+644	0x284	Elite Iceforged Shoes	Elementalist	Boots	Prophecies	31
+645	0x285	Elite Iceforged Robes	Elementalist	Chestpiece	Prophecies	31
+646	0x286	Elite Iceforged Gloves	Elementalist	Gloves	Prophecies	31
+647	0x287	Elite Iceforged Leggings	Elementalist	Leggings	Prophecies	31
+648	0x288	Krytan Boots (collector)	Warrior	Boots	Prophecies	3
+649	0x289	Krytan Cuirass (collector)	Warrior	Chestpiece	Prophecies	3
+650	0x28A	Krytan Gauntlets (collector)	Warrior	Gloves	Prophecies	3
+651	0x28B	Krytan Helm (collector)	Warrior	Headpiece	Prophecies	3
+652	0x28C	Krytan Leggings (collector)	Warrior	Leggings	Prophecies	3
+653	0x28D	Krytan Boots (collector)	Ranger	Boots	Prophecies	7
+654	0x28E	Krytan Vest (collector)	Ranger	Chestpiece	Prophecies	7
+655	0x28F	Krytan Gloves (collector)	Ranger	Gloves	Prophecies	7
+656	0x290	Krytan Leggings (collector)	Ranger	Leggings	Prophecies	7
+657	0x291	Krytan Sandals	Monk	Boots	Prophecies	1
+658	0x292	Krytan Vestments	Monk	Chestpiece	Prophecies	1
+659	0x293	Krytan Handwraps	Monk	Gloves	Prophecies	1
+660	0x294	Krytan Pants	Monk	Leggings	Prophecies	1
+661	0x295	Krytan Boots	Necromancer	Boots	Prophecies	20
+662	0x296	Krytan Tunic	Necromancer	Chestpiece	Prophecies	20
+663	0x297	Krytan Gloves	Necromancer	Gloves	Prophecies	20
+664	0x298	Krytan Leggings	Necromancer	Leggings	Prophecies	20
+665	0x299	Krytan Footwear	Mesmer	Boots	Prophecies	33
+666	0x29A	Krytan Attire	Mesmer	Chestpiece	Prophecies	33
+667	0x29B	Krytan Gloves	Mesmer	Gloves	Prophecies	33
+668	0x29C	Krytan Hose	Mesmer	Leggings	Prophecies	33
+675	0x2A3	Elite Cultist Boots	Necromancer	Boots	Prophecies	20
+676	0x2A4	Elite Cultist Tunic	Necromancer	Chestpiece	Prophecies	20
+677	0x2A5	Elite Cultist Gloves	Necromancer	Gloves	Prophecies	20
+678	0x2A6	Elite Cultist Leggings	Necromancer	Leggings	Prophecies	20
+689	0x2B1	Foot Elite Scar Pattern	Necromancer	Boots	Prophecies	20
+690	0x2B2	Chest Elite Scar Pattern	Necromancer	Chestpiece	Prophecies	20
+691	0x2B3	Arm Elite Scar Pattern	Necromancer	Gloves	Prophecies	20
+692	0x2B4	Leg Elite Scar Pattern	Necromancer	Leggings	Prophecies	20
+697	0x2B9	Elite Dragon Boots	Warrior	Boots	Prophecies	3
+698	0x2BA	Elite Dragon Hauberk	Warrior	Chestpiece	Prophecies	3
+699	0x2BB	Elite Dragon Gauntlets	Warrior	Gloves	Prophecies	3
+700	0x2BC	Elite Dragon Helm	Warrior	Headpiece	Prophecies	3
+701	0x2BD	Elite Dragon Leggings	Warrior	Leggings	Prophecies	3
+706	0x2C2	Elite Platemail Boots	Warrior	Boots	Prophecies	3
+707	0x2C3	Elite Platemail Cuirass	Warrior	Chestpiece	Prophecies	3
+708	0x2C4	Elite Platemail Gauntlets	Warrior	Gloves	Prophecies	3
+709	0x2C5	Elite Platemail Helm	Warrior	Headpiece	Prophecies	3
+710	0x2C6	Elite Platemail Leggings	Warrior	Leggings	Prophecies	3
+711	0x2C7	Elite Drakescale Boots	Ranger	Boots	Prophecies	7
+712	0x2C8	Elite Drakescale Vest	Ranger	Chestpiece	Prophecies	7
+713	0x2C9	Elite Drakescale Gloves	Ranger	Gloves	Prophecies	7
+714	0x2CA	Elite Drakescale Leggings	Ranger	Leggings	Prophecies	7
+715	0x2CB	Flowing Foot Design	Monk	Boots	Prophecies	10
+716	0x2CC	Flowing Chest Design	Monk	Chestpiece	Prophecies	10
+717	0x2CD	Flowing Arm Design	Monk	Gloves	Prophecies	10
+718	0x2CE	Flowing Scalp Design	Monk	Headpiece	Prophecies	10
+719	0x2CF	Flowing Leg Design	Monk	Leggings	Prophecies	10
+727	0x2D7	Elite Saintly Sandals	Monk	Boots	Prophecies	1
+728	0x2D8	Elite Saintly Vestments	Monk	Chestpiece	Prophecies	1
+729	0x2D9	Elite Saintly Handwraps	Monk	Gloves	Prophecies	1
+730	0x2DA	Elite Saintly Pants	Monk	Leggings	Prophecies	1
+731	0x2DB	Elite Necrotic Boots	Necromancer	Boots	Prophecies	20
+732	0x2DC	Elite Necrotic Tunic	Necromancer	Chestpiece	Prophecies	20
+733	0x2DD	Elite Necrotic Gloves	Necromancer	Gloves	Prophecies	20
+734	0x2DE	Elite Necrotic Leggings	Necromancer	Leggings	Prophecies	20
+735	0x2DF	Elite Enchanter Footwear	Mesmer	Boots	Prophecies	33
+736	0x2E0	Elite Enchanter Attire	Mesmer	Chestpiece	Prophecies	33
+737	0x2E1	Elite Enchanter Gloves	Mesmer	Gloves	Prophecies	33
+738	0x2E2	Elite Enchanter Hose	Mesmer	Leggings	Prophecies	33
+739	0x2E3	Elite Stormforged Shoes	Elementalist	Boots	Prophecies	31
+740	0x2E4	Elite Stormforged Robes	Elementalist	Chestpiece	Prophecies	31
+741	0x2E5	Elite Stormforged Gloves	Elementalist	Gloves	Prophecies	31
+742	0x2E6	Elite Stormforged Leggings	Elementalist	Leggings	Prophecies	31
+743	0x2E7	Elite Gladiator Boots	Warrior	Boots	Prophecies	3
+744	0x2E8	Elite Gladiator Hauberk	Warrior	Chestpiece	Prophecies	3
+745	0x2E9	Elite Gladiator Gauntlets	Warrior	Gloves	Prophecies	3
+746	0x2EA	Elite Gladiator Helm	Warrior	Headpiece	Prophecies	3
+747	0x2EB	Elite Gladiator Leggings	Warrior	Leggings	Prophecies	3
+748	0x2EC	Elite Templar Boots	Warrior	Boots	Prophecies	3
+749	0x2ED	Elite Templar Cuirass	Warrior	Chestpiece	Prophecies	3
+750	0x2EE	Elite Templar Gauntlets	Warrior	Gloves	Prophecies	3
+751	0x2EF	Elite Templar Helm	Warrior	Headpiece	Prophecies	3
+752	0x2F0	Elite Templar Leggings	Warrior	Leggings	Prophecies	3
+753	0x2F1	Elite Druid Boots	Ranger	Boots	Prophecies	7
+754	0x2F2	Elite Druid Vest	Ranger	Chestpiece	Prophecies	7
+755	0x2F3	Elite Druid Gloves	Ranger	Gloves	Prophecies	7
+756	0x2F4	Elite Druid Leggings	Ranger	Leggings	Prophecies	7
+757	0x2F5	Labyrinthine Foot Design	Monk	Boots	Prophecies	10
+758	0x2F6	Labyrinthine Chest Design	Monk	Chestpiece	Prophecies	10
+759	0x2F7	Labyrinthine Arm Design	Monk	Gloves	Prophecies	10
+760	0x2F8	Labyrinthine Scalp Design	Monk	Headpiece	Prophecies	10
+761	0x2F9	Labyrinthine Leg Design	Monk	Leggings	Prophecies	10
+766	0x2FE	Elite Luxon Gloves	Ranger	Gloves	Factions	22
+767	0x2FF	Elite Luxon Leggings	Ranger	Leggings	Factions	22
+768	0x300	Kurzick Boots	Ranger	Boots	Factions	22
+769	0x301	Kurzick Vest	Ranger	Chestpiece	Factions	22
+770	0x302	Kurzick Gloves	Ranger	Gloves	Factions	22
+771	0x303	Kurzick Leggings	Ranger	Leggings	Factions	22
+772	0x304	Elite Kurzick Boots	Ranger	Boots	Factions	22
+773	0x305	Elite Kurzick Vest	Ranger	Chestpiece	Factions	22
+774	0x306	Elite Kurzick Gloves	Ranger	Gloves	Factions	22
+775	0x307	Elite Kurzick Leggings	Ranger	Leggings	Factions	22
+781	0x30D	Shing Jea Sandals	Monk	Boots	Factions	16
+782	0x30E	Shing Jea Vestments	Monk	Chestpiece	Factions	16
+783	0x30F	Shing Jea Handwraps	Monk	Gloves	Factions	16
+784	0x310	Shing Jea Pants	Monk	Leggings	Factions	16
+785	0x311	Canthan Sandals	Monk	Boots	Factions	16
+786	0x312	Canthan Vestments	Monk	Chestpiece	Factions	16
+787	0x313	Canthan Handwraps	Monk	Gloves	Factions	16
+788	0x314	Canthan Pants	Monk	Leggings	Factions	16
+789	0x315	Elite Canthan Sandals	Monk	Boots	Factions	16
+790	0x316	Elite Canthan Vestments	Monk	Chestpiece	Factions	16
+791	0x317	Elite Canthan Handwraps	Monk	Gloves	Factions	16
+792	0x318	Elite Canthan Pants	Monk	Leggings	Factions	16
+793	0x319	Luxon Sandals	Monk	Boots	Factions	16
+794	0x31A	Luxon Vestments	Monk	Chestpiece	Factions	16
+795	0x31B	Luxon Handwraps	Monk	Gloves	Factions	16
+796	0x31C	Luxon Pants	Monk	Leggings	Factions	16
+797	0x31D	Elite Luxon Sandals	Monk	Boots	Factions	16
+798	0x31E	Elite Luxon Vestments	Monk	Chestpiece	Factions	16
+799	0x31F	Elite Luxon Handwraps	Monk	Gloves	Factions	16
+800	0x320	Elite Luxon Pants	Monk	Leggings	Factions	16
+801	0x321	Kurzick Sandals	Monk	Boots	Factions	16
+802	0x322	Kurzick Vestments	Monk	Chestpiece	Factions	16
+803	0x323	Kurzick Handwraps	Monk	Gloves	Factions	16
+804	0x324	Kurzick Pants	Monk	Leggings	Factions	16
+805	0x325	Elite Kurzick Sandals	Monk	Boots	Factions	16
+806	0x326	Elite Kurzick Vestments	Monk	Chestpiece	Factions	16
+807	0x327	Elite Kurzick Handwraps	Monk	Gloves	Factions	16
+808	0x328	Elite Kurzick Pants	Monk	Leggings	Factions	16
+816	0x330	Shing Jea Boots	Necromancer	Boots	Factions	20
+817	0x331	Shing Jea Tunic	Necromancer	Chestpiece	Factions	20
+818	0x332	Shing Jea Gloves	Necromancer	Gloves	Factions	20
+819	0x333	Shing Jea Leggings	Necromancer	Leggings	Factions	20
+820	0x334	Canthan Boots	Necromancer	Boots	Factions	20
+821	0x335	Canthan Tunic	Necromancer	Chestpiece	Factions	20
+822	0x336	Canthan Gloves	Necromancer	Gloves	Factions	20
+823	0x337	Canthan Leggings	Necromancer	Leggings	Factions	20
+824	0x338	Elite Canthan Boots	Necromancer	Boots	Factions	20
+825	0x339	Elite Canthan Tunic	Necromancer	Chestpiece	Factions	20
+826	0x33A	Elite Canthan Gloves	Necromancer	Gloves	Factions	20
+827	0x33B	Elite Canthan Leggings	Necromancer	Leggings	Factions	20
+828	0x33C	Luxon Boots	Necromancer	Boots	Factions	20
+829	0x33D	Luxon Tunic	Necromancer	Chestpiece	Factions	20
+830	0x33E	Luxon Gloves	Necromancer	Gloves	Factions	20
+831	0x33F	Luxon Leggings	Necromancer	Leggings	Factions	20
+832	0x340	Elite Luxon Boots	Necromancer	Boots	Factions	20
+833	0x341	Elite Luxon Tunic	Necromancer	Chestpiece	Factions	20
+834	0x342	Elite Luxon Gloves	Necromancer	Gloves	Factions	20
+835	0x343	Elite Luxon Leggings	Necromancer	Leggings	Factions	20
+836	0x344	Kurzick Boots	Necromancer	Boots	Factions	20
+837	0x345	Kurzick Tunic	Necromancer	Chestpiece	Factions	20
+838	0x346	Kurzick Gloves	Necromancer	Gloves	Factions	20
+839	0x347	Kurzick Leggings	Necromancer	Leggings	Factions	20
+840	0x348	Elite Kurzick Boots	Necromancer	Boots	Factions	20
+841	0x349	Elite Kurzick Tunic	Necromancer	Chestpiece	Factions	20
+842	0x34A	Elite Kurzick Gloves	Necromancer	Gloves	Factions	20
+843	0x34B	Elite Kurzick Leggings	Necromancer	Leggings	Factions	20
+852	0x354	Shing Jea Footwear	Mesmer	Boots	Factions	32
+853	0x355	Shing Jea Attire	Mesmer	Chestpiece	Factions	32
+854	0x356	Shing Jea Gloves	Mesmer	Gloves	Factions	32
+855	0x357	Shing Jea Hose	Mesmer	Leggings	Factions	32
+856	0x358	Canthan Footwear	Mesmer	Boots	Factions	32
+857	0x359	Canthan Attire	Mesmer	Chestpiece	Factions	32
+858	0x35A	Canthan Gloves	Mesmer	Gloves	Factions	32
+859	0x35B	Canthan Hose	Mesmer	Leggings	Factions	32
+860	0x35C	Elite Canthan Footwear	Mesmer	Boots	Factions	32
+861	0x35D	Elite Canthan Attire	Mesmer	Chestpiece	Factions	32
+862	0x35E	Elite Canthan Gloves	Mesmer	Gloves	Factions	32
+863	0x35F	Elite Canthan Hose	Mesmer	Leggings	Factions	32
+864	0x360	Luxon Footwear	Mesmer	Boots	Factions	32
+865	0x361	Luxon Attire	Mesmer	Chestpiece	Factions	32
+866	0x362	Luxon Gloves	Mesmer	Gloves	Factions	32
+867	0x363	Luxon Hose	Mesmer	Leggings	Factions	32
+868	0x364	Elite Luxon Footwear	Mesmer	Boots	Factions	32
+869	0x365	Elite Luxon Attire	Mesmer	Chestpiece	Factions	32
+870	0x366	Elite Luxon Gloves	Mesmer	Gloves	Factions	32
+871	0x367	Elite Luxon Hose	Mesmer	Leggings	Factions	32
+872	0x368	Kurzick Footwear	Mesmer	Boots	Factions	32
+873	0x369	Kurzick Attire	Mesmer	Chestpiece	Factions	32
+874	0x36A	Kurzick Gloves	Mesmer	Gloves	Factions	32
+875	0x36B	Kurzick Hose	Mesmer	Leggings	Factions	32
+876	0x36C	Elite Kurzick Footwear	Mesmer	Boots	Factions	32
+877	0x36D	Elite Kurzick Attire	Mesmer	Chestpiece	Factions	32
+878	0x36E	Elite Kurzick Gloves	Mesmer	Gloves	Factions	32
+879	0x36F	Elite Kurzick Hose	Mesmer	Leggings	Factions	32
+887	0x377	Shing Jea Shoes	Elementalist	Boots	Factions	29
+888	0x378	Shing Jea Robes	Elementalist	Chestpiece	Factions	29
+889	0x379	Shing Jea Gloves	Elementalist	Gloves	Factions	29
+890	0x37A	Shing Jea Leggings	Elementalist	Leggings	Factions	29
+891	0x37B	Canthan Shoes	Elementalist	Boots	Factions	28
+892	0x37C	Canthan Robes	Elementalist	Chestpiece	Factions	28
+893	0x37D	Canthan Gloves	Elementalist	Gloves	Factions	28
+894	0x37E	Canthan Leggings	Elementalist	Leggings	Factions	28
+895	0x37F	Canthan Shoes	Elementalist	Boots	Factions	28
+896	0x380	Canthan Robes	Elementalist	Chestpiece	Factions	28
+897	0x381	Canthan Gloves	Elementalist	Gloves	Factions	28
+898	0x382	Canthan Leggings	Elementalist	Leggings	Factions	28
+899	0x383	Luxon Shoes	Elementalist	Boots	Factions	28
+900	0x384	Luxon Robes	Elementalist	Chestpiece	Factions	28
+901	0x385	Luxon Gloves	Elementalist	Gloves	Factions	28
+902	0x386	Luxon Leggings	Elementalist	Leggings	Factions	28
+903	0x387	Elite Luxon Shoes	Elementalist	Boots	Factions	8
+904	0x388	Elite Luxon Robes	Elementalist	Chestpiece	Factions	8
+905	0x389	Elite Luxon Gloves	Elementalist	Gloves	Factions	8
+906	0x38A	Elite Luxon Leggings	Elementalist	Leggings	Factions	8
+907	0x38B	Kurzick Shoes	Elementalist	Boots	Factions	29
+908	0x38C	Kurzick Robes	Elementalist	Chestpiece	Factions	29
+909	0x38D	Kurzick Gloves	Elementalist	Gloves	Factions	29
+910	0x38E	Kurzick Leggings	Elementalist	Leggings	Factions	29
+911	0x38F	Elite Kurzick Shoes	Elementalist	Boots	Factions	30
+912	0x390	Elite Kurzick Robes	Elementalist	Chestpiece	Factions	30
+913	0x391	Elite Kurzick Gloves	Elementalist	Gloves	Factions	30
+914	0x392	Elite Kurzick Leggings	Elementalist	Leggings	Factions	30
+944	0x3B0	Shing Jea Mask	Assassin	Headpiece	Factions	11
+945	0x3B1	Shing Jea Shoes	Assassin	Boots	Factions	11
+946	0x3B2	Shing Jea Guise	Assassin	Chestpiece	Factions	11
+947	0x3B3	Shing Jea Gloves	Assassin	Gloves	Factions	11
+948	0x3B4	Shing Jea Leggings	Assassin	Leggings	Factions	11
+949	0x3B5	Canthan Mask	Assassin	Headpiece	Factions	11
+950	0x3B6	Canthan Shoes	Assassin	Boots	Factions	11
+951	0x3B7	Canthan Guise	Assassin	Chestpiece	Factions	11
+952	0x3B8	Canthan Gloves	Assassin	Gloves	Factions	11
+953	0x3B9	Canthan Leggings	Assassin	Leggings	Factions	11
+954	0x3BA	Elite Canthan Mask	Assassin	Headpiece	Factions	11
+955	0x3BB	Elite Canthan Shoes	Assassin	Boots	Factions	11
+956	0x3BC	Elite Canthan Guise	Assassin	Chestpiece	Factions	11
+957	0x3BD	Elite Canthan Gloves	Assassin	Gloves	Factions	11
+958	0x3BE	Elite Canthan Leggings	Assassin	Leggings	Factions	11
+959	0x3BF	Luxon Mask	Assassin	Headpiece	Factions	11
+960	0x3C0	Luxon Shoes	Assassin	Boots	Factions	11
+961	0x3C1	Luxon Guise	Assassin	Chestpiece	Factions	11
+962	0x3C2	Luxon Gloves	Assassin	Gloves	Factions	11
+963	0x3C3	Luxon Leggings	Assassin	Leggings	Factions	11
+964	0x3C4	Elite Luxon Mask	Assassin	Headpiece	Factions	11
+965	0x3C5	Elite Luxon Shoes	Assassin	Boots	Factions	11
+966	0x3C6	Elite Luxon Guise	Assassin	Chestpiece	Factions	11
+967	0x3C7	Elite Luxon Gloves	Assassin	Gloves	Factions	11
+968	0x3C8	Elite Luxon Leggings	Assassin	Leggings	Factions	11
+969	0x3C9	Kurzick Mask	Assassin	Headpiece	Factions	11
+970	0x3CA	Kurzick Shoes	Assassin	Boots	Factions	11
+971	0x3CB	Kurzick Guise	Assassin	Chestpiece	Factions	11
+972	0x3CC	Kurzick Gloves	Assassin	Gloves	Factions	11
+973	0x3CD	Kurzick Leggings	Assassin	Leggings	Factions	11
+974	0x3CE	Elite Kurzick Mask	Assassin	Headpiece	Factions	11
+975	0x3CF	Elite Kurzick Shoes	Assassin	Boots	Factions	11
+976	0x3D0	Elite Kurzick Guise	Assassin	Chestpiece	Factions	11
+977	0x3D1	Elite Kurzick Gloves	Assassin	Gloves	Factions	11
+978	0x3D2	Elite Kurzick Leggings	Assassin	Leggings	Factions	11
+979	0x3D3	Seitung Mask	Assassin	Headpiece	Factions	11
+980	0x3D4	Seitung Shoes	Assassin	Boots	Factions	11
+981	0x3D5	Seitung Guise	Assassin	Chestpiece	Factions	11
+982	0x3D6	Seitung Gloves	Assassin	Gloves	Factions	11
+983	0x3D7	Seitung Leggings	Assassin	Leggings	Factions	11
+984	0x3D8	Obsidian Mask	Assassin	Headpiece	Core	11
+985	0x3D9	Obsidian Shoes	Assassin	Boots	Core	11
+986	0x3DA	Obsidian Guise	Assassin	Chestpiece	Core	11
+987	0x3DB	Obsidian Gloves	Assassin	Gloves	Core	11
+988	0x3DC	Obsidian Leggings	Assassin	Leggings	Core	11
+1027	0x403	Shing Jea Headwrap	Ritualist	Headpiece	Factions	12
+1028	0x404	Shing Jea Shoes	Ritualist	Boots	Factions	12
+1029	0x405	Shing Jea Raiment	Ritualist	Chestpiece	Factions	12
+1030	0x406	Shing Jea Bangles	Ritualist	Gloves	Factions	12
+1031	0x407	Shing Jea Leggings	Ritualist	Leggings	Factions	12
+1032	0x408	Canthan Headwrap	Ritualist	Headpiece	Factions	12
+1033	0x409	Canthan Shoes	Ritualist	Boots	Factions	12
+1034	0x40A	Canthan Raiment	Ritualist	Chestpiece	Factions	12
+1035	0x40B	Canthan Bangles	Ritualist	Gloves	Factions	12
+1036	0x40C	Canthan Leggings	Ritualist	Leggings	Factions	12
+1037	0x40D	Elite Canthan Headwrap	Ritualist	Headpiece	Factions	12
+1038	0x40E	Elite Canthan Shoes	Ritualist	Boots	Factions	12
+1039	0x40F	Elite Canthan Raiment	Ritualist	Chestpiece	Factions	12
+1040	0x410	Elite Canthan Bangles	Ritualist	Gloves	Factions	12
+1041	0x411	Elite Canthan Leggings	Ritualist	Leggings	Factions	12
+1042	0x412	Luxon Headwrap	Ritualist	Headpiece	Factions	12
+1043	0x413	Luxon Shoes	Ritualist	Boots	Factions	12
+1044	0x414	Luxon Raiment	Ritualist	Chestpiece	Factions	12
+1045	0x415	Luxon Bangles	Ritualist	Gloves	Factions	12
+1046	0x416	Luxon Leggings	Ritualist	Leggings	Factions	12
+1047	0x417	Elite Luxon Headwrap	Ritualist	Headpiece	Factions	12
+1048	0x418	Elite Luxon Shoes	Ritualist	Boots	Factions	12
+1049	0x419	Elite Luxon Raiment	Ritualist	Chestpiece	Factions	12
+1050	0x41A	Elite Luxon Bangles	Ritualist	Gloves	Factions	12
+1051	0x41B	Elite Luxon Leggings	Ritualist	Leggings	Factions	12
+1052	0x41C	Kurzick Headwrap	Ritualist	Headpiece	Factions	12
+1053	0x41D	Kurzick Shoes	Ritualist	Boots	Factions	12
+1054	0x41E	Kurzick Raiment	Ritualist	Chestpiece	Factions	12
+1055	0x41F	Kurzick Bangles	Ritualist	Gloves	Factions	12
+1056	0x420	Kurzick Leggings	Ritualist	Leggings	Factions	12
+1057	0x421	Elite Kurzick Headwrap	Ritualist	Headpiece	Factions	12
+1058	0x422	Elite Kurzick Shoes	Ritualist	Boots	Factions	12
+1059	0x423	Elite Kurzick Raiment	Ritualist	Chestpiece	Factions	12
+1060	0x424	Elite Kurzick Bangles	Ritualist	Gloves	Factions	12
+1061	0x425	Elite Kurzick Leggings	Ritualist	Leggings	Factions	12
+1062	0x426	Seitung Headwrap	Ritualist	Headpiece	Factions	12
+1063	0x427	Seitung Shoes	Ritualist	Boots	Factions	12
+1064	0x428	Seitung Raiment	Ritualist	Chestpiece	Factions	12
+1065	0x429	Seitung Bangles	Ritualist	Gloves	Factions	12
+1066	0x42A	Seitung Leggings	Ritualist	Leggings	Factions	12
+1067	0x42B	Obsidian Headwrap	Ritualist	Headpiece	Core	12
+1068	0x42C	Obsidian Shoes	Ritualist	Boots	Core	12
+1069	0x42D	Obsidian Raiment	Ritualist	Chestpiece	Core	12
+1070	0x42E	Obsidian Bangles	Ritualist	Gloves	Core	12
+1071	0x42F	Obsidian Leggings	Ritualist	Leggings	Core	12
+1112	0x458	Shing Jea Mask	Ranger	Headpiece	Factions	22
+1113	0x459	Canthan Mask	Ranger	Headpiece	Factions	22
+1114	0x45A	Elite Canthan Mask	Ranger	Headpiece	Factions	22
+1115	0x45B	Luxon Mask	Ranger	Headpiece	Factions	22
+1116	0x45C	Elite Luxon Mask	Ranger	Headpiece	Factions	22
+1117	0x45D	Kurzick Mask	Ranger	Headpiece	Factions	22
+1118	0x45E	Elite Kurzick Mask	Ranger	Headpiece	Factions	22
+1147	0x47B	Shing Jea Scalp	Monk	Headpiece	Factions	10
+1148	0x47C	Canthan Scalp	Monk	Headpiece	Factions	10
+1149	0x47D	Elite Canthan Scalp	Monk	Headpiece	Factions	10
+1150	0x47E	Luxon Scalp	Monk	Headpiece	Factions	10
+1151	0x47F	Elite Luxon Scalp	Monk	Headpiece	Factions	10
+1152	0x480	Kurzick Scalp	Monk	Headpiece	Factions	10
+1153	0x481	Elite Kurzick Scalp	Monk	Headpiece	Factions	10
+1180	0x49C	Shing Jea Scar Pattern	Necromancer	Headpiece	Factions	20
+1181	0x49D	Canthan Scar Pattern	Necromancer	Headpiece	Factions	20
+1182	0x49E	Elite Canthan Scar Pattern	Necromancer	Headpiece	Factions	20
+1183	0x49F	Luxon Scar Pattern	Necromancer	Headpiece	Factions	20
+1184	0x4A0	Elite Luxon Scar Pattern	Necromancer	Headpiece	Factions	20
+1185	0x4A1	Kurzick Scar Pattern	Necromancer	Headpiece	Factions	20
+1186	0x4A2	Elite Kurzick Scar Pattern	Necromancer	Headpiece	Factions	20
+1208	0x4B8	Shing Jea Mask	Mesmer	Headpiece	Factions	32
+1209	0x4B9	Canthan Mask	Mesmer	Headpiece	Factions	32
+1210	0x4BA	Elite Canthan Mask	Mesmer	Headpiece	Factions	32
+1211	0x4BB	Luxon Mask	Mesmer	Headpiece	Factions	32
+1212	0x4BC	Elite Luxon Mask	Mesmer	Headpiece	Factions	32
+1213	0x4BD	Kurzick Mask	Mesmer	Headpiece	Factions	32
+1214	0x4BE	Elite Kurzick Mask	Mesmer	Headpiece	Factions	32
+1249	0x4E1	Imperial Mask	Assassin	Headpiece	Factions	11
+1250	0x4E2	Imperial Shoes	Assassin	Boots	Factions	11
+1251	0x4E3	Imperial Guise	Assassin	Chestpiece	Factions	11
+1252	0x4E4	Imperial Gloves	Assassin	Gloves	Factions	11
+1253	0x4E5	Imperial Leggings	Assassin	Leggings	Factions	11
+1254	0x4E6	Elite Imperial Mask	Assassin	Headpiece	Factions	11
+1255	0x4E7	Elite Imperial Shoes	Assassin	Boots	Factions	11
+1256	0x4E8	Elite Imperial Guise	Assassin	Chestpiece	Factions	11
+1257	0x4E9	Elite Imperial Gloves	Assassin	Gloves	Factions	11
+1258	0x4EA	Elite Imperial Leggings	Assassin	Leggings	Factions	11
+1259	0x4EB	Exotic Mask	Assassin	Headpiece	Factions	11
+1260	0x4EC	Exotic Shoes	Assassin	Boots	Factions	11
+1261	0x4ED	Exotic Guise	Assassin	Chestpiece	Factions	11
+1262	0x4EE	Exotic Gloves	Assassin	Gloves	Factions	11
+1263	0x4EF	Exotic Leggings	Assassin	Leggings	Factions	11
+1264	0x4F0	Elite Exotic Mask	Assassin	Headpiece	Factions	11
+1265	0x4F1	Elite Exotic Shoes	Assassin	Boots	Factions	11
+1266	0x4F2	Elite Exotic Guise	Assassin	Chestpiece	Factions	11
+1267	0x4F3	Elite Exotic Gloves	Assassin	Gloves	Factions	11
+1268	0x4F4	Elite Exotic Leggings	Assassin	Leggings	Factions	11
+1278	0x4FE	Imperial Headwrap	Ritualist	Headpiece	Factions	12
+1279	0x4FF	Imperial Shoes	Ritualist	Boots	Factions	12
+1280	0x500	Imperial Raiment	Ritualist	Chestpiece	Factions	12
+1281	0x501	Imperial Bangles	Ritualist	Gloves	Factions	12
+1282	0x502	Imperial Leggings	Ritualist	Leggings	Factions	12
+1283	0x503	Elite Imperial Headwrap	Ritualist	Headpiece	Factions	12
+1284	0x504	Elite Imperial Shoes	Ritualist	Boots	Factions	12
+1285	0x505	Elite Imperial Raiment	Ritualist	Chestpiece	Factions	12
+1286	0x506	Elite Imperial Bangles	Ritualist	Gloves	Factions	12
+1287	0x507	Elite Imperial Leggings	Ritualist	Leggings	Factions	12
+1288	0x508	Exotic Headwrap	Ritualist	Headpiece	Factions	12
+1289	0x509	Exotic Shoes	Ritualist	Boots	Factions	12
+1290	0x50A	Exotic Raiment	Ritualist	Chestpiece	Factions	12
+1291	0x50B	Exotic Bangles	Ritualist	Gloves	Factions	12
+1292	0x50C	Exotic Leggings	Ritualist	Leggings	Factions	12
+1293	0x50D	Elite Exotic Headwrap	Ritualist	Headpiece	Factions	12
+1294	0x50E	Elite Exotic Shoes	Ritualist	Boots	Factions	12
+1295	0x50F	Elite Exotic Raiment	Ritualist	Chestpiece	Factions	12
+1296	0x510	Elite Exotic Bangles	Ritualist	Gloves	Factions	12
+1297	0x511	Elite Exotic Leggings	Ritualist	Leggings	Factions	12
+1303	0x517	Tengu Mask	None	Costume_Headpiece	BonusMissionPack	9
+1311	0x51f	Dragon Mask	None	Costume_Headpiece	BonusMissionPack	9
+1343	0x53F	Istani Helm	Warrior	Headpiece	Nightfall	19
+1344	0x540	Istani Boots	Warrior	Boots	Nightfall	19
+1345	0x541	Istani Cuirass	Warrior	Chestpiece	Nightfall	19
+1346	0x542	Istani Gauntlets	Warrior	Gloves	Nightfall	19
+1347	0x543	Istani Leggings	Warrior	Leggings	Nightfall	19
+1348	0x544	Sunspear Helm	Warrior	Headpiece	Nightfall	3
+1349	0x545	Sunspear Boots	Warrior	Boots	Nightfall	3
+1350	0x546	Sunspear Cuirass	Warrior	Chestpiece	Nightfall	3
+1351	0x547	Sunspear Gauntlets	Warrior	Gloves	Nightfall	3
+1352	0x548	Sunspear Leggings	Warrior	Leggings	Nightfall	3
+1353	0x549	Elite Sunspear Helm	Warrior	Headpiece	Nightfall	3
+1354	0x54A	Elite Sunspear Boots	Warrior	Boots	Nightfall	3
+1355	0x54B	Elite Sunspear Cuirass	Warrior	Chestpiece	Nightfall	3
+1356	0x54C	Elite Sunspear Gauntlets	Warrior	Gloves	Nightfall	3
+1357	0x54D	Elite Sunspear Leggings	Warrior	Leggings	Nightfall	3
+1358	0x54E	Vabbian Helm	Warrior	Headpiece	Nightfall	6
+1359	0x54F	Vabbian Boots	Warrior	Boots	Nightfall	6
+1360	0x550	Vabbian Cuirass	Warrior	Chestpiece	Nightfall	6
+1361	0x551	Vabbian Gauntlets	Warrior	Gloves	Nightfall	6
+1362	0x552	Vabbian Leggings	Warrior	Leggings	Nightfall	6
+1363	0x553	Ancient Helm	Warrior	Headpiece	Nightfall	3
+1364	0x554	Ancient Boots	Warrior	Boots	Nightfall	3
+1365	0x555	Ancient Cuirass	Warrior	Chestpiece	Nightfall	3
+1366	0x556	Ancient Gauntlets	Warrior	Gloves	Nightfall	3
+1367	0x557	Ancient Leggings	Warrior	Leggings	Nightfall	3
+1368	0x558	Primeval Helm	Warrior	Headpiece	Nightfall	3
+1369	0x559	Primeval Boots	Warrior	Boots	Nightfall	3
+1370	0x55A	Primeval Cuirass	Warrior	Chestpiece	Nightfall	3
+1371	0x55B	Primeval Gauntlets	Warrior	Gloves	Nightfall	3
+1372	0x55C	Primeval Leggings	Warrior	Leggings	Nightfall	3
+1392	0x570	Istani Mask	Ranger	Headpiece	Nightfall	23
+1393	0x571	Istani Boots	Ranger	Boots	Nightfall	23
+1394	0x572	Istani Vest	Ranger	Chestpiece	Nightfall	23
+1395	0x573	Istani Gloves	Ranger	Gloves	Nightfall	23
+1396	0x574	Istani Leggings	Ranger	Leggings	Nightfall	23
+1397	0x575	Sunspear Mask	Ranger	Headpiece	Nightfall	23
+1398	0x576	Sunspear Boots	Ranger	Boots	Nightfall	23
+1399	0x577	Sunspear Vest	Ranger	Chestpiece	Nightfall	23
+1400	0x578	Sunspear Gloves	Ranger	Gloves	Nightfall	23
+1401	0x579	Sunspear Leggings	Ranger	Leggings	Nightfall	23
+1402	0x57A	Elite Sunspear Mask	Ranger	Headpiece	Nightfall	23
+1403	0x57B	Elite Sunspear Boots	Ranger	Boots	Nightfall	23
+1404	0x57C	Elite Sunspear Vest	Ranger	Chestpiece	Nightfall	23
+1405	0x57D	Elite Sunspear Gloves	Ranger	Gloves	Nightfall	23
+1406	0x57E	Elite Sunspear Leggings	Ranger	Leggings	Nightfall	23
+1407	0x57F	Vabbian Mask	Ranger	Headpiece	Nightfall	23
+1408	0x580	Vabbian Boots	Ranger	Boots	Nightfall	23
+1409	0x581	Vabbian Vest	Ranger	Chestpiece	Nightfall	23
+1410	0x582	Vabbian Gloves	Ranger	Gloves	Nightfall	23
+1411	0x583	Vabbian Leggings	Ranger	Leggings	Nightfall	23
+1412	0x584	Ancient Mask	Ranger	Headpiece	Nightfall	23
+1413	0x585	Ancient Boots	Ranger	Boots	Nightfall	23
+1414	0x586	Ancient Vest	Ranger	Chestpiece	Nightfall	23
+1415	0x587	Ancient Gloves	Ranger	Gloves	Nightfall	23
+1416	0x588	Ancient Leggings	Ranger	Leggings	Nightfall	23
+1417	0x589	Primeval Mask	Ranger	Headpiece	Nightfall	23
+1418	0x58A	Primeval Boots	Ranger	Boots	Nightfall	23
+1419	0x58B	Primeval Vest	Ranger	Chestpiece	Nightfall	23
+1420	0x58C	Primeval Gloves	Ranger	Gloves	Nightfall	23
+1421	0x58D	Primeval Leggings	Ranger	Leggings	Nightfall	23
+1438	0x59E	Istani Scalp Design	Monk	Headpiece	Nightfall	10
+1439	0x59F	Istani Sandals	Monk	Boots	Nightfall	5
+1440	0x5A0	Istani Vestments	Monk	Chestpiece	Nightfall	5
+1441	0x5A1	Istani Handwraps	Monk	Gloves	Nightfall	5
+1442	0x5A2	Istani Pants	Monk	Leggings	Nightfall	5
+1443	0x5A3	Sunspear Scalp Design	Monk	Headpiece	Nightfall	5
+1444	0x5A4	Sunspear Sandals	Monk	Boots	Nightfall	17
+1445	0x5A5	Sunspear Vestments	Monk	Chestpiece	Nightfall	17
+1446	0x5A6	Sunspear Handwraps	Monk	Gloves	Nightfall	17
+1447	0x5A7	Sunspear Pants	Monk	Leggings	Nightfall	17
+1448	0x5A8	Elite Sunspear Scalp Design	Monk	Headpiece	Nightfall	18
+1449	0x5A9	Elite Sunspear Sandals	Monk	Boots	Nightfall	18
+1450	0x5AA	Elite Sunspear Vestments	Monk	Chestpiece	Nightfall	18
+1451	0x5AB	Elite Sunspear Handwraps	Monk	Gloves	Nightfall	18
+1452	0x5AC	Elite Sunspear Pants	Monk	Leggings	Nightfall	18
+1453	0x5AD	Vabbian Scalp Design	Monk	Headpiece	Nightfall	12
+1454	0x5AE	Vabbian Sandals	Monk	Boots	Nightfall	12
+1455	0x5AF	Vabbian Vestments	Monk	Chestpiece	Nightfall	12
+1456	0x5B0	Vabbian Handwraps	Monk	Gloves	Nightfall	12
+1457	0x5B1	Vabbian Pants	Monk	Leggings	Nightfall	12
+1458	0x5B2	Ancient Scalp Design	Monk	Headpiece	Nightfall	18
+1459	0x5B3	Ancient Sandals	Monk	Boots	Nightfall	18
+1460	0x5B4	Ancient Vestments	Monk	Chestpiece	Nightfall	18
+1461	0x5B5	Ancient Handwraps	Monk	Gloves	Nightfall	18
+1462	0x5B6	Ancient Pants	Monk	Leggings	Nightfall	18
+1463	0x5B7	Primeval Scalp Design	Monk	Headpiece	Nightfall	5
+1464	0x5B8	Primeval Sandals	Monk	Boots	Nightfall	18
+1465	0x5B9	Primeval Vestments	Monk	Chestpiece	Nightfall	18
+1466	0x5BA	Primeval Handwraps	Monk	Gloves	Nightfall	18
+1467	0x5BB	Primeval Pants	Monk	Leggings	Nightfall	18
+1485	0x5CD	Istani Scar Pattern	Necromancer	Headpiece	Nightfall	6
+1486	0x5CE	Istani Boots	Necromancer	Boots	Nightfall	6
+1487	0x5CF	Istani Tunic	Necromancer	Chestpiece	Nightfall	6
+1488	0x5D0	Istani Gloves	Necromancer	Gloves	Nightfall	6
+1489	0x5D1	Istani Leggings	Necromancer	Leggings	Nightfall	6
+1490	0x5D2	Sunspear Scar Pattern	Necromancer	Headpiece	Nightfall	6
+1491	0x5D3	Sunspear Boots	Necromancer	Boots	Nightfall	21
+1492	0x5D4	Sunspear Tunic	Necromancer	Chestpiece	Nightfall	21
+1493	0x5D5	Sunspear Gloves	Necromancer	Gloves	Nightfall	21
+1494	0x5D6	Sunspear Leggings	Necromancer	Leggings	Nightfall	21
+1495	0x5D7	Elite Sunspear Scar Pattern	Necromancer	Headpiece	Nightfall	6
+1496	0x5D8	Elite Sunspear Boots	Necromancer	Boots	Nightfall	6
+1497	0x5D9	Elite Sunspear Tunic	Necromancer	Chestpiece	Nightfall	6
+1498	0x5DA	Elite Sunspear Gloves	Necromancer	Gloves	Nightfall	6
+1499	0x5DB	Elite Sunspear Leggings	Necromancer	Leggings	Nightfall	6
+1500	0x5DC	Vabbian Scar Pattern	Necromancer	Headpiece	Nightfall	6
+1501	0x5DD	Vabbian Boots	Necromancer	Boots	Nightfall	6
+1502	0x5DE	Vabbian Tunic	Necromancer	Chestpiece	Nightfall	6
+1503	0x5DF	Vabbian Gloves	Necromancer	Gloves	Nightfall	6
+1504	0x5E0	Vabbian Leggings	Necromancer	Leggings	Nightfall	6
+1505	0x5E1	Ancient Scar Pattern	Necromancer	Headpiece	Nightfall	6
+1506	0x5E2	Ancient Boots	Necromancer	Boots	Nightfall	6
+1507	0x5E3	Ancient Tunic	Necromancer	Chestpiece	Nightfall	6
+1508	0x5E4	Ancient Gloves	Necromancer	Gloves	Nightfall	6
+1509	0x5E5	Ancient Leggings	Necromancer	Leggings	Nightfall	6
+1510	0x5E6	Primeval Scar Pattern	Necromancer	Headpiece	Nightfall	6
+1511	0x5E7	Primeval Boots	Necromancer	Boots	Nightfall	21
+1512	0x5E8	Primeval Tunic	Necromancer	Chestpiece	Nightfall	21
+1513	0x5E9	Primeval Gloves	Necromancer	Gloves	Nightfall	21
+1514	0x5EA	Primeval Leggings	Necromancer	Leggings	Nightfall	21
+1552	0x610	Istani Shoes	Elementalist	Boots	Nightfall	8
+1553	0x611	Istani Robes	Elementalist	Chestpiece	Nightfall	8
+1554	0x612	Istani Gloves	Elementalist	Gloves	Nightfall	8
+1555	0x613	Istani Leggings	Elementalist	Leggings	Nightfall	8
+1556	0x614	Sunspear Shoes	Elementalist	Boots	Nightfall	29
+1557	0x615	Sunspear Robes	Elementalist	Chestpiece	Nightfall	29
+1558	0x616	Sunspear Gloves	Elementalist	Gloves	Nightfall	29
+1559	0x617	Sunspear Leggings	Elementalist	Leggings	Nightfall	29
+1560	0x618	Elite Sunspear Shoes	Elementalist	Boots	Nightfall	8
+1561	0x619	Elite Sunspear Robes	Elementalist	Chestpiece	Nightfall	8
+1562	0x61A	Elite Sunspear Gloves	Elementalist	Gloves	Nightfall	8
+1563	0x61B	Elite Sunspear Leggings	Elementalist	Leggings	Nightfall	8
+1564	0x61C	Vabbian Shoes	Elementalist	Boots	Nightfall	26
+1565	0x61D	Vabbian Robes	Elementalist	Chestpiece	Nightfall	26
+1566	0x61E	Vabbian Gloves	Elementalist	Gloves	Nightfall	26
+1567	0x61F	Vabbian Leggings	Elementalist	Leggings	Nightfall	26
+1568	0x620	Ancient Shoes	Elementalist	Boots	Nightfall	26
+1569	0x621	Ancient Robes	Elementalist	Chestpiece	Nightfall	26
+1570	0x622	Ancient Gloves	Elementalist	Gloves	Nightfall	26
+1571	0x623	Ancient Leggings	Elementalist	Leggings	Nightfall	26
+1572	0x624	Primeval Shoes	Elementalist	Boots	Nightfall	24
+1573	0x625	Primeval Robes	Elementalist	Chestpiece	Nightfall	24
+1574	0x626	Primeval Gloves	Elementalist	Gloves	Nightfall	24
+1575	0x627	Primeval Leggings	Elementalist	Leggings	Nightfall	24
+1599	0x63F	Istani Sandals	Paragon	Boots	Nightfall	13
+1600	0x640	Istani Raiment	Paragon	Chestpiece	Nightfall	13
+1601	0x641	Istani Armguards	Paragon	Gloves	Nightfall	13
+1602	0x642	Istani Leggings	Paragon	Leggings	Nightfall	13
+1603	0x643	Sunspear Sandals	Paragon	Boots	Nightfall	13
+1604	0x644	Sunspear Raiment	Paragon	Chestpiece	Nightfall	13
+1605	0x645	Sunspear Armguards	Paragon	Gloves	Nightfall	13
+1606	0x646	Sunspear Leggings	Paragon	Leggings	Nightfall	13
+1607	0x647	Elite Sunspear Sandals	Paragon	Boots	Nightfall	13
+1608	0x648	Elite Sunspear Raiment	Paragon	Chestpiece	Nightfall	13
+1609	0x649	Elite Sunspear Armguards	Paragon	Gloves	Nightfall	13
+1610	0x64A	Elite Sunspear Leggings	Paragon	Leggings	Nightfall	13
+1611	0x64B	Vabbian Sandals	Paragon	Boots	Nightfall	13
+1612	0x64C	Vabbian Raiment	Paragon	Chestpiece	Nightfall	13
+1613	0x64D	Vabbian Armguards	Paragon	Gloves	Nightfall	13
+1614	0x64E	Vabbian Leggings	Paragon	Leggings	Nightfall	13
+1615	0x64F	Ancient Sandals	Paragon	Boots	Nightfall	13
+1616	0x650	Ancient Raiment	Paragon	Chestpiece	Nightfall	13
+1617	0x651	Ancient Armguards	Paragon	Gloves	Nightfall	13
+1618	0x652	Ancient Leggings	Paragon	Leggings	Nightfall	13
+1619	0x653	Primeval Sandals	Paragon	Boots	Nightfall	13
+1620	0x654	Primeval Raiment	Paragon	Chestpiece	Nightfall	13
+1621	0x655	Primeval Armguards	Paragon	Gloves	Nightfall	13
+1622	0x656	Primeval Leggings	Paragon	Leggings	Nightfall	13
+1623	0x657	Elonian Sandals	Paragon	Boots	Nightfall	13
+1624	0x658	Elonian Raiment	Paragon	Chestpiece	Nightfall	13
+1625	0x659	Elonian Armguards	Paragon	Gloves	Nightfall	13
+1626	0x65A	Elonian Leggings	Paragon	Leggings	Nightfall	13
+1627	0x65B	Obsidian Sandals	Paragon	Boots	Core	13
+1628	0x65C	Obsidian Raiment	Paragon	Chestpiece	Core	13
+1629	0x65D	Obsidian Armguards	Paragon	Gloves	Core	13
+1630	0x65E	Obsidian Leggings	Paragon	Leggings	Core	13
+1651	0x673	Istani Hood	Dervish	Headpiece	Nightfall	14
+1652	0x674	Istani Shoes	Dervish	Boots	Nightfall	14
+1653	0x675	Istani Robes	Dervish	Chestpiece	Nightfall	14
+1654	0x676	Istani Vambraces	Dervish	Gloves	Nightfall	14
+1655	0x677	Istani Leggings	Dervish	Leggings	Nightfall	14
+1656	0x678	Sunspear Hood	Dervish	Headpiece	Nightfall	14
+1657	0x679	Sunspear Shoes	Dervish	Boots	Nightfall	14
+1658	0x67A	Sunspear Robes	Dervish	Chestpiece	Nightfall	14
+1659	0x67B	Sunspear Vambraces	Dervish	Gloves	Nightfall	14
+1660	0x67C	Sunspear Leggings	Dervish	Leggings	Nightfall	14
+1661	0x67D	Elite Sunspear Hood	Dervish	Headpiece	Nightfall	14
+1662	0x67E	Elite Sunspear Shoes	Dervish	Boots	Nightfall	14
+1663	0x67F	Elite Sunspear Robes	Dervish	Chestpiece	Nightfall	14
+1664	0x680	Elite Sunspear Vambraces	Dervish	Gloves	Nightfall	14
+1665	0x681	Elite Sunspear Leggings	Dervish	Leggings	Nightfall	14
+1666	0x682	Vabbian Hood	Dervish	Headpiece	Nightfall	14
+1667	0x683	Vabbian Shoes	Dervish	Boots	Nightfall	14
+1668	0x684	Vabbian Robes	Dervish	Chestpiece	Nightfall	14
+1669	0x685	Vabbian Vambraces	Dervish	Gloves	Nightfall	14
+1670	0x686	Vabbian Leggings	Dervish	Leggings	Nightfall	14
+1671	0x687	Ancient Hood	Dervish	Headpiece	Nightfall	14
+1672	0x688	Ancient Shoes	Dervish	Boots	Nightfall	14
+1673	0x689	Ancient Robes	Dervish	Chestpiece	Nightfall	14
+1674	0x68A	Ancient Vambraces	Dervish	Gloves	Nightfall	14
+1675	0x68B	Ancient Leggings	Dervish	Leggings	Nightfall	14
+1676	0x68C	Primeval Hood	Dervish	Headpiece	Nightfall	14
+1677	0x68D	Primeval Shoes	Dervish	Boots	Nightfall	14
+1678	0x68E	Primeval Robes	Dervish	Chestpiece	Nightfall	14
+1679	0x68F	Primeval Vambraces	Dervish	Gloves	Nightfall	14
+1680	0x690	Primeval Leggings	Dervish	Leggings	Nightfall	14
+1681	0x691	Elonian Hood	Dervish	Headpiece	Nightfall	14
+1682	0x692	Elonian Shoes	Dervish	Boots	Nightfall	14
+1683	0x693	Elonian Robes	Dervish	Chestpiece	Nightfall	14
+1684	0x694	Elonian Vambraces	Dervish	Gloves	Nightfall	14
+1685	0x695	Elonian Leggings	Dervish	Leggings	Nightfall	14
+1686	0x696	Obsidian Hood	Dervish	Headpiece	Core	14
+1687	0x697	Obsidian Shoes	Dervish	Boots	Core	14
+1688	0x698	Obsidian Robes	Dervish	Chestpiece	Core	14
+1689	0x699	Obsidian Vambraces	Dervish	Gloves	Core	14
+1690	0x69A	Obsidian Leggings	Dervish	Leggings	Core	14
+1737	0x6C9	Istani Mask	Mesmer	Headpiece	Nightfall	9
+1738	0x6CA	Istani Footwear	Mesmer	Boots	Nightfall	9
+1739	0x6CB	Istani Attire	Mesmer	Chestpiece	Nightfall	9
+1740	0x6CC	Istani Gloves	Mesmer	Gloves	Nightfall	9
+1741	0x6CD	Istani Hose	Mesmer	Leggings	Nightfall	9
+1742	0x6CE	Sunspear Mask	Mesmer	Headpiece	Nightfall	34
+1743	0x6CF	Sunspear Footwear	Mesmer	Boots	Nightfall	34
+1744	0x6D0	Sunspear Attire	Mesmer	Chestpiece	Nightfall	34
+1745	0x6D1	Sunspear Gloves	Mesmer	Gloves	Nightfall	34
+1746	0x6D2	Sunspear Hose	Mesmer	Leggings	Nightfall	34
+1747	0x6D3	Elite Sunspear Mask	Mesmer	Headpiece	Nightfall	34
+1748	0x6D4	Elite Sunspear Footwear	Mesmer	Boots	Nightfall	34
+1749	0x6D5	Elite Sunspear Attire	Mesmer	Chestpiece	Nightfall	34
+1750	0x6D6	Elite Sunspear Gloves	Mesmer	Gloves	Nightfall	34
+1751	0x6D7	Elite Sunspear Hose	Mesmer	Leggings	Nightfall	34
+1752	0x6D8	Vabbian Mask	Mesmer	Headpiece	Nightfall	9
+1753	0x6D9	Vabbian Footwear	Mesmer	Boots	Nightfall	9
+1754	0x6DA	Vabbian Attire	Mesmer	Chestpiece	Nightfall	9
+1755	0x6DB	Vabbian Gloves	Mesmer	Gloves	Nightfall	9
+1756	0x6DC	Vabbian Hose	Mesmer	Leggings	Nightfall	9
+1757	0x6DD	Ancient Mask	Mesmer	Headpiece	Nightfall	9
+1758	0x6DE	Ancient Footwear	Mesmer	Boots	Nightfall	9
+1759	0x6DF	Ancient Attire	Mesmer	Chestpiece	Nightfall	9
+1760	0x6E0	Ancient Gloves	Mesmer	Gloves	Nightfall	9
+1761	0x6E1	Ancient Hose	Mesmer	Leggings	Nightfall	9
+1762	0x6E2	Primeval Mask	Mesmer	Headpiece	Nightfall	9
+1763	0x6E3	Primeval Footwear	Mesmer	Boots	Nightfall	9
+1764	0x6E4	Primeval Attire	Mesmer	Chestpiece	Nightfall	9
+1765	0x6E5	Primeval Gloves	Mesmer	Gloves	Nightfall	9
+1766	0x6E6	Primeval Hose	Mesmer	Leggings	Nightfall	9
+1796	0x704	Vabbian Mask	Assassin	Headpiece	Nightfall	37
+1797	0x705	Vabbian Shoes	Assassin	Boots	Nightfall	37
+1798	0x706	Vabbian Guise	Assassin	Chestpiece	Nightfall	37
+1799	0x707	Vabbian Gloves	Assassin	Gloves	Nightfall	37
+1800	0x708	Vabbian Leggings	Assassin	Leggings	Nightfall	37
+1801	0x709	Ancient Mask	Assassin	Headpiece	Nightfall	11
+1802	0x70A	Ancient Shoes	Assassin	Boots	Nightfall	11
+1803	0x70B	Ancient Guise	Assassin	Chestpiece	Nightfall	11
+1804	0x70C	Ancient Gloves	Assassin	Gloves	Nightfall	11
+1805	0x70D	Ancient Leggings	Assassin	Leggings	Nightfall	11
+1806	0x70E	Vabbian Headwrap	Ritualist	Headpiece	Nightfall	12
+1807	0x70F	Vabbian Shoes	Ritualist	Boots	Nightfall	12
+1808	0x710	Vabbian Raiment	Ritualist	Chestpiece	Nightfall	12
+1809	0x711	Vabbian Bangles	Ritualist	Gloves	Nightfall	12
+1810	0x712	Vabbian Leggings	Ritualist	Leggings	Nightfall	12
+1811	0x713	Ancient Headwrap	Ritualist	Headpiece	Nightfall	12
+1812	0x714	Ancient Shoes	Ritualist	Boots	Nightfall	12
+1813	0x715	Ancient Raiment	Ritualist	Chestpiece	Nightfall	12
+1814	0x716	Ancient Bangles	Ritualist	Gloves	Nightfall	12
+1815	0x717	Ancient Leggings	Ritualist	Leggings	Nightfall	12
+1886	0x75e	Furious Pumpkin Crown (broken effect)	None	Costume_Headpiece	BonusMissionPack	0
+1887	0x75f	Wicked Hat	None	Costume_Headpiece	BonusMissionPack	0
+1909	0x775	Great Horns of Grenth	None	Costume_Headpiece	BonusMissionPack	0
+1910	0x776	Stylish Yule Cap	None	Costume_Headpiece	BonusMissionPack	0
+1911	0x777	Freezie Crown	None	Costume_Headpiece	BonusMissionPack	0
+1912	0x778	Jester's Cap	None	Costume_Headpiece	BonusMissionPack	9
+1965	0x7ad	Lion Mask	None	Costume_Headpiece	BonusMissionPack	3
+1975	0x7b7	Demon Mask	None	Costume_Headpiece	BonusMissionPack	6
+1985	0x7C1	Norn Shoes	Assassin	Boots	EyeOfTheNorth	49
+1986	0x7C2	Norn Guise	Assassin	Chestpiece	EyeOfTheNorth	49
+1987	0x7C3	Norn Gloves	Assassin	Gloves	EyeOfTheNorth	49
+1988	0x7C4	Norn Leggings	Assassin	Leggings	EyeOfTheNorth	49
+1989	0x7C5	Asuran Headwrap	Ritualist	Headpiece	EyeOfTheNorth	46
+1990	0x7C6	Asuran Shoes	Ritualist	Boots	EyeOfTheNorth	46
+1991	0x7C7	Asuran Raiment	Ritualist	Chestpiece	EyeOfTheNorth	46
+1992	0x7C8	Asuran Bangles	Ritualist	Gloves	EyeOfTheNorth	46
+1993	0x7C9	Asuran Leggings	Ritualist	Leggings	EyeOfTheNorth	46
+1994	0x7CA	Norn Mask	Ranger	Headpiece	EyeOfTheNorth	41
+1995	0x7CB	Norn Boots	Ranger	Boots	EyeOfTheNorth	41
+1996	0x7CC	Norn Vest	Ranger	Chestpiece	EyeOfTheNorth	41
+1997	0x7CD	Norn Gloves	Ranger	Gloves	EyeOfTheNorth	41
+1998	0x7CE	Norn Leggings	Ranger	Leggings	EyeOfTheNorth	41
+1999	0x7CF	Norn Boots	Necromancer	Boots	EyeOfTheNorth	47
+2000	0x7D0	Norn Tunic	Necromancer	Chestpiece	EyeOfTheNorth	47
+2001	0x7D1	Norn Gloves	Necromancer	Gloves	EyeOfTheNorth	47
+2002	0x7D2	Norn Leggings	Necromancer	Leggings	EyeOfTheNorth	47
+2003	0x7D3	Norn Headwrap	Ritualist	Headpiece	EyeOfTheNorth	46
+2004	0x7D4	Norn Shoes	Ritualist	Boots	EyeOfTheNorth	46
+2005	0x7D5	Norn Raiment	Ritualist	Chestpiece	EyeOfTheNorth	46
+2006	0x7D6	Norn Bangles	Ritualist	Gloves	EyeOfTheNorth	46
+2007	0x7D7	Norn Leggings	Ritualist	Leggings	EyeOfTheNorth	46
+2008	0x7D8	Norn Sandals	Paragon	Boots	EyeOfTheNorth	45
+2009	0x7D9	Norn Raiment	Paragon	Chestpiece	EyeOfTheNorth	45
+2010	0x7DA	Norn Armguards	Paragon	Gloves	EyeOfTheNorth	45
+2011	0x7DB	Norn Leggings	Paragon	Leggings	EyeOfTheNorth	45
+2012	0x7DC	Norn Hood	Dervish	Headpiece	EyeOfTheNorth	44
+2013	0x7DD	Chaos Gloves	Warrior	Gloves	EyeOfTheNorth	38
+2014	0x7DE	Chaos Gloves	Ranger	Gloves	EyeOfTheNorth	38
+2015	0x7DF	Chaos Gloves	Monk	Gloves	EyeOfTheNorth	16
+2016	0x7E0	Chaos Gloves	Necromancer	Gloves	EyeOfTheNorth	38
+2017	0x7E1	Asuran Helm	Warrior	Headpiece	EyeOfTheNorth	48
+2018	0x7E2	Chaos Gloves	Mesmer	Gloves	EyeOfTheNorth	38
+2019	0x7E3	Chaos Gloves	Elementalist	Gloves	EyeOfTheNorth	38
+2020	0x7E4	Chaos Gloves	Assassin	Gloves	EyeOfTheNorth	38
+2021	0x7E5	Chaos Gloves	Ritualist	Gloves	EyeOfTheNorth	38
+2022	0x7E6	Bandana	Warrior	Headpiece	EyeOfTheNorth	6
+2023	0x7E7	Norn Boots	Monk	Boots	EyeOfTheNorth	42
+2024	0x7E8	Norn Vest	Monk	Chestpiece	EyeOfTheNorth	42
+2025	0x7E9	Norn Gloves	Monk	Gloves	EyeOfTheNorth	42
+2026	0x7EA	Norn Leggings	Monk	Leggings	EyeOfTheNorth	42
+2027	0x7EB	Mask of the Mo Zing	Warrior	Headpiece	EyeOfTheNorth	6
+2028	0x7EC	Bandana	Ranger	Headpiece	EyeOfTheNorth	6
+2029	0x7ED	Norn Scar Pattern	Necromancer	Headpiece	EyeOfTheNorth	47
+2030	0x7EE	Mask of the Mo Zing	Ranger	Headpiece	EyeOfTheNorth	6
+2031	0x7EF	Bandana	Monk	Headpiece	EyeOfTheNorth	6
+2032	0x7F0	Mask of the Mo Zing	Monk	Headpiece	EyeOfTheNorth	6
+2033	0x7F1	Bandana	Necromancer	Headpiece	EyeOfTheNorth	6
+2034	0x7F2	Mask of the Mo Zing	Necromancer	Headpiece	EyeOfTheNorth	6
+2035	0x7F3	Bandana	Mesmer	Headpiece	EyeOfTheNorth	6
+2036	0x7F4	Mask of the Mo Zing	Mesmer	Headpiece	EyeOfTheNorth	6
+2037	0x7F5	Bandana	Elementalist	Headpiece	EyeOfTheNorth	6
+2038	0x7F6	Mask of the Mo Zing	Elementalist	Headpiece	EyeOfTheNorth	6
+2039	0x7F7	Asuran Mask	Assassin	Headpiece	EyeOfTheNorth	49
+2040	0x7F8	Asuran Shoes	Assassin	Boots	EyeOfTheNorth	49
+2041	0x7F9	Asuran Guise	Assassin	Chestpiece	EyeOfTheNorth	49
+2042	0x7FA	Asuran Gloves	Assassin	Gloves	EyeOfTheNorth	49
+2043	0x7FB	Asuran Leggings	Assassin	Leggings	EyeOfTheNorth	49
+2044	0x7FC	Bandana	Assassin	Headpiece	EyeOfTheNorth	6
+2045	0x7FD	Mask of the Mo Zing	Assassin	Headpiece	EyeOfTheNorth	6
+2046	0x7FE	Bandana	Ritualist	Headpiece	EyeOfTheNorth	6
+2047	0x7FF	Mask of the Mo Zing	Ritualist	Headpiece	EyeOfTheNorth	6
+2048	0x800	Asuran Sandals	Paragon	Boots	EyeOfTheNorth	45
+2049	0x801	Asuran Raiment	Paragon	Chestpiece	EyeOfTheNorth	45
+2050	0x802	Asuran Armguards	Paragon	Gloves	EyeOfTheNorth	45
+2051	0x803	Asuran Leggings	Paragon	Leggings	EyeOfTheNorth	45
+2052	0x804	Bandana	Paragon	Headpiece	EyeOfTheNorth	6
+2053	0x805	Mask of the Mo Zing	Paragon	Headpiece	EyeOfTheNorth	6
+2054	0x806	Asuran Hood	Dervish	Headpiece	EyeOfTheNorth	44
+2055	0x807	Chaos Gloves	Paragon	Gloves	EyeOfTheNorth	38
+2056	0x808	Norn Shoes	Dervish	Boots	EyeOfTheNorth	44
+2057	0x809	Norn Robes	Dervish	Chestpiece	EyeOfTheNorth	44
+2058	0x80A	Norn Vambraces	Dervish	Gloves	EyeOfTheNorth	44
+2059	0x80B	Bandana	Dervish	Headpiece	EyeOfTheNorth	6
+2060	0x80C	Mask of the Mo Zing	Dervish	Headpiece	EyeOfTheNorth	6
+2061	0x80D	Blindfold	Warrior	Headpiece	EyeOfTheNorth	6
+2062	0x80E	Crown	Warrior	Headpiece	EyeOfTheNorth	6
+2063	0x80F	Blindfold	Ranger	Headpiece	EyeOfTheNorth	6
+2064	0x810	Crown	Ranger	Headpiece	EyeOfTheNorth	6
+2065	0x811	Blindfold	Monk	Headpiece	EyeOfTheNorth	6
+2066	0x812	Crown	Monk	Headpiece	EyeOfTheNorth	6
+2067	0x813	Blindfold	Necromancer	Headpiece	EyeOfTheNorth	6
+2068	0x814	Crown	Necromancer	Headpiece	EyeOfTheNorth	6
+2069	0x815	Blindfold	Mesmer	Headpiece	EyeOfTheNorth	6
+2070	0x816	Crown	Mesmer	Headpiece	EyeOfTheNorth	6
+2071	0x817	Blindfold	Elementalist	Headpiece	EyeOfTheNorth	6
+2072	0x818	Crown	Elementalist	Headpiece	EyeOfTheNorth	6
+2073	0x819	Blindfold	Assassin	Headpiece	EyeOfTheNorth	6
+2074	0x81A	Crown	Assassin	Headpiece	EyeOfTheNorth	6
+2075	0x81B	Blindfold	Ritualist	Headpiece	EyeOfTheNorth	6
+2076	0x81C	Crown	Ritualist	Headpiece	EyeOfTheNorth	6
+2077	0x81D	Blindfold	Paragon	Headpiece	EyeOfTheNorth	6
+2078	0x81E	Crown	Paragon	Headpiece	EyeOfTheNorth	6
+2079	0x81F	Blindfold	Dervish	Headpiece	EyeOfTheNorth	6
+2080	0x820	Crown	Dervish	Headpiece	EyeOfTheNorth	6
+2081	0x821	Norn Leggings	Dervish	Leggings	EyeOfTheNorth	44
+2082	0x822	Asuran Shoes	Dervish	Boots	EyeOfTheNorth	44
+2083	0x823	Asuran Robes	Dervish	Chestpiece	EyeOfTheNorth	44
+2084	0x824	Asuran Vambraces	Dervish	Gloves	EyeOfTheNorth	44
+2085	0x825	Asuran Leggings	Dervish	Leggings	EyeOfTheNorth	44
+2086	0x826	Asuran Boots	Warrior	Boots	EyeOfTheNorth	48
+2087	0x827	Asuran Cuirass	Warrior	Chestpiece	EyeOfTheNorth	48
+2088	0x828	Asuran Gauntlets	Warrior	Gloves	EyeOfTheNorth	48
+2089	0x829	Asuran Leggings	Warrior	Leggings	EyeOfTheNorth	48
+2090	0x82A	Chaos Gloves	Dervish	Gloves	EyeOfTheNorth	38
+2091	0x82B	Dread Mask	Warrior	Headpiece	EyeOfTheNorth	6
+2092	0x82C	Dread Mask	Ranger	Headpiece	EyeOfTheNorth	6
+2093	0x82D	Dread Mask	Monk	Headpiece	EyeOfTheNorth	6
+2094	0x82E	Dread Mask	Necromancer	Headpiece	EyeOfTheNorth	6
+2095	0x82F	Dread Mask	Mesmer	Headpiece	EyeOfTheNorth	6
+2096	0x830	Dread Mask	Elementalist	Headpiece	EyeOfTheNorth	6
+2097	0x831	Dread Mask	Assassin	Headpiece	EyeOfTheNorth	6
+2098	0x832	Dread Mask	Ritualist	Headpiece	EyeOfTheNorth	6
+2099	0x833	Dread Mask	Paragon	Headpiece	EyeOfTheNorth	6
+2100	0x834	Dread Mask	Dervish	Headpiece	EyeOfTheNorth	6
+2101	0x835	Slim Spectacles	Warrior	Headpiece	EyeOfTheNorth	6
+2102	0x836	Spectacles	Warrior	Headpiece	EyeOfTheNorth	6
+2103	0x837	Tinted Spectacles	Warrior	Headpiece	EyeOfTheNorth	6
+2104	0x838	Slim Spectacles	Ranger	Headpiece	EyeOfTheNorth	4
+2105	0x839	Spectacles	Ranger	Headpiece	EyeOfTheNorth	6
+2106	0x83A	Tinted Spectacles	Ranger	Headpiece	EyeOfTheNorth	6
+2107	0x83B	Slim Spectacles	Monk	Headpiece	EyeOfTheNorth	6
+2108	0x83C	Spectacles	Monk	Headpiece	EyeOfTheNorth	6
+2109	0x83D	Tinted Spectacles	Monk	Headpiece	EyeOfTheNorth	6
+2110	0x83E	Slim Spectacles	Necromancer	Headpiece	EyeOfTheNorth	6
+2111	0x83F	Spectacles	Necromancer	Headpiece	EyeOfTheNorth	6
+2112	0x840	Tinted Spectacles	Necromancer	Headpiece	EyeOfTheNorth	6
+2113	0x841	Slim Spectacles	Mesmer	Headpiece	EyeOfTheNorth	6
+2114	0x842	Spectacles	Mesmer	Headpiece	EyeOfTheNorth	6
+2115	0x843	Tinted Spectacles	Mesmer	Headpiece	EyeOfTheNorth	6
+2116	0x844	Slim Spectacles	Elementalist	Headpiece	EyeOfTheNorth	6
+2117	0x845	Spectacles	Elementalist	Headpiece	EyeOfTheNorth	6
+2118	0x846	Tinted Spectacles	Elementalist	Headpiece	EyeOfTheNorth	6
+2119	0x847	Slim Spectacles	Assassin	Headpiece	EyeOfTheNorth	6
+2120	0x848	Spectacles	Assassin	Headpiece	EyeOfTheNorth	6
+2121	0x849	Tinted Spectacles	Assassin	Headpiece	EyeOfTheNorth	6
+2122	0x84A	Slim Spectacles	Ritualist	Headpiece	EyeOfTheNorth	6
+2123	0x84B	Spectacles	Ritualist	Headpiece	EyeOfTheNorth	6
+2124	0x84C	Tinted Spectacles	Ritualist	Headpiece	EyeOfTheNorth	6
+2125	0x84D	Slim Spectacles	Paragon	Headpiece	EyeOfTheNorth	6
+2126	0x84E	Spectacles	Paragon	Headpiece	EyeOfTheNorth	6
+2127	0x84F	Tinted Spectacles	Paragon	Headpiece	EyeOfTheNorth	6
+2128	0x850	Slim Spectacles	Dervish	Headpiece	EyeOfTheNorth	6
+2129	0x851	Spectacles	Dervish	Headpiece	EyeOfTheNorth	6
+2130	0x852	Tinted Spectacles	Dervish	Headpiece	EyeOfTheNorth	6
+2131	0x853	Destroyer Gauntlets	Warrior	Gloves	EyeOfTheNorth	6
+2132	0x854	Destroyer Gauntlets	Ranger	Gloves	EyeOfTheNorth	6
+2133	0x855	Destroyer Gauntlets	Monk	Gloves	EyeOfTheNorth	6
+2134	0x856	Destroyer Gauntlets	Necromancer	Gloves	EyeOfTheNorth	6
+2135	0x857	Destroyer Gauntlets	Mesmer	Gloves	EyeOfTheNorth	6
+2136	0x858	Destroyer Gauntlets	Elementalist	Gloves	EyeOfTheNorth	43
+2137	0x859	Destroyer Gauntlets	Assassin	Gloves	EyeOfTheNorth	43
+2138	0x85A	Destroyer Gauntlets	Ritualist	Gloves	EyeOfTheNorth	6
+2139	0x85B	Destroyer Gauntlets	Paragon	Gloves	EyeOfTheNorth	6
+2140	0x85C	Destroyer Gauntlets	Dervish	Gloves	EyeOfTheNorth	6
+2141	0x85D	Glacial Gauntlets	Warrior	Gloves	EyeOfTheNorth	6
+2142	0x85E	Glacial Gauntlets	Ranger	Gloves	EyeOfTheNorth	6
+2143	0x85F	Glacial Gauntlets	Monk	Gloves	EyeOfTheNorth	6
+2144	0x860	Glacial Gauntlets	Necromancer	Gloves	EyeOfTheNorth	6
+2145	0x861	Glacial Gauntlets	Mesmer	Gloves	EyeOfTheNorth	6
+2146	0x862	Glacial Gauntlets	Elementalist	Gloves	EyeOfTheNorth	8
+2147	0x863	Glacial Gauntlets	Assassin	Gloves	EyeOfTheNorth	8
+2148	0x864	Glacial Gauntlets	Ritualist	Gloves	EyeOfTheNorth	6
+2149	0x865	Glacial Gauntlets	Paragon	Gloves	EyeOfTheNorth	6
+2150	0x866	Glacial Gauntlets	Dervish	Gloves	EyeOfTheNorth	6
+2151	0x867	Padded Sandals	Dervish	Boots	EyeOfTheNorth	44
+2152	0x868	Monument Helm	Warrior	Headpiece	EyeOfTheNorth	48
+2153	0x869	Monument Boots	Warrior	Boots	EyeOfTheNorth	48
+2154	0x86A	Monument Cuirass	Warrior	Chestpiece	EyeOfTheNorth	48
+2155	0x86B	Monument Gauntlets	Warrior	Gloves	EyeOfTheNorth	48
+2156	0x86C	Monument Leggings	Warrior	Leggings	EyeOfTheNorth	48
+2157	0x86D	Dragon Gauntlets	Warrior	Gloves	EyeOfTheNorth	6
+2158	0x86E	Stone Gauntlets	Warrior	Gloves	EyeOfTheNorth	6
+2159	0x86F	Highlander Woad	Warrior	Headpiece	EyeOfTheNorth	6
+2160	0x870	Norn Woad	Warrior	Headpiece	EyeOfTheNorth	6
+2161	0x871	Heavy Breastplate	Warrior	Chestpiece	EyeOfTheNorth	48
+2162	0x872	Stalwart Leggings	Warrior	Leggings	EyeOfTheNorth	48
+2163	0x873	Sturdy Boots	Warrior	Boots	EyeOfTheNorth	48
+2164	0x874	Norn Helm	Warrior	Headpiece	EyeOfTheNorth	48
+2165	0x875	Asuran Mask	Ranger	Headpiece	EyeOfTheNorth	41
+2166	0x876	Asuran Boots	Ranger	Boots	EyeOfTheNorth	41
+2167	0x877	Asuran Vest	Ranger	Chestpiece	EyeOfTheNorth	41
+2168	0x878	Asuran Gloves	Ranger	Gloves	EyeOfTheNorth	41
+2169	0x879	Dragon Gauntlets	Ranger	Gloves	EyeOfTheNorth	6
+2170	0x87A	Stone Gauntlets	Ranger	Gloves	EyeOfTheNorth	6
+2171	0x87B	Highlander Woad	Ranger	Headpiece	EyeOfTheNorth	6
+2172	0x87C	Norn Woad	Ranger	Headpiece	EyeOfTheNorth	6
+2173	0x87D	Leather Long Coat	Ranger	Chestpiece	EyeOfTheNorth	41
+2174	0x87E	Sterling Leggings	Ranger	Leggings	EyeOfTheNorth	41
+2175	0x87F	Embroidered Boots	Ranger	Boots	EyeOfTheNorth	41
+2176	0x880	Asuran Leggings	Ranger	Leggings	EyeOfTheNorth	41
+2177	0x881	Monument Mask	Ranger	Headpiece	EyeOfTheNorth	41
+2178	0x882	Monument Boots	Ranger	Boots	EyeOfTheNorth	41
+2179	0x883	Monument Vest	Ranger	Chestpiece	EyeOfTheNorth	41
+2180	0x884	Dragon Gauntlets	Monk	Gloves	EyeOfTheNorth	6
+2181	0x885	Stone Gauntlets	Monk	Gloves	EyeOfTheNorth	6
+2182	0x886	Highlander Woad	Monk	Headpiece	EyeOfTheNorth	6
+2183	0x887	Norn Woad	Monk	Headpiece	EyeOfTheNorth	6
+2184	0x888	Gilded Vestments	Monk	Chestpiece	EyeOfTheNorth	42
+2185	0x889	Aureate Pants	Monk	Leggings	EyeOfTheNorth	42
+2186	0x88A	Ocher Sandals	Monk	Boots	EyeOfTheNorth	42
+2187	0x88B	Monument Gloves	Ranger	Gloves	EyeOfTheNorth	41
+2188	0x88C	Monument Leggings	Ranger	Leggings	EyeOfTheNorth	41
+2189	0x88D	Norn Boots	Warrior	Boots	EyeOfTheNorth	48
+2190	0x88E	Norn Headpiece	Monk	Headpiece	EyeOfTheNorth	10
+2191	0x88F	Asuran Headpiece	Monk	Headpiece	EyeOfTheNorth	10
+2192	0x890	Dragon Gauntlets	Necromancer	Gloves	EyeOfTheNorth	6
+2193	0x891	Stone Gauntlets	Necromancer	Gloves	EyeOfTheNorth	6
+2194	0x892	Highlander Woad	Necromancer	Headpiece	EyeOfTheNorth	6
+2195	0x893	Norn Woad	Necromancer	Headpiece	EyeOfTheNorth	6
+2196	0x894	Gloomcrest Tunic	Necromancer	Chestpiece	EyeOfTheNorth	47
+2197	0x895	Deathlace Leggings	Necromancer	Leggings	EyeOfTheNorth	47
+2198	0x896	Demonhorn Boots	Necromancer	Boots	EyeOfTheNorth	47
+2199	0x897	Norn Mask	Mesmer	Headpiece	EyeOfTheNorth	40
+2200	0x898	Norn Footwear	Mesmer	Boots	EyeOfTheNorth	40
+2201	0x899	Norn Attire	Mesmer	Chestpiece	EyeOfTheNorth	40
+2202	0x89A	Norn Gloves	Mesmer	Gloves	EyeOfTheNorth	40
+2203	0x89B	Norn Hose	Mesmer	Leggings	EyeOfTheNorth	40
+2204	0x89C	Asuran Boots	Monk	Boots	EyeOfTheNorth	42
+2205	0x89D	Asuran Vest	Monk	Chestpiece	EyeOfTheNorth	42
+2206	0x89E	Asuran Gloves	Monk	Gloves	EyeOfTheNorth	38
+2207	0x89F	Asuran Leggings	Monk	Leggings	EyeOfTheNorth	42
+2208	0x8A0	Monument Headpiece	Monk	Headpiece	EyeOfTheNorth	10
+2209	0x8A1	Dragon Gauntlets	Mesmer	Gloves	EyeOfTheNorth	6
+2210	0x8A2	Stone Gauntlets	Mesmer	Gloves	EyeOfTheNorth	6
+2211	0x8A3	Highlander Woad	Mesmer	Headpiece	EyeOfTheNorth	6
+2212	0x8A4	Norn Woad	Mesmer	Headpiece	EyeOfTheNorth	6
+2213	0x8A5	Elegant Long Coat	Mesmer	Chestpiece	EyeOfTheNorth	40
+2214	0x8A6	Studded Hose	Mesmer	Leggings	EyeOfTheNorth	40
+2215	0x8A7	Silken Footwear	Mesmer	Boots	EyeOfTheNorth	40
+2216	0x8A8	Monument Boots	Monk	Boots	EyeOfTheNorth	42
+2217	0x8A9	Monument Vest	Monk	Chestpiece	EyeOfTheNorth	42
+2218	0x8AA	Monument Gloves	Monk	Gloves	EyeOfTheNorth	42
+2219	0x8AB	Monument Leggings	Monk	Leggings	EyeOfTheNorth	42
+2220	0x8AC	Dragon Gauntlets	Elementalist	Gloves	EyeOfTheNorth	43
+2221	0x8AD	Stone Gauntlets	Elementalist	Gloves	EyeOfTheNorth	6
+2222	0x8AE	Highlander Woad	Elementalist	Headpiece	EyeOfTheNorth	6
+2223	0x8AF	Norn Woad	Elementalist	Headpiece	EyeOfTheNorth	6
+2224	0x8B0	Asuran Robes	Elementalist	Chestpiece	EyeOfTheNorth	43
+2225	0x8B1	Asuran Gloves	Elementalist	Gloves	EyeOfTheNorth	43
+2226	0x8B2	Asuran Leggings	Elementalist	Leggings	EyeOfTheNorth	43
+2227	0x8B3	Norn Cuirass	Warrior	Chestpiece	EyeOfTheNorth	48
+2228	0x8B4	Asuran Scar Pattern	Necromancer	Headpiece	EyeOfTheNorth	47
+2229	0x8B5	Asuran Boots	Necromancer	Boots	EyeOfTheNorth	47
+2230	0x8B6	Asuran Tunic	Necromancer	Chestpiece	EyeOfTheNorth	47
+2231	0x8B7	Asuran Gloves	Necromancer	Gloves	EyeOfTheNorth	47
+2232	0x8B8	Dragon Gauntlets	Assassin	Gloves	EyeOfTheNorth	6
+2233	0x8B9	Stone Gauntlets	Assassin	Gloves	EyeOfTheNorth	6
+2234	0x8BA	Highlander Woad	Assassin	Headpiece	EyeOfTheNorth	6
+2235	0x8BB	Norn Woad	Assassin	Headpiece	EyeOfTheNorth	6
+2236	0x8BC	Spiked Guise	Assassin	Chestpiece	EyeOfTheNorth	49
+2237	0x8BD	Oni Leggings  	Assassin	Leggings	EyeOfTheNorth	49
+2238	0x8BE	Winged Shoes	Assassin	Boots	EyeOfTheNorth	49
+2239	0x8BF	Asuran Leggings	Necromancer	Leggings	EyeOfTheNorth	47
+2240	0x8C0	Monument Scar Pattern	Necromancer	Headpiece	EyeOfTheNorth	47
+2241	0x8C1	Monument Boots	Necromancer	Boots	EyeOfTheNorth	47
+2242	0x8C2	Monument Tunic	Necromancer	Chestpiece	EyeOfTheNorth	47
+2243	0x8C3	Monument Gloves	Necromancer	Gloves	EyeOfTheNorth	47
+2244	0x8C4	Dragon Gauntlets	Ritualist	Gloves	EyeOfTheNorth	6
+2245	0x8C5	Stone Gauntlets	Ritualist	Gloves	EyeOfTheNorth	6
+2246	0x8C6	Highlander Woad	Ritualist	Headpiece	EyeOfTheNorth	6
+2247	0x8C7	Norn Woad	Ritualist	Headpiece	EyeOfTheNorth	6
+2248	0x8C8	Opulent Raiment	Ritualist	Chestpiece	EyeOfTheNorth	46
+2249	0x8C9	Scale Leggings	Ritualist	Leggings	EyeOfTheNorth	46
+2250	0x8CA	Beaded Shoes	Ritualist	Boots	EyeOfTheNorth	46
+2251	0x8CB	Dragon Gauntlets	Paragon	Gloves	EyeOfTheNorth	43
+2252	0x8CC	Stone Gauntlets	Paragon	Gloves	EyeOfTheNorth	8
+2253	0x8CD	Highlander Woad	Paragon	Headpiece	EyeOfTheNorth	6
+2254	0x8CE	Norn Woad	Paragon	Headpiece	EyeOfTheNorth	6
+2255	0x8CF	Winged Raiment	Paragon	Chestpiece	EyeOfTheNorth	45
+2256	0x8D0	Sashed Leggings	Paragon	Leggings	EyeOfTheNorth	45
+2257	0x8D1	Banded Sandals	Paragon	Boots	EyeOfTheNorth	45
+2258	0x8D2	Dragon Gauntlets	Dervish	Gloves	EyeOfTheNorth	6
+2259	0x8D3	Highlander Woad	Dervish	Headpiece	EyeOfTheNorth	6
+2260	0x8D4	Norn Woad	Dervish	Headpiece	EyeOfTheNorth	6
+2261	0x8D5	Stone Gauntlets	Dervish	Gloves	EyeOfTheNorth	6
+2262	0x8D6	Light Breastplate	Dervish	Chestpiece	EyeOfTheNorth	44
+2263	0x8D7	Hooked Leggings	Dervish	Leggings	EyeOfTheNorth	44
+2264	0x8D8	Monument Leggings	Necromancer	Leggings	EyeOfTheNorth	47
+2265	0x8D9	Norn Gauntlets	Warrior	Gloves	EyeOfTheNorth	48
+2266	0x8DA	Asuran Mask	Mesmer	Headpiece	EyeOfTheNorth	40
+2267	0x8DB	Asuran Footwear	Mesmer	Boots	EyeOfTheNorth	40
+2268	0x8DC	Asuran Attire	Mesmer	Chestpiece	EyeOfTheNorth	40
+2269	0x8DD	Asuran Gloves	Mesmer	Gloves	EyeOfTheNorth	40
+2270	0x8DE	Asuran Hose	Mesmer	Leggings	EyeOfTheNorth	40
+2271	0x8DF	Monument Mask	Mesmer	Headpiece	EyeOfTheNorth	40
+2272	0x8E0	Monument Footwear	Mesmer	Boots	EyeOfTheNorth	40
+2273	0x8E1	Monument Attire	Mesmer	Chestpiece	EyeOfTheNorth	40
+2274	0x8E2	Monument Gloves	Mesmer	Gloves	EyeOfTheNorth	40
+2275	0x8E3	Monument Hose	Mesmer	Leggings	EyeOfTheNorth	40
+2276	0x8E4	Norn Leggings	Warrior	Leggings	EyeOfTheNorth	48
+2277	0x8E5	Asuran Shoes	Elementalist	Boots	EyeOfTheNorth	43
+2278	0x8E6	Monument Robes	Elementalist	Chestpiece	EyeOfTheNorth	43
+2279	0x8E7	Monument Gloves	Elementalist	Gloves	EyeOfTheNorth	43
+2280	0x8E8	Monument Leggings	Elementalist	Leggings	EyeOfTheNorth	43
+2281	0x8E9	Monument Shoes	Elementalist	Boots	EyeOfTheNorth	43
+2282	0x8EA	Thaumaturgic Robes	Elementalist	Chestpiece	EyeOfTheNorth	43
+2283	0x8EB	Exquisite Leggings	Elementalist	Leggings	EyeOfTheNorth	43
+2284	0x8EC	Majestic Shoes	Elementalist	Boots	EyeOfTheNorth	43
+2285	0x8ED	Norn Robes	Elementalist	Chestpiece	EyeOfTheNorth	43
+2286	0x8EE	Monument Mask	Assassin	Headpiece	EyeOfTheNorth	49
+2287	0x8EF	Monument Shoes	Assassin	Boots	EyeOfTheNorth	49
+2288	0x8F0	Monument Guise	Assassin	Chestpiece	EyeOfTheNorth	49
+2289	0x8F1	Monument Gloves	Assassin	Gloves	EyeOfTheNorth	49
+2290	0x8F2	Monument Leggings	Assassin	Leggings	EyeOfTheNorth	49
+2291	0x8F3	Norn Gloves	Elementalist	Gloves	EyeOfTheNorth	43
+2292	0x8F4	Monument Headwrap	Ritualist	Headpiece	EyeOfTheNorth	46
+2293	0x8F5	Monument Shoes	Ritualist	Boots	EyeOfTheNorth	46
+2294	0x8F6	Monument Raiment	Ritualist	Chestpiece	EyeOfTheNorth	46
+2295	0x8F7	Monument Bangles	Ritualist	Gloves	EyeOfTheNorth	46
+2296	0x8F8	Monument Leggings	Ritualist	Leggings	EyeOfTheNorth	46
+2297	0x8F9	Norn Leggings	Elementalist	Leggings	EyeOfTheNorth	43
+2298	0x8FA	Monument Sandals	Paragon	Boots	EyeOfTheNorth	45
+2299	0x8FB	Monument Raiment	Paragon	Chestpiece	EyeOfTheNorth	45
+2300	0x8FC	Monument Armguards	Paragon	Gloves	EyeOfTheNorth	45
+2301	0x8FD	Monument Leggings	Paragon	Leggings	EyeOfTheNorth	45
+2302	0x8FE	Norn Shoes	Elementalist	Boots	EyeOfTheNorth	43
+2303	0x8FF	Monument Hood	Dervish	Headpiece	EyeOfTheNorth	44
+2304	0x900	Monument Shoes	Dervish	Boots	EyeOfTheNorth	44
+2305	0x901	Monument Robes	Dervish	Chestpiece	EyeOfTheNorth	44
+2306	0x902	Monument Vambraces	Dervish	Gloves	EyeOfTheNorth	44
+2307	0x903	Monument Leggings	Dervish	Leggings	EyeOfTheNorth	44
+2308	0x904	Norn Mask	Assassin	Headpiece	EyeOfTheNorth	49
+2309	0x905	Bladed Gloves	Assassin	Gloves	EyeOfTheNorth	49
+2310	0x906	Ironfist Gauntlets	Warrior	Gloves	EyeOfTheNorth	48
+2311	0x907	Silver Eagle Headpiece	Warrior	Headpiece	EyeOfTheNorth	48
+2312	0x908	Silver Eagle Boots	Warrior	Boots	EyeOfTheNorth	48
+2313	0x909	Silver Eagle Vest	Warrior	Chestpiece	EyeOfTheNorth	48
+2314	0x90A	Silver Eagle Gloves	Warrior	Gloves	EyeOfTheNorth	48
+2315	0x90B	Silver Eagle Leggings	Warrior	Leggings	EyeOfTheNorth	48
+2316	0x90C	Adorned Handwraps	Monk	Gloves	EyeOfTheNorth	42
+2317	0x90D	Yeoryios Gloves	Elementalist	Gloves	EyeOfTheNorth	43
+2318	0x90E	Grim Gloves	Necromancer	Gloves	EyeOfTheNorth	47
+2319	0x90f	Mummy Mash	None	Costume_Headpiece	BonusMissionPack	0
+2320	0x910	Scarecrow Mask	None	Costume_Headpiece	BonusMissionPack	6
+2339	0x923	Ice Crown	None	Costume_Headpiece	BonusMissionPack	0
+2340	0x924	Wreath Crown	None	Costume_Headpiece	BonusMissionPack	0
+2359	0x937	Grasping Mask	None	Costume_Headpiece	BonusMissionPack	0
+2379	0x94b	Zombie Face Paint	None	Costume_Headpiece	BonusMissionPack	0
+2380	0x94c	Lupine Mask	None	Costume_Headpiece	BonusMissionPack	0
+2399	0x95f	Grentch Cap	None	Costume_Headpiece	BonusMissionPack	0
+2400	0x960	Rudi Mask	None	Costume_Headpiece	BonusMissionPack	0
+2419	0x973	Imperial Dragon Mask	None	Costume_Headpiece	BonusMissionPack	3
+2429	0x97d	Skeleton Face Paint	None	Costume_Headpiece	BonusMissionPack	0
+2479	0x9af	Charr Hat	None	Costume_Headpiece	BonusMissionPack	0
+2529	0x9e1	Ice Shard Crest	None	Costume_Headpiece	BonusMissionPack	0
+2530	0x9e2	Snow Crystal Crest	None	Costume_Headpiece	BonusMissionPack	0
+2531	0x9e3	Grenth's Visage	None	Costume_Headpiece	BonusMissionPack	0
+2533	0x9e5	Grenth's Regalia	None	Costume	BonusMissionPack	0
+2536	0x9e8	Dwayna's Diadem	None	Costume_Headpiece	BonusMissionPack	0
+2538	0x9ea	Dwayna's Regalia	None	Costume	BonusMissionPack	0
+2649	0xa59	White Mantle Mitre	None	Costume_Headpiece	BonusMissionPack	35
+2651	0xa5b	White Mantle Robes	None	Costume	BonusMissionPack	21
+2654	0xa5e	Shining Blade Cowl	None	Costume_Headpiece	BonusMissionPack	35
+2656	0xa60	Shining Blade Uniform	None	Costume	BonusMissionPack	35
+2749	0xabd	Sinister Dragon Mask	None	Costume_Headpiece	BonusMissionPack	0
+2764	0xacc	Wedding Headpiece	None	Costume_Headpiece	BonusMissionPack	0
+2766	0xace	Traditional Wedding Couple Attire	None	Costume	BonusMissionPack	0
+2774	0xad6	Formal Headwear	None	Costume_Headpiece	BonusMissionPack	0
+2776	0xad8	Formal Attire	None	Costume	BonusMissionPack	0
+2779	0xadb	Dapper Top Hat	None	Costume_Headpiece	BonusMissionPack	0
+2781	0xadd	Dapper Tuxedo	None	Costume	BonusMissionPack	0
+2784	0xae0	Cowl of the Lich	None	Costume_Headpiece	BonusMissionPack	47
+2785	0xae1	Aspect of the Lich	None	Costume_Headpiece	BonusMissionPack	47
+2787	0xae3	Raiment of the Lich	None	Costume	BonusMissionPack	47
+2795	0xaeb	Lunatic Court Helm	None	Costume_Headpiece	BonusMissionPack	0
+2797	0xaed	Lunatic Court Finery	None	Costume	BonusMissionPack	46
+2801	0xaf1	Headless Lunatic Court Finery	None	Costume	BonusMissionPack	0
+2804	0xaf4	Horned Helm of Balthazar	None	Costume_Headpiece	BonusMissionPack	0
+2806	0xaf6	Agent of Balthazar	None	Costume	BonusMissionPack	0
+2809	0xaf9	Menaldru's Helm	None	Costume_Headpiece	BonusMissionPack	0
+2811	0xafb	Disciple of Melandru	None	Costume	BonusMissionPack	0
+2817	0xb01	Divine Halo (broken effect)	None	Costume_Headpiece	BonusMissionPack	0
+3349	0xd15	Spectercles	None	Costume_Headpiece	BonusMissionPack	0
+3350	0xd16	Furrocious Ears	None	Costume_Headpiece	BonusMissionPack	0
+3351	0xd17	Demonic Horns	None	Costume_Headpiece	BonusMissionPack	0
+3385	0xd39	Wedding Couple Attire	None	Costume	BonusMissionPack	0
+3433	0xd69	Wisdom of the Dragon	None	Costume_Headpiece	BonusMissionPack	0
+3435	0xd6b	Dragonguard	None	Costume	BonusMissionPack	0
+3438	0xd6e	Aegis of Unity Headpiece	None	Costume_Headpiece	BonusMissionPack	0
+3440	0xd70	Aegis of Unity	None	Costume	BonusMissionPack	0
+3443	0xd73	Mirthful Dragon Mask	None	Costume_Headpiece	BonusMissionPack	0
+3543	0xdd7	Ravenheart's Gaze	None	Costume_Headpiece	BonusMissionPack	46
+3545	0xdd9	Ravenheart Witchwear	None	Costume	BonusMissionPack	46
+3548	0xddc	Wraith Veil	None	Costume_Headpiece	BonusMissionPack	46
+3550	0xdde	Vale Wraith	None	Costume	BonusMissionPack	0
+3553	0xde1	Reaper's Hood	None	Costume_Headpiece	BonusMissionPack	0
+3554	0xde2	Tricorne	None	Costume_Headpiece	BonusMissionPack	0
+3663	0xe4f	True Sight of Kormir	None	Costume_Headpiece	BonusMissionPack	0
+3665	0xe51	Augur of Kormir	None	Costume	BonusMissionPack	0
+3668	0xe54	Facets of Lyssa	None	Costume_Headpiece	BonusMissionPack	0
+3670	0xe56	Vision of Lyssa	None	Costume	BonusMissionPack	0
+3673	0xe59	Festive Winter Hood	None	Costume_Headpiece	BonusMissionPack	0
+3674	0xe5a	Stylish Red Striped Scarf	None	Costume_Headpiece	BonusMissionPack	0
+3675	0xe5b	Stylish White Striped Scarf	None	Costume_Headpiece	BonusMissionPack	0
+3676	0xe5c	Stylish Black Scarf	None	Costume_Headpiece	BonusMissionPack	0
+9380	0x24A4	Flatbow	None	Bow	BonusMissionPack	4
+14398	0x383E	Crystalline Sword	None	Sword	BonusMissionPack	3
+14403	0x3843	Butterfly Sword	None	Sword	BonusMissionPack	0
+15449	0x3C59	Crude Shield	None	Shield	BonusMissionPack	3
+23940	0x5D84	Firebrand	None	Staff	BonusMissionPack	3
+40740	0x9F24	Reefclaw's Refuge	None	Shield	BonusMissionPack	3
+40745	0x9F29	Inscribed Staff	None	Staff	BonusMissionPack	3
+53633	0xD181	Storm Eye	Elementalist	Headpiece	Prophecies	0
+53636	0xD184	Stone Eye	Elementalist	Headpiece	Prophecies	0
+53639	0xD187	Third Eye	Elementalist	Headpiece	Prophecies	0
+53642	0xD18A	Flame Eye	Elementalist	Headpiece	Prophecies	0
+53645	0xD18D	Glacial Eye	Elementalist	Headpiece	Prophecies	0
+54211	0xD3C3	All-Seeing Eye	Elementalist	Headpiece	Prophecies	0
+87357	0x1553D	Grim Cesta	None	Offhand	BonusMissionPack	0
+89522	0x15DB2	Inscribed Chakram (metal)	None	Offhand	BonusMissionPack	0
+89525	0x15DB5	Jeweled Chakram	None	Offhand	BonusMissionPack	3
+89560	0x15DD8	Jeweled Chalice	None	Offhand	BonusMissionPack	3
+93544	0x16D68	Cane	None	Wand	BonusMissionPack	3
+94904	0x172B8	Holy Rod	None	Wand	BonusMissionPack	0
+96597	0x17955	Bone Staff	None	Staff	BonusMissionPack	3
+97056	0x17B20	Eternal Blade	None	Sword	BonusMissionPack	3
+97341	0x17C3D	Ivory Bow	None	Bow	BonusMissionPack	3
+98835	0x18213	Half Moon	None	Bow	BonusMissionPack	3
+98851	0x18223	Aureate Chalice	None	Offhand	BonusMissionPack	3
+111997	0x1B57D	Gwen's Flute	None	Offhand	BonusMissionPack	3
+112081	0x1B5D1	Holy Staff	None	Staff	BonusMissionPack	3
+136112	0x213B0	Eternal Bow	None	Bow	BonusMissionPack	3
+136121	0x213B9	Chaos Axe	None	Axe	BonusMissionPack	3
+136149	0x213D5	Storm Bow	None	Bow	BonusMissionPack	3
+136198	0x21406	Eternal Shield	None	Shield	BonusMissionPack	3
+136203	0x2140B	Shadow Shield	None	Shield	BonusMissionPack	3
+136210	0x21412	Magmas Shield	None	Shield	BonusMissionPack	3
+136224	0x21420	Raven Staff	None	Staff	BonusMissionPack	3
+136227	0x21423	Shadow Staff	None	Staff	BonusMissionPack	3
+136237	0x2142D	Fellblade	None	Sword	BonusMissionPack	3
+144814	0x235AE	Chimeric Prism	None	Offhand	BonusMissionPack	3
+151245	0x24ECD	Canthan Targe	None	Shield	BonusMissionPack	3
+152687	0x2546F	Scorpion Bow	None	Bow	BonusMissionPack	3
+152708	0x25484	Storm Ember	None	Offhand	BonusMissionPack	3
+152711	0x25487	Heaven's Arch	None	Offhand	BonusMissionPack	3
+152714	0x2548A	Quicksilver	None	Wand	BonusMissionPack	0
+153994	0x2598A	Drago's Flatbow	None	Bow	BonusMissionPack	3
+158013	0x2693D	Scorpion's Lust	None	Bow	BonusMissionPack	3
+158016	0x26940	Black Hawk's Lust	None	Bow	BonusMissionPack	3
+158024	0x26948	Tiger's Pride	None	Offhand	BonusMissionPack	3
+158039	0x26957	Unicorn's Wrath	None	Wand	BonusMissionPack	3
+158042	0x2695A	Peacock's Wrath	None	Wand	BonusMissionPack	3
+158050	0x26962	Spider's Gluttony	None	Shield	BonusMissionPack	3
+158053	0x26965	Snake's Envy	None	Staff	BonusMissionPack	3
+158056	0x26968	Dragon's Envy	None	Staff	BonusMissionPack	3
+158371	0x26AA3	Candy Cane Axe	None	Axe	BonusMissionPack	3
+158372	0x26AA4	Candy Cane Bow	None	Bow	BonusMissionPack	3
+158376	0x26AA8	Candy Cane Hammer	None	Hammer	BonusMissionPack	3
+158377	0x26AA9	Candy Cane Wand	None	Wand	BonusMissionPack	3
+158382	0x26AAE	Gingerbread Shield	None	Shield	BonusMissionPack	3
+158387	0x26AB3	Peppermint Shield	None	Shield	BonusMissionPack	3
+158388	0x26AB4	Candy Cane Staff	None	Staff	BonusMissionPack	3
+158389	0x26AB5	Candy Cane Sword	None	Sword	BonusMissionPack	3
+158394	0x26ABA	Icy Dragon Sword	None	Sword	BonusMissionPack	3
+158536	0x26B48	Gingerbread Focus	None	Offhand	BonusMissionPack	3
+164869	0x28405	Earthbound Staff/Magmus' Staff	None	Staff	BonusMissionPack	3
+164872	0x28408	Plagueborn Focus	None	Offhand	BonusMissionPack	0
+164877	0x2840d	Plagueborn Scepter	None	Wand	BonusMissionPack	3
+164882	0x28412	Jade Wand	None	Wand	BonusMissionPack	2
+164885	0x28415	Amber Wand	None	Wand	BonusMissionPack	2
+164894	0x2841e	Zodiac Scepter	None	Wand	BonusMissionPack	3
+164895	0x2841f	Plagueborn Staff	None	Staff	BonusMissionPack	3
+164900	0x28424	Jade Staff	None	Staff	BonusMissionPack	3
+164915	0x28433	Butterfly Knives	None	Daggers	BonusMissionPack	3
+175601	0x2ADF1	Spiritbinder	None	Staff	BonusMissionPack	3
+175602	0x2ADF2	Storm Aura	Elementalist	Headpiece	Factions	8
+175605	0x2ADF5	Stone Aura	Elementalist	Headpiece	Factions	8
+175606	0x2ADF6	Everlasting Aura	Elementalist	Headpiece	Factions	8
+175607	0x2ADF7	Flame Aura	Elementalist	Headpiece	Factions	8
+175608	0x2ADF8	Elementalist's Aura	Elementalist	Headpiece	Factions	8
+175611	0x2ADFB	Glacial Aura	Elementalist	Headpiece	Factions	8
+175628	0x2AE0C	Togo's Staff / Channeling Staff	None	Staff	BonusMissionPack	2
+175714	0x2AE62	Shiro's Sword	None	Sword	BonusMissionPack	3
+175720	0x2AE68	Bo Staff	None	Staff	BonusMissionPack	3
+175744	0x2AE80	Envoy Staff	None	Staff	BonusMissionPack	3
+175747	0x2AE83	Envoy Sword	None	Sword	BonusMissionPack	3
+175786	0x2AEAA	Restoration Focus	None	Offhand	BonusMissionPack	3
+175804	0x2AEBC	Outcast Shield	None	Shield	BonusMissionPack	3
+175885	0x2AF0D	Stilletos	None	Daggers	BonusMissionPack	3
+175913	0x2AF29	Bladed Shield	None	Shield	BonusMissionPack	3
+175918	0x2AF2E	Diamond Aegis	None	Shield	BonusMissionPack	3
+175923	0x2AF33	Iridescent Aegis	None	Shield	BonusMissionPack	3
+176000	0x2AF80	Celestial Axe	None	Axe	BonusMissionPack	0
+176021	0x2AF95	Celestial Daggers	None	Daggers	BonusMissionPack	3
+176070	0x2AFC6	Amber Aegis	None	Shield	BonusMissionPack	3
+176073	0x2AFC9	Celestial Shield	None	Shield	BonusMissionPack	3
+176080	0x2AFD0	Celestial Sword	None	Sword	BonusMissionPack	0
+176083	0x2AFD3	Kappa Shield	None	Shield	BonusMissionPack	3
+176120	0x2AFF8	Oni Blade	None	Sword	BonusMissionPack	3
+176130	0x2B002	Plagueborn Sword	None	Sword	BonusMissionPack	3
+176333	0x2B0CD	Gothic Dual Axe	None	Axe	BonusMissionPack	3
+176354	0x2B0E2	Keiran's Bow	None	Bow	BonusMissionPack	3
+176369	0x2B0F1	Bramble Flatbow	None	Bow	BonusMissionPack	3
+176415	0x2B11F	Forgotten Fan	None	Offhand	BonusMissionPack	3
+176421	0x2B125	Paper Fan / The Windcatcher	None	Offhand	BonusMissionPack	3
+176438	0x2B136	Bone Idol	None	Offhand	BonusMissionPack	3
+176441	0x2B139	Bleached Skull	None	Offhand	BonusMissionPack	3
+176444	0x2B13C	Paper Lantern	None	Offhand	BonusMissionPack	3
+176454	0x2B146	Channeling Focus	None	Offhand	BonusMissionPack	3
+176459	0x2B14B	Jug	None	Offhand	BonusMissionPack	3
+176495	0x2B16F	Kanaxai's Mallet	None	Hammer	BonusMissionPack	0
+176510	0x2B17E	Wayward Wand	None	Wand	BonusMissionPack	3
+176543	0x2B19F	Platinum Wand	None	Wand	BonusMissionPack	2
+176563	0x2B1B3	Hypnotic Scepter	None	Wand	BonusMissionPack	3
+176566	0x2B1B6	Zodiac Shield	None	Shield	BonusMissionPack	3
+176568	0x2B1B8	Jellyfish Wand	None	Wand	BonusMissionPack	3
+176573	0x2B1BD	Koi Scepter	None	Wand	BonusMissionPack	3
+176590	0x2B1CE	Gazing Scepter	None	Wand	BonusMissionPack	2
+176613	0x2B1E5	Bone Spiral Rod	None	Wand	BonusMissionPack	3
+176623	0x2B1EF	Brightclaw	None	Wand	BonusMissionPack	3
+176643	0x2B203	Ritualist Cane	None	Wand	BonusMissionPack	3
+176648	0x2B208	Channeling Rod	None	Wand	BonusMissionPack	2
+176661	0x2B215	Exalted Aegis	None	Shield	BonusMissionPack	3
+176664	0x2B218	Guardian of the Hunt	None	Shield	BonusMissionPack	3
+176679	0x2B227	Embossed Aegis	None	Shield	BonusMissionPack	3
+176689	0x2B231	Echovald Shield	None	Shield	BonusMissionPack	3
+176709	0x2B245	Lotus Staff	None	Staff	BonusMissionPack	3
+176726	0x2B256	Platinum Staff	None	Staff	BonusMissionPack	3
+176763	0x2B27B	Clairvoyant Staff	None	Staff	BonusMissionPack	3
+176804	0x2B2A4	Vertebreaker	None	Sword	BonusMissionPack	3
+176809	0x2B2A9	Jade Sword	None	Sword	BonusMissionPack	3
+191454	0x2EBDE	Ominous Aegis	None	Shield	BonusMissionPack	3
+205505	0x322C1	Vocal Vabbian Crest	Elementalist	Headpiece	Nightfall	0
+205947	0x3247B	Soulbreaker	None	Scythe	BonusMissionPack	3
+205957	0x32485	Sunspear	None	Spear	BonusMissionPack	3
+230443	0x3842B	Vocal Elonian Crest	Elementalist	Headpiece	Nightfall	0
+230449	0x38431	Spear Elonian Crest	Elementalist	Headpiece	Nightfall	0
+230452	0x38434	Exalted Vabbian Crest	Paragon	Headpiece	Nightfall	0
+230455	0x38437	Spear Vabbian Crest	Elementalist	Headpiece	Nightfall	0
+230458	0x3843A	Command Elonian Crest	Elementalist	Headpiece	Nightfall	0
+230461	0x3843D	Exalted Elonian Crest	Paragon	Headpiece	Nightfall	0
+230464	0x38440	Command Vabbian Crest	Elementalist	Headpiece	Nightfall	0
+230671	0x3850F	Fiery Blade Axe	None	Axe	BonusMissionPack	3
+230696	0x38528	Mallyx's Reaver	None	Axe	BonusMissionPack	3
+230701	0x3852D	Icy Blade Axe	None	Axe	BonusMissionPack	3
+230842	0x385BA	Bogroot Focus	None	Offhand	BonusMissionPack	3
+230848	0x385C0	Majestic Focus	None	Offhand	BonusMissionPack	3
+230861	0x385CD	Luminescent Lantern	None	Offhand	BonusMissionPack	3
+230890	0x385EA	Copper Crusher	None	Hammer	BonusMissionPack	3
+230915	0x38603	Ruby Maul	None	Hammer	BonusMissionPack	3
+230962	0x38632	Imposing Scepter	None	Wand	BonusMissionPack	3
+231025	0x38671	Restoration Scepter	None	Wand	BonusMissionPack	3
+231053	0x3868D	Banana Scythe	None	Scythe	BonusMissionPack	3
+231088	0x386B0	Bronze Scythe	None	Scythe	BonusMissionPack	2
+231154	0x386F2	Aureate Aegis	None	Shield	BonusMissionPack	3
+231179	0x3870B	Darkwing Defender	None	Shield	BonusMissionPack	3
+231209	0x38729	Istani Shield	None	Shield	BonusMissionPack	3
+231251	0x38753	Tureksin's Spear	None	Spear	BonusMissionPack	3
+231266	0x38762	Spirit of the Forgotten	None	Spear	BonusMissionPack	0
+231336	0x387A8	Portal Staff	None	Staff	BonusMissionPack	3
+231346	0x387B2	Bedlam Staff	None	Staff	BonusMissionPack	3
+231416	0x387F8	Colossal Scimitar	None	Sword	BonusMissionPack	3
+231431	0x38807	Elemental Sword	None	Sword	BonusMissionPack	3
+254705	0x3E2F1	Vabbian Storm Eye	Elementalist	Headpiece	Nightfall	8
+254710	0x3E2F6	Vabbian Stone Eye	Elementalist	Headpiece	Nightfall	8
+254715	0x3E2FB	Vabbian Everlasting Eye	Elementalist	Headpiece	Nightfall	8
+254718	0x3E2FE	Vabbian Flame Eye	Elementalist	Headpiece	Nightfall	8
+254721	0x3E301	Vabbian Glacial Eye	Elementalist	Headpiece	Nightfall	8
+265820	0x40E5C	Wintergreen Wand	None	Wand	BonusMissionPack	0
+265821	0x40E5D	Wintergreen Scythe	None	Scythe	BonusMissionPack	0
+265824	0x40E60	Wintergreen Shield	None	Shield	BonusMissionPack	3
+265827	0x40E63	Wintergreen Sword	None	Sword	BonusMissionPack	0
+275585	0x43481	Tormented Axe	None	Axe	BonusMissionPack	3
+275588	0x43484	Tormented Maul	None	Hammer	BonusMissionPack	0
+275591	0x43487	Tormented Sword	None	Sword	BonusMissionPack	3
+275594	0x4348A	Tormented Daggers	None	Daggers	BonusMissionPack	3
+275597	0x4348D	Tormented Scythe	None	Scythe	BonusMissionPack	3
+275600	0x43490	Tormented Spear	None	Spear	BonusMissionPack	3
+275603	0x43493	Tormented Shield	None	Shield	BonusMissionPack	3
+275606	0x43496	Tormented Longbow	None	Bow	BonusMissionPack	3
+275609	0x43499	Tormented Shortbow	None	Bow	BonusMissionPack	3
+275612	0x4349C	Tormented Focus	None	Offhand	BonusMissionPack	0
+275615	0x4349F	Tormented Scepter	None	Wand	BonusMissionPack	0
+275618	0x434A2	Tormented Staff	None	Staff	BonusMissionPack	3
+277388	0x43B8C	Peppermint Daggers	None	Daggers	BonusMissionPack	3
+277390	0x43B8E	Peppermint Scythe	None	Scythe	BonusMissionPack	3
+277391	0x43B8F	Peppermint Spear	None	Spear	BonusMissionPack	3
+278575	0x4402F	Japan 1st Anniversary Shield	None	Shield	BonusMissionPack	3
+293379	0x47A03	Destroyer Shield	None	Shield	BonusMissionPack	3
+301565	0x499FD	The Bison Cup	None	Offhand	BonusMissionPack	3
+301649	0x49A51	Hourglass Staff	None	Staff	BonusMissionPack	3
+301654	0x49A56	Glacial Blade	None	Sword	BonusMissionPack	3
+301659	0x49A5B	Zehtuka's Horn	None	Offhand	BonusMissionPack	3
+301664	0x49A60	Rose Focus	None	Offhand	BonusMissionPack	3
+301674	0x49A6A	Pyroclastic Axe	None	Axe	BonusMissionPack	3
+301699	0x49A83	Turtle Shell Longbow	None	Bow	BonusMissionPack	3
+301712	0x49A90	Silverwing Bow	None	Bow	BonusMissionPack	3
+301722	0x49A9A	Arrowblade Daggers	None	Daggers	BonusMissionPack	3
+301732	0x49AA4	Crude Daggers	None	Daggers	BonusMissionPack	3
+301787	0x49ADB	Bogroot Rod	None	Wand	BonusMissionPack	3
+301859	0x49B23	Amethyst Aegis	None	Shield	BonusMissionPack	3
+301864	0x49B28	Great Conch	None	Shield	BonusMissionPack	3
+301874	0x49B32	Voltaic Spear	None	Spear	BonusMissionPack	3
+301957	0x49B85	Fuchsia Staff	None	Staff	BonusMissionPack	3
+301972	0x49B94	Onyx Staff	None	Staff	BonusMissionPack	4
+302018	0x49BC2	Suntouched Staff	None	Staff	BonusMissionPack	3
+302030	0x49BCE	Etched Sword	None	Sword	BonusMissionPack	3
+302103	0x49C17	Embersteel Blade	None	Sword	BonusMissionPack	3
+302128	0x49C30	Stoneblade	None	Sword	BonusMissionPack	3
+302138	0x49C3A	Mammoth Blade	None	Sword	BonusMissionPack	3
+302193	0x49C71	Asuran Staff	None	Staff	BonusMissionPack	3
+302304	0x49CE0	Destroyer Focus	None	Offhand	BonusMissionPack	3
+302307	0x49CE3	Destroyer Maul	None	Hammer	BonusMissionPack	3
+302310	0x49CE6	Destroyer Scepter	None	Wand	BonusMissionPack	3
+302317	0x49CED	Destroyer Spear	None	Spear	BonusMissionPack	3
+330064	0x50950	Droknar's Scepter	None	Wand	BonusMissionPack	3
+337467	0x5263B	Deldrimor Focus	None	Offhand	BonusMissionPack	3
+337514	0x5266A	Turai's Sword	None	Sword	BonusMissionPack	3
+337741	0x5274D	Mursaat Shield	None	Shield	BonusMissionPack	3
+341769	0x53709	Serpentine Reaver	None	Axe	BonusMissionPack	3
+341772	0x5370C	Eaglecrest Axe	None	Axe	BonusMissionPack	3
+341775	0x5370F	Dryad Bow	None	Bow	BonusMissionPack	3
+341789	0x5371d	Celestial Compass	None	Offhand	BonusMissionPack	3
+341811	0x53733	Frog Scepter	None	Wand	BonusMissionPack	3
+341826	0x53742	Draconic Aegis	None	Shield	BonusMissionPack	3
+341846	0x53756	Bone Dragon Staff	None	Staff	BonusMissionPack	3
+342674	0x53A92	Obsidian Edge	None	Sword	BonusMissionPack	3
+350071	0x55777	Vampiric Dragon Sword	None	Sword	BonusMissionPack	3
+353522	0x564F2	Dhuum's Soul Reaper	None	Scythe	BonusMissionPack	3
+358264	0x57778	Oppressor's Shield	None	Shield	BonusMissionPack	3
+358289	0x57791	Oppressor's Focus	None	Offhand	BonusMissionPack	3
+358294	0x57796	Oppressor's Sword	None	Sword	BonusMissionPack	3
+359453	0x57C1D	Oppressor's Scepter	None	Wand	BonusMissionPack	3
+359456	0x57C20	Oppressor's Recurve Bow	None	Bow	BonusMissionPack	3
+369956	0x5A524	Envoy Scythe	None	Scythe	BonusMissionPack	3
+369957	0x5A525	Envoy Axe	None	Axe	BonusMissionPack	3
+379198	0x5C93E	Balthazar's Flatbow	None	Bow	BonusMissionPack	3
