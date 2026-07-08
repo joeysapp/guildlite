@@ -297,6 +297,12 @@ namespace {
 
     constexpr size_t kDrawLogMax = 1500; // safety cap so a pathological frame can't OOM the log
 
+    // Number of VS constant registers actually captured per probe. Clamped at Install()
+    // to the device's MaxVertexShaderConst so GetVertexShaderConstantF never over-reads
+    // (a vs_1_1 device caps at 96 and the call would FAIL, losing the palette entirely).
+    // Defaults to the historically-proven 96 until Install() has run.
+    static int g_probe_reg_count = 96;
+
     constexpr size_t kProbeMaxSamples = 64; // per-DRAW bone palettes (pose_to_live needs one per
                                             // skinned chunk, not just a few samples); a character
                                             // is ~8-14 skinned draws, 64 covers it with headroom
@@ -617,11 +623,12 @@ namespace {
     bool BoneMatchesPos(IDirect3DDevice9* device, const float pos[3], float tol)
     {
         float regs[kProbeRegCount * 4];
-        if (FAILED(device->GetVertexShaderConstantF(0, regs, static_cast<UINT>(kProbeRegCount)))) {
+        const int nregs = g_probe_reg_count;
+        if (FAILED(device->GetVertexShaderConstantF(0, regs, static_cast<UINT>(nregs)))) {
             return false;
         }
         const float tol2 = tol * tol;
-        for (int r = 0; r + 2 < kProbeRegCount; ++r) {
+        for (int r = 0; r + 2 < nregs; ++r) {
             const float dx = regs[r * 4 + 3] - pos[0];
             const float dy = regs[(r + 1) * 4 + 3] - pos[1];
             const float dz = regs[(r + 2) * 4 + 3] - pos[2];
@@ -854,9 +861,9 @@ namespace {
                             for (int k = 0; k < 3; ++k) {
                                 ps.center[k] = (chunk.aabb_min[k] + chunk.aabb_max[k]) * 0.5f;
                             }
-                            ps.regs.resize(static_cast<size_t>(kProbeRegCount) * 4, 0.f);
+                            ps.regs.resize(static_cast<size_t>(g_probe_reg_count) * 4, 0.f);
                             if (SUCCEEDED(device->GetVertexShaderConstantF(0, ps.regs.data(),
-                                                                           static_cast<UINT>(kProbeRegCount)))) {
+                                                                           static_cast<UINT>(g_probe_reg_count)))) {
                                 g_engine.probes.push_back(std::move(ps));
                             }
                         }
@@ -1013,6 +1020,17 @@ namespace Capture {
             g_dipup_target = nullptr;
         }
         EnsurePickHighlight(device); // green tint for pick-mode highlighting
+        // Size the probe window to the whole VS constant file so the full bone palette is
+        // captured (SM2/3 devices expose 256; a too-small window truncates the palette and
+        // freezes out-of-window bones -- the lower body -- at bind pose). Never read fewer
+        // than the proven 96, never more than the buffer cap; failure leaves the 96 default.
+        D3DCAPS9 caps;
+        if (SUCCEEDED(device->GetDeviceCaps(&caps)) && caps.MaxVertexShaderConst > 0) {
+            int cap = static_cast<int>(caps.MaxVertexShaderConst);
+            if (cap < 96) cap = 96;
+            if (cap > kProbeRegCount) cap = kProbeRegCount;
+            g_probe_reg_count = cap;
+        }
         g_engine.installed = true;
         return true;
     }
@@ -1360,6 +1378,7 @@ namespace Capture {
 
     std::vector<MeshChunk>& Chunks() { return g_engine.chunks; }
     const std::vector<ProbeSample>& ProbeSamples() { return g_engine.probes; }
+    int ProbeRegCount() { return g_probe_reg_count; }
     const std::vector<DrawLogEntry>& DrawLog() { return g_engine.draw_log; }
     const CaptureStats& Stats() { return g_engine.stats; }
 

@@ -277,10 +277,12 @@ namespace GameState {
                       "Per-vertex bone indices+weights (chunk.weighted) are exported as OBJ #vbld lines when "
                       "export_skin_weights is on -- that is the mesh->bone binding; the bone transforms are in "
                       "the vertex-shader palette (enable probe_shader_constants to dump probe[]).";
-        m.probe_note = "probe[].regs lists the first 96 vertex-shader constant registers c0..c95 (see each "
-                       "probe's reg_count), one float4 per register. GW view is c0-c3, projection c4-c7; find "
-                       "the register whose translation row tracks subject.pos_* (x,y = pos_x,pos_y; height = "
-                       "pos_z) to isolate this agent and solve world->render scale.";
+        m.probe_note = "probe[].regs lists the vertex-shader constant registers c0..c[reg_count-1] (window "
+                       "sized to the device's MaxVertexShaderConst so the WHOLE bone palette is captured, not "
+                       "just the first 96), one float4 per register. GW view is c0-c3, projection c4-c7; the "
+                       "bone palette follows (base register self-calibrated per draw). Find the register whose "
+                       "translation row tracks subject.pos_* (x,y = pos_x,pos_y; height = pos_z) to isolate the "
+                       "agent, solve world->render scale, and drive pose reconstruction.";
         m.subject = snap;
 
         m.settings.format = m.format;

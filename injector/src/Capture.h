@@ -98,16 +98,22 @@ namespace Guildlite {
         uint32_t dipup_calls = 0, dipup_tris = 0; // DrawIndexedPrimitiveUP (vtbl 84)
     };
 
-    // Registers c0..c(kProbeRegCount-1) captured for a skinned draw when
+    // Registers c0..c(ProbeRegCount()-1) captured for a skinned draw when
     // Config::probe_shader_constants is on. c0-c3 hold view, c4-c7 projection; the
-    // per-agent world/bone transform is somewhere beyond, and this window is dumped
-    // to the manifest so the isolation register + world->render scale can be solved
-    // offline against the draw's model-local center and the agent's GWCA position.
-    constexpr int kProbeRegCount = 96;
+    // per-agent world/bone PALETTE follows (its base register varies by shader, self-
+    // calibrated at pose time). The window MUST be large enough to hold the WHOLE
+    // palette: a ~50-bone skeleton at 3 registers/bone from a base as high as ~c92
+    // needs far more than 96 registers, so a too-small window silently truncates the
+    // palette and leaves every out-of-window bone (in practice the lower body /
+    // extremities, whose bone indices run high) stuck in bind pose while the in-window
+    // upper body poses -- the "half posed, half bind" export. kProbeRegCount is the
+    // buffer cap (SM2/3 expose 256 VS constants); the count actually read is clamped to
+    // the device's MaxVertexShaderConst at Install() -- see Capture::ProbeRegCount().
+    constexpr int kProbeRegCount = 256;
     struct ProbeSample {
         uint32_t draw_index = 0;
         float center[3] = {0.f, 0.f, 0.f}; // model-local AABB center of the probed draw
-        std::vector<float> regs;           // kProbeRegCount * 4 floats (row-major c0..cN)
+        std::vector<float> regs;           // ProbeRegCount() * 4 floats (row-major c0..cN)
     };
 
     // One triangle-list draw's disposition in the armed frame (Config::log_draws).
@@ -206,6 +212,10 @@ namespace Guildlite {
         const std::vector<ProbeSample>& ProbeSamples();
         const std::vector<DrawLogEntry>& DrawLog();
         const CaptureStats& Stats();
+
+        // VS constant registers actually captured per probe. Clamped at Install() to the
+        // device's MaxVertexShaderConst (a vs_1_1 device caps at 96); 96 until Install() runs.
+        int ProbeRegCount();
     }
 
 } // namespace Guildlite

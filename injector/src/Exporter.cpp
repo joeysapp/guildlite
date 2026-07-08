@@ -332,16 +332,51 @@ namespace {
         status_line = "Marking all of the source's pieces (bone-palette match)...";
     }
 
+    // A VS-constant triple (3 consecutive registers = one row-major [3x3|t] bone matrix) is a
+    // usable transform only if its 3x3 rows are finite and roughly unit length. Rejects zero
+    // and garbage registers -- an uncaptured slot past the real palette, or a non-matrix
+    // constant -- so the enlarged probe window can never pose a vertex onto a bogus transform.
+    inline bool ValidBoneTriple(const float* r0, const float* r1, const float* r2)
+    {
+        const float* rows[3] = {r0, r1, r2};
+        for (int i = 0; i < 3; ++i) {
+            const float* r = rows[i];
+            if (!std::isfinite(r[0]) || !std::isfinite(r[1]) || !std::isfinite(r[2]) || !std::isfinite(r[3]))
+                return false;
+            const float len2 = r[0] * r[0] + r[1] * r[1] + r[2] * r[2];
+            if (len2 < 0.06f || len2 > 16.f) return false; // |row| ~ [0.25, 4]
+        }
+        return true;
+    }
+
+    // Self-calibrate a draw's bone-palette base register: the first VALID triple whose
+    // translation (.w column) is the agent's GWCA world position -- that is the root bone, and
+    // vertex bone index k then lives at register base + 3*k. Returns -1 if none (palette not in
+    // the captured window). Shared by PoseChunks and ReskinNonSkinnedToLive.
+    inline int CalibratePaletteBase(const std::vector<float>& regs, float px, float py, float pz)
+    {
+        const int nregs = static_cast<int>(regs.size() / 4);
+        for (int r = 0; r + 2 < nregs; ++r) {
+            if (std::fabs(regs[r * 4 + 3] - px) < 250.f &&
+                std::fabs(regs[(r + 1) * 4 + 3] - py) < 250.f &&
+                std::fabs(regs[(r + 2) * 4 + 3] - pz) < 250.f &&
+                ValidBoneTriple(&regs[r * 4], &regs[(r + 1) * 4], &regs[(r + 2) * 4])) {
+                return r;
+            }
+        }
+        return -1;
+    }
+
     // GW hands NON-skinned character meshes (dress/skirt/some armor) already baked into WORLD
     // space, while skinned meshes arrive bind-pose-local at the origin (the bone palette poses
     // them in-shader). Left alone they sit thousands of units apart -- the export renders as a
     // speck. Re-seat each world-space piece into the agent's local frame so it sits ON the body:
     //     local = Rz(-facing) * (world - agent_pos)      (facing rotates the horizontal x/y; z=up)
-    // Verified 2026-07-06 against a targeted capture. NOTE: the skinned body is BIND pose while
-    // these pieces are the LIVE pose, so the root/facing align but limb-level pose does not --
-    // "close, not exact". Exact assembly needs posing the body from the captured bone weights
-    // (see ROADMAP "rig/pose"). Needs a VALID snapshot (real Source agent -> pos + facing);
-    // skinned chunks are already local and left untouched.
+    // Verified 2026-07-06 against a targeted capture. Now a FALLBACK: with pose_to_live on,
+    // character armor near the origin is instead limb-posed by ReskinNonSkinnedToLive (run
+    // first), and those pieces end up local (center < 500) so this leaves them untouched. This
+    // still catches any genuinely far, world-space non-skinned chunk the reskin skipped. Needs a
+    // VALID snapshot (real Source agent -> pos + facing); skinned chunks are already local.
     void AlignWorldSpaceChunks(const GameStateSnapshot& snap, std::vector<MeshChunk>& chunks)
     {
         if (!snap.valid) return;
@@ -378,14 +413,16 @@ namespace {
         }
     }
 
-    // Pose reconstruction (experimental, pose_to_live): pose the captured BIND-pose skinned body
-    // forward into the LIVE frame using the per-draw bone palette, so it matches GW's live-pose
-    // non-skinned pieces (armor/dress). Each skinned chunk uses its OWN palette (matched by
-    // draw_index -- GW remaps bones per draw); the palette base register is self-calibrated per
-    // draw by scanning for the bone whose translation is the agent's world position. Then
-    // world_v = BoneMatrix[vertex_bone] * bind_v, re-seated to local like the non-skinned pieces.
-    // GW is rigid single-bone, so the vertex's bone = blend index byte 0. Verified 2026-07-06
-    // (base c53 on map 248): reconstructs a coherent live-pose body that the armor lines up with.
+    // Pose reconstruction (pose_to_live): pose the captured BIND-pose skinned body forward into
+    // the LIVE frame using the per-draw bone palette. Each skinned chunk uses its OWN palette
+    // (matched by draw_index -- GW remaps bones per draw); the base register is self-calibrated
+    // per draw (CalibratePaletteBase). Then world_v = BoneMatrix[vertex_bone] * bind_v, re-seated
+    // to local. GW is rigid single-bone, so the vertex's bone = blend index byte 0. Every bone
+    // matrix is validated before use, so a vertex whose bone is missing/garbage stays bind rather
+    // than collapsing. Requires the FULL palette in the probe window: the palette can span far
+    // past c95 (a ~50-bone skeleton), and a truncated window left the high-index bones -- the
+    // lower body -- frozen at bind (the upper/lower "flip-flop"); Capture now sizes the window to
+    // the device's VS-constant max so the whole skeleton is captured. Verified base c53 on map 248.
     void PoseChunks(const GameStateSnapshot& snap, std::vector<MeshChunk>& chunks,
                     const std::vector<ProbeSample>& probes)
     {
@@ -400,12 +437,7 @@ namespace {
             if (it == pal.end()) continue;              // no palette captured -> leave bind pose
             const std::vector<float>& regs = it->second->regs;
             const int nregs = static_cast<int>(regs.size() / 4);
-            int base = -1;                              // self-calibrate: bone whose .w == agent pos
-            for (int r = 0; r + 2 < nregs; ++r) {
-                if (std::fabs(regs[r * 4 + 3] - px) < 250.f &&
-                    std::fabs(regs[(r + 1) * 4 + 3] - py) < 250.f &&
-                    std::fabs(regs[(r + 2) * 4 + 3] - pz) < 250.f) { base = r; break; }
-            }
+            const int base = CalibratePaletteBase(regs, px, py, pz);
             if (base < 0) continue;                     // palette not in this draw's captured window
             const size_t nv = ch.positions.size() / 3;
             float mn[3] = {0, 0, 0}, mx[3] = {0, 0, 0}; bool any = false;
@@ -413,8 +445,9 @@ namespace {
                 const float bx = ch.positions[v * 3], by = ch.positions[v * 3 + 1], bz = ch.positions[v * 3 + 2];
                 const int bone = (v * 4 < ch.blend_indices.size()) ? static_cast<int>(ch.blend_indices[v * 4]) : 0;
                 const int b = base + 3 * bone;
-                if (b + 2 >= nregs) continue;           // bone beyond captured palette -> leave
+                if (b + 2 >= nregs) continue;           // bone beyond captured palette -> leave bind
                 const float* r0 = &regs[b * 4]; const float* r1 = &regs[(b + 1) * 4]; const float* r2 = &regs[(b + 2) * 4];
+                if (!ValidBoneTriple(r0, r1, r2)) continue; // garbage/uncaptured slot -> leave bind
                 const float wx = r0[0] * bx + r0[1] * by + r0[2] * bz + r0[3];
                 const float wy = r1[0] * bx + r1[1] * by + r1[2] * bz + r1[3];
                 const float wz = r2[0] * bx + r2[1] * by + r2[2] * bz + r2[3];
@@ -439,14 +472,109 @@ namespace {
         }
     }
 
+    // Pose GW's NON-skinned rigid armor (dress/skirt, boots, neck guard -- GW draws these with
+    // no per-vertex bone data, and their own draw's VS palette is degenerate) into the live
+    // frame. PoseChunks can't touch them, so they freeze at bind while the skinned body
+    // animates: the "lower half in bind pose" export. Fix by transferring skinning by
+    // PROXIMITY -- the armor sits ON the body in bind space, so each armor vertex borrows the
+    // bone matrix of the NEAREST skinned body vertex (resolved from that body draw's own
+    // palette) and is posed by it. One merged armor mesh spanning several bones is handled
+    // correctly: boot verts snap to the foot bone, skirt verts to the pelvis, collar verts to
+    // the neck. MUST run BEFORE PoseChunks mutates the skinned positions -- the proximity match
+    // is measured in bind space, so the reference body must still be bind-pose-local here.
+    void ReskinNonSkinnedToLive(const GameStateSnapshot& snap, std::vector<MeshChunk>& chunks,
+                                const std::vector<ProbeSample>& probes)
+    {
+        if (!snap.valid) return;
+        const float px = snap.pos_x, py = snap.pos_y, pz = snap.pos_z;
+        const float cc = std::cos(snap.rotation), ss = std::sin(snap.rotation);
+        std::map<uint32_t, const ProbeSample*> pal;
+        for (const auto& p : probes) pal[p.draw_index] = &p;
+
+        // Reference cloud: every skinned BIND vertex tagged with its resolved [3x3|t] bone
+        // matrix (12 floats), so the nearest-neighbour step needs no per-draw lookup and each
+        // ref already carries the exact transform its body vertex is posed by.
+        struct Ref { float p[3]; float m[12]; };
+        std::vector<Ref> refs;
+        for (const auto& ch : chunks) {
+            if (!ch.is_skinned || ch.blend_indices.empty()) continue;
+            const auto it = pal.find(ch.draw_index);
+            if (it == pal.end()) continue;
+            const std::vector<float>& regs = it->second->regs;
+            const int nregs = static_cast<int>(regs.size() / 4);
+            const int base = CalibratePaletteBase(regs, px, py, pz);
+            if (base < 0) continue;
+            const size_t nv = ch.positions.size() / 3;
+            for (size_t v = 0; v < nv; ++v) {
+                const int bone = (v * 4 < ch.blend_indices.size()) ? static_cast<int>(ch.blend_indices[v * 4]) : 0;
+                const int b = base + 3 * bone;
+                if (b + 2 >= nregs) continue;
+                const float* r0 = &regs[b * 4]; const float* r1 = &regs[(b + 1) * 4]; const float* r2 = &regs[(b + 2) * 4];
+                if (!ValidBoneTriple(r0, r1, r2)) continue;
+                Ref rf;
+                rf.p[0] = ch.positions[v * 3]; rf.p[1] = ch.positions[v * 3 + 1]; rf.p[2] = ch.positions[v * 3 + 2];
+                for (int k = 0; k < 4; ++k) { rf.m[k] = r0[k]; rf.m[4 + k] = r1[k]; rf.m[8 + k] = r2[k]; }
+                refs.push_back(std::move(rf));
+            }
+        }
+        if (refs.empty()) return; // no posed skeleton to borrow from -> leave armor as-is
+
+        for (auto& ch : chunks) {
+            if (ch.is_skinned || ch.positions.size() < 3) continue;
+            // Only armor in the same BIND-LOCAL space as the reference cloud (near origin). A
+            // genuinely world-space non-skinned chunk (center far out) is left to
+            // AlignWorldSpaceChunks -- reskinning it against origin-local refs would be garbage.
+            const float cx = (ch.aabb_min[0] + ch.aabb_max[0]) * 0.5f;
+            const float cy = (ch.aabb_min[1] + ch.aabb_max[1]) * 0.5f;
+            const float cz = (ch.aabb_min[2] + ch.aabb_max[2]) * 0.5f;
+            if (cx * cx + cy * cy + cz * cz > 500.f * 500.f) continue;
+            const size_t nv = ch.positions.size() / 3;
+            float mn[3] = {0, 0, 0}, mx[3] = {0, 0, 0}; bool any = false;
+            for (size_t v = 0; v < nv; ++v) {
+                const float bx = ch.positions[v * 3], by = ch.positions[v * 3 + 1], bz = ch.positions[v * 3 + 2];
+                const Ref* best = nullptr; float bd = 1e30f; // nearest reference bind vertex
+                for (const auto& rf : refs) {
+                    const float dx = rf.p[0] - bx, dy = rf.p[1] - by, dz = rf.p[2] - bz;
+                    const float d2 = dx * dx + dy * dy + dz * dz;
+                    if (d2 < bd) { bd = d2; best = &rf; }
+                }
+                if (!best) continue;
+                const float* m = best->m;                        // world_v = BoneMatrix * bind_v
+                const float wx = m[0] * bx + m[1] * by + m[2] * bz + m[3];
+                const float wy = m[4] * bx + m[5] * by + m[6] * bz + m[7];
+                const float wz = m[8] * bx + m[9] * by + m[10] * bz + m[11];
+                const float dx = wx - px, dy = wy - py, dz = wz - pz;
+                ch.positions[v * 3]     =  cc * dx + ss * dy;     // re-seat: Rz(-facing)*(world-pos)
+                ch.positions[v * 3 + 1] = -ss * dx + cc * dy;
+                ch.positions[v * 3 + 2] = dz;
+                if (v * 3 + 2 < ch.normals.size()) {             // rotate normal by R_bone then -facing
+                    const float nx = ch.normals[v * 3], ny = ch.normals[v * 3 + 1], nz = ch.normals[v * 3 + 2];
+                    const float wnx = m[0] * nx + m[1] * ny + m[2] * nz;
+                    const float wny = m[4] * nx + m[5] * ny + m[6] * nz;
+                    const float wnz = m[8] * nx + m[9] * ny + m[10] * nz;
+                    ch.normals[v * 3]     =  cc * wnx + ss * wny;
+                    ch.normals[v * 3 + 1] = -ss * wnx + cc * wny;
+                    ch.normals[v * 3 + 2] = wnz;
+                }
+                const float p[3] = {ch.positions[v * 3], ch.positions[v * 3 + 1], ch.positions[v * 3 + 2]};
+                for (int k = 0; k < 3; ++k) { if (!any) { mn[k] = mx[k] = p[k]; } else { if (p[k] < mn[k]) mn[k] = p[k]; if (p[k] > mx[k]) mx[k] = p[k]; } }
+                any = true;
+            }
+            if (any) for (int k = 0; k < 3; ++k) { ch.aabb_min[k] = mn[k]; ch.aabb_max[k] = mx[k]; }
+        }
+    }
+
     void FlushCapture(IDirect3DDevice9* device)
     {
-        // Assemble ONE model in a single local frame: (pose_to_live) pose the skinned body forward
-        // into the live pose so it matches GW's live-pose non-skinned pieces, then re-seat those
-        // world-space pieces onto it. Only for single-character captures (pick snap or Filtered)
-        // with a valid agent.
+        // Assemble ONE model in a single local frame. (pose_to_live) First reskin GW's
+        // non-skinned armor onto the live skeleton by proximity -- this MUST read the skinned
+        // body while it is still bind-pose-local, so it runs BEFORE PoseChunks poses the body.
+        // Then pose the skinned body forward into the same live frame. AlignWorldSpaceChunks
+        // still handles any genuinely world-space non-skinned chunk the reskin left untouched.
+        // Only for single-character captures (pick snap or Filtered) with a valid agent.
         if ((pending_is_pick || pending_cfg.scope == CaptureScope::Filtered) && pending_snapshot.valid) {
             if (pending_cfg.pose_to_live) {
+                ReskinNonSkinnedToLive(pending_snapshot, Capture::Chunks(), Capture::ProbeSamples());
                 PoseChunks(pending_snapshot, Capture::Chunks(), Capture::ProbeSamples());
             }
             AlignWorldSpaceChunks(pending_snapshot, Capture::Chunks());
@@ -965,9 +1093,9 @@ namespace {
                                 "means nothing matched the layout -- re-calibrate with Probe.");
             ImGui::Separator();
             ImGui::Checkbox("Probe: dump shader constants to manifest", &g_config.probe_shader_constants);
-            ImGui::TextDisabled("Isolation calibration only -- NOT textures/skin colour. Dumps VS\n"
-                                "constants c0..c95 of the first skinned draws to manifest probe[]; use it\n"
-                                "to find which register tracks subject.pos_* if isolation stops matching.");
+            ImGui::TextDisabled("Isolation calibration + pose palette. Dumps the VS constant window\n"
+                                "(sized to the device max so the FULL bone palette is captured) of the\n"
+                                "first skinned draws to manifest probe[]; drives isolation + pose_to_live.");
         }
 
         // --- Live pose read-out ------------------------------------------------

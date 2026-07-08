@@ -170,13 +170,17 @@ namespace Guildlite {
         // constant palette (enable Probe to dump it). Off => a plain, unskinned OBJ.
         bool export_skin_weights = true;
 
-        // --- pose reconstruction (experimental) --------------------------------
-        // Pose the captured BIND-pose skinned body forward into the LIVE frame using the
-        // per-draw bone palette (VS constants): world_v = BoneMatrix[vertex_bone] * bind_v, then
-        // re-seat to local like the non-skinned pieces. Closes the "close, not exact" gap where a
-        // bind-pose body doesn't match GW's live-pose non-skinned armor. Forces probe capture on
-        // (it needs the palette). Self-calibrates the palette base register per draw by scanning
-        // for the bone triple whose translation matches the agent's GWCA position.
+        // --- pose reconstruction -----------------------------------------------
+        // Pose the captured BIND-pose body forward into the LIVE frame using the per-draw bone
+        // palette (VS constants): world_v = BoneMatrix[vertex_bone] * bind_v, then re-seat to
+        // local. Skinned meshes use their own per-vertex bone; GW's non-skinned rigid armor
+        // (dress/skirt, boots, neck guard) carries no bone, so each of its vertices borrows the
+        // matrix of the nearest skinned body vertex (proximity reskin) -- so the whole character,
+        // body + armor, ends up in one coherent live pose instead of half posed / half bind.
+        // Forces probe capture on (it needs the palette). Relies on the probe window being sized
+        // to the device's full VS-constant file so the WHOLE skeleton is captured (a truncated
+        // window froze high-index bones -- the lower body -- at bind). Base register self-
+        // calibrated per draw from the bone whose translation matches the agent's GWCA position.
         bool pose_to_live = false;
     };
 
