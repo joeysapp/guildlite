@@ -279,6 +279,107 @@ namespace {
         return s;
     }				
 
+    // --- agentic confirm channel -------------------------------------------
+    // The control surface is otherwise write-only: an SSH/agent loop fires
+    // target/select/pick/capture verbs but gets no structured feedback (only the
+    // in-panel status_line + the log). WriteStatus dumps what the tool sees NOW to a
+    // fixed <Documents>\guildlite\status.json -- scp it back and parse it to CONFIRM
+    // the result without a human at the screen. It reads exactly what BeginCapture/
+    // PickSnap read off the command thread (GameState::Gather + the pick statics), so
+    // it needs no thread hop; SelectInGame also enqueues it on the game thread so a
+    // target change is reflected without a race. The target's transmog_npc_id + per-
+    // slot equipment.model_file_ids are the bridge to datcore (join to catalog hash).
+    unsigned g_status_seq = 0;
+
+    std::string JsonEsc(const std::string& s)
+    {
+        std::string o;
+        for (const char c : s) {
+            if (c == '"' || c == '\\') { o.push_back('\\'); o.push_back(c); }
+            else if (static_cast<unsigned char>(c) >= 0x20) { o.push_back(c); }
+        }
+        return o;
+    }
+
+    void AppendSubject(std::string& j, const char* key, const GameStateSnapshot& s)
+    {
+        char b[640];
+        if (!s.valid) {
+            _snprintf_s(b, sizeof(b), _TRUNCATE, "  \"%s\": {\"valid\": false},\n", key);
+            j += b;
+            return;
+        }
+        _snprintf_s(b, sizeof(b), _TRUNCATE,
+            "  \"%s\": {\"valid\": true, \"agent_id\": %u, \"player_number\": %u, "
+            "\"is_npc\": %s, \"is_female\": %s, \"transmog_npc_id\": %u, "
+            "\"primary\": \"%s\", \"secondary\": \"%s\", \"level\": %d, "
+            "\"model_type\": \"0x%X\", \"pos\": [%.1f, %.1f, %.1f], \"facing\": %.3f,\n",
+            key, s.agent_id, s.player_number, s.is_npc ? "true" : "false",
+            s.is_female ? "true" : "false", s.transmog_npc_id,
+            JsonEsc(s.primary_name).c_str(), JsonEsc(s.secondary_name).c_str(), s.level,
+            s.agent_model_type, s.pos_x, s.pos_y, s.pos_z, s.rotation);
+        j += b;
+        j += "    \"equipment\": [";
+        for (size_t i = 0; i < s.equipment.size(); ++i) {
+            const auto& e = s.equipment[i];
+            _snprintf_s(b, sizeof(b), _TRUNCATE,
+                "%s{\"slot\": \"%s\", \"model_file_id\": %u, \"dye\": %u}",
+                i ? ", " : "", JsonEsc(e.slot).c_str(), e.model_file_id, e.dye);
+            j += b;
+        }
+        j += "]},\n";
+    }
+
+    void WriteStatus()
+    {
+        const bool ready = Game::Ready();
+        const GameStateSnapshot player = ready ? GameState::Gather(TargetSource::Player) : GameStateSnapshot{};
+        const GameStateSnapshot target = ready ? GameState::Gather(TargetSource::Target) : GameStateSnapshot{};
+
+        std::string j = "{\n";
+        char b[512];
+        _snprintf_s(b, sizeof(b), _TRUNCATE,
+            "  \"seq\": %u, \"ready\": %s, \"map_id\": %d, \"instance_type\": %d,\n"
+            "  \"export_source\": \"%s\", \"has_target\": %s,\n",
+            ++g_status_seq, ready ? "true" : "false",
+            player.valid ? player.map_id : target.map_id,
+            player.valid ? player.instance_type : target.instance_type,
+            g_config.target == TargetSource::Target ? "target" : "player",
+            target.valid ? "true" : "false");
+        j += b;
+        AppendSubject(j, "player", player);
+        AppendSubject(j, "target", target);
+
+        const bool pick_on = Capture::PickActive();
+        const int cursor = Capture::PickIndex();
+        _snprintf_s(b, sizeof(b), _TRUNCATE,
+            "  \"pick\": {\"active\": %s, \"skinned_only\": %s, \"include_2d\": %s, "
+            "\"list\": %d, \"marked\": %d, \"cursor\": %d, \"has_selection\": %s",
+            pick_on ? "true" : "false", Capture::PickSkinnedOnly() ? "true" : "false",
+            Capture::PickInclude2D() ? "true" : "false", Capture::PickCount(),
+            Capture::PickMarkedCount(), cursor, Capture::HasSelection() ? "true" : "false");
+        j += b;
+        if (cursor >= 0) {
+            const PickInfo pi = Capture::PickRow(cursor);
+            _snprintf_s(b, sizeof(b), _TRUNCATE,
+                ", \"selected\": {\"id\": %u, \"tris\": %u, \"verts\": %u, "
+                "\"tex\": [%d, %d], \"skinned\": %s}",
+                pi.id, pi.tris, pi.verts, pi.tex_w, pi.tex_h, pi.skinned ? "true" : "false");
+            j += b;
+        }
+        j += "},\n";
+
+        j += "  \"last_status\": \"" + JsonEsc(status_line) + "\",\n";
+        j += "  \"last_output\": \"" + JsonEsc(last_output) + "\"\n}\n";
+
+        std::ofstream out(Settings::Dir() / L"status.json", std::ios::binary | std::ios::trunc);
+        if (out.is_open()) out << j;
+        GL_DLLLOG("status: seq=%u ready=%d src=%s target=%d(npc_id=%u lvl=%d) pick(on=%d list=%d marked=%d) -> status.json",
+                  g_status_seq, ready, g_config.target == TargetSource::Target ? "target" : "player",
+                  target.valid, target.transmog_npc_id, target.level, pick_on,
+                  Capture::PickCount(), Capture::PickMarkedCount());
+    }
+
     // --- capture (was BeginCapture/FlushCapture) ---------------------------
     void BeginCapture(bool dry_run)
     {
@@ -390,6 +491,9 @@ namespace {
             GW::GameThread::Enqueue([id] { GW::Agents::ChangeTarget(id); }, false);
             status_line = "Target -> agent " + what + ".";
         }
+        // Refresh the confirm file AFTER the target change lands on the game thread, so a
+        // read of status.json right after `select` reflects the NEW target (no race).
+        GW::GameThread::Enqueue([] { WriteStatus(); }, false);
         GL_DLLLOG("Exporter::SelectInGame: %s", what.c_str());
     }
 
@@ -1421,6 +1525,8 @@ namespace Exporter {
         if (cmd == "clear") { pick_clear_req = true; return; }
         if (cmd == "snap")  { pick_snap_req = true; return; }
         if (cmd == "settings" || cmd == "dump") { DumpSettings(); return; }
+        // Agentic confirm: write status.json (player/target/pick/last-capture) for SSH readback.
+        if (cmd == "status" || cmd == "confirm" || cmd == "state") { WriteStatus(); return; }
         // Capture verbs -- guarded so they no-op during a map load or an in-flight grab.
         // Short-circuit protects GetInstanceType() from being called before GWCA is up.
         const bool loading = !Game::Ready() || GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading;

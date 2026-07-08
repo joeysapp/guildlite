@@ -45,6 +45,8 @@ namespace {
         {"capture-dry",        "diagnostics only, writes no file"},
         {"profile clean-*",    "capture recipe: clean-full / clean-self / clean-solo / drop_effects"},
         {"pick on|next|mark|target", "interactive select-a-draw (full verb set in the Exporter window)"},
+        {"select self|none|nearest|<id>", "set the in-game target headlessly (auto-refreshes status.json)"},
+        {"status | confirm",   "write status.json -- player/target/pick/last-capture for SSH readback"},
         {"set <key> <value>",  "set any exporter config field"},
     };
     const Entry kSystem[] = {
@@ -122,8 +124,10 @@ void Info::Draw()
                                "A render-side FOV is on the Planned list.");
             ImGui::Spacing();
             ImGui::TextWrapped("2. Editor edits are client-side and reset on zone; WASD flying and live "
-                               "appearance changes can't be exercised over SSH (no key injection / no view) "
-                               "-- they're driven with `edit ...` verbs and confirmed in-game.");
+                               "appearance changes can't be exercised over SSH (no key injection / no view). "
+                               "The `status` verb closes the loop the other way: it writes status.json "
+                               "(player/target/pick/last-capture) so an SSH/agent loop can CONFIRM the result "
+                               "of target/select/pick/capture without a view -- scp it back and parse it.");
         }
     }
     ImGui::End();
