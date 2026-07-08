@@ -144,18 +144,14 @@ Framing modes:
 
 Lighting rigs:
 
--   Sun
+-   [ ] Sun
+-   [ ] Dramatic
+-   [ ] Orbit Animated lighting - animated output, simple orbititing sun in a circle above model or at level with model from a set distance away. A full animation loop is the sun orbiting in a full circle (2PI, etc.)
 -   Studio
--   Three-point
--   Inspection
--   Dramatic
--   Orbit
-
-Future:
-
 -   HDRI
 -   Procedural sky
--   Animated lighting
+-   Three-point
+-   Inspection
 
 ------------------------------------------------------------------------
 
