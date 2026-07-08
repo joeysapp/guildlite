@@ -16,6 +16,7 @@ Most if not all of the available ./control commands can be found in the `Info` p
  - Save/load more information to settings.json like texture selection (successful load-in when textures present, otherwise drop selection)
  - Load into any targetted character and export model, ensure targetting a fluke/unrelated
  - Model Exporter's NPC List jumps around constantly while at the end, accessing tunnels that are at the end of the render cycle. This is due to sweat/etc. on equipment - cannot be avoilded - but would ask for towels/wipedown for courtesy as I do the same.
+ - Flying high at >10k feet with no seatbelt, etc.
 
 --- 
 

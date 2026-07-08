@@ -6,7 +6,6 @@
 #include <cstring>
 #include <fstream>
 #include <map>
-#include <set>
 
 namespace Guildlite {
 namespace {
@@ -67,13 +66,22 @@ namespace ObjWriter {
         const bool want_normal = cfg.export_normals;
         const bool want_tex = cfg.export_textures && cfg.detail == DetailLevel::Advanced;
 
-        // Collect the distinct exported textures for the material library.
-        std::map<std::string, std::string> materials; // texture_file -> material name
+        // Material identity is (texture, blend-mode), NOT texture alone: GW reuses one
+        // texture atlas for both an opaque draw (its alpha is a GLOSS mask, ignored in-game)
+        // and an alpha-blended cutout draw (its alpha IS opacity). Keying by texture alone
+        // forces a single material to serve both, so map_d (opacity) bleeds onto the opaque
+        // body and renders it invisible. Splitting by blend-mode keeps the opaque piece solid
+        // while the cutout piece still clips. '_a' names the alpha-blended variant.
+        struct MatDef { std::string texture_file; bool alpha_blend; };
+        auto material_name = [](const std::string& tex, bool blend) {
+            return MaterialName(tex) + (blend ? "_a" : "");
+        };
+        std::map<std::string, MatDef> materials; // material name -> definition
         if (want_tex) {
             for (const auto& c : chunks) {
-                if (!c.texture_file.empty() && materials.find(c.texture_file) == materials.end()) {
-                    materials.emplace(c.texture_file, MaterialName(c.texture_file));
-                }
+                if (c.texture_file.empty()) continue;
+                materials.emplace(material_name(c.texture_file, c.alpha_blend),
+                                  MatDef{c.texture_file, c.alpha_blend});
             }
         }
 
@@ -119,7 +127,7 @@ namespace ObjWriter {
 
             out << "o object_" << c.draw_index << "\n";
             if (want_tex && !c.texture_file.empty()) {
-                out << "usemtl " << materials[c.texture_file] << "\n";
+                out << "usemtl " << material_name(c.texture_file, c.alpha_blend) << "\n";
             }
 
             for (size_t i = 0; i < nverts; ++i) {
@@ -182,20 +190,10 @@ namespace ObjWriter {
         out.close();
 
         if (!materials.empty()) {
-            // GW stores opacity in a texture's alpha ONLY for alpha-blended cutout draws
-            // (hair, capes, feathers). Opaque body/armor draws pack a GLOSS mask in that
-            // same alpha, so emitting map_d for them wrongly renders them translucent/black.
-            // Emit map_d only for textures a blended draw actually used.
-            std::set<std::string> cutout_tex;
-            for (const auto& c : chunks) {
-                if (c.alpha_blend && !c.texture_file.empty()) {
-                    cutout_tex.insert(c.texture_file);
-                }
-            }
             std::ofstream mtl(mtl_path, std::ios::binary | std::ios::trunc);
             if (mtl.is_open()) {
                 mtl << "# Guildlite materials\n";
-                for (const auto& [tex, name] : materials) {
+                for (const auto& [name, def] : materials) {
                     mtl << "newmtl " << name << "\n";
                     mtl << "Ka 0.02 0.02 0.02\n";
                     mtl << "Kd 1.0 1.0 1.0\n";     // white base so the texture shows unmodulated
@@ -203,9 +201,12 @@ namespace ObjWriter {
                     mtl << "Ns 24.0\n";
                     mtl << "d 1.0\n";
                     mtl << "illum 2\n";
-                    mtl << "map_Kd " << tex << "\n";
-                    if (cutout_tex.count(tex)) {
-                        mtl << "map_d " << tex << "\n"; // alpha = opacity, cutout pieces only
+                    mtl << "map_Kd " << def.texture_file << "\n";
+                    // Alpha is opacity ONLY for alpha-blended cutout draws (hair, capes, sheer
+                    // skirts). An opaque draw sharing this atlas gets its own map_d-free
+                    // material (keyed by blend-mode above), so it stays solid.
+                    if (def.alpha_blend) {
+                        mtl << "map_d " << def.texture_file << "\n";
                     }
                     mtl << "\n";
                 }
