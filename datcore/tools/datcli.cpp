@@ -33,6 +33,7 @@ static void usage() {
             "  datcli show    <catalog.tsv> <mft|hash:N|murmur:HEX> [--labels labels.json]\n"
             "  datcli label   <labels.json> <hash:N|N|murmur:HEX> <name>\n"
             "                               [--category C] [--tag T]... [--source S] [--notes N]\n"
+            "  datcli tag-armor <armors.tsv> <composites.tsv> <catalog.tsv> <labels.json>\n"
             "  datcli extract <dat> <sel> <outfile>\n"
             "  datcli obj     <dat> <sel> <outfile.obj>\n"
             "  datcli objtex  <dat> <sel> <outdir>         model + textures (OBJ+MTL+PNG)\n"
@@ -503,6 +504,67 @@ static int cmd_armor(Dat& dat, const char* comp_path, uint32_t mfid, const char*
     return 0;
 }
 
+// Join armors.tsv (model_file_id -> name/prof/slot) x composites.tsv (model_file_id ->
+// file_ids) x catalog (hash -> type) and write labels.json: every armor sub-model hash
+// gets its real GW name + category "armor" + prof/slot/campaign tags. This is the
+// definitive named "is armor" flag AND the bulk labeling of our DAT models.
+static int cmd_tag_armor(const char* armors_path, const char* comp_path, const char* cat_path, const char* labels_path) {
+    std::vector<CatalogEntry> cat;
+    if (!read_catalog_tsv(cat_path, cat)) { fprintf(stderr, "cannot read catalog: %s\n", cat_path); return 2; }
+    std::unordered_map<int, int> hash_type;
+    for (const auto& e : cat) if (e.hash) hash_type[e.hash] = e.type;
+
+    std::unordered_map<uint32_t, std::vector<int>> comp;
+    if (FILE* f = fopen(comp_path, "rb")) {
+        char line[1024];
+        while (fgets(line, sizeof(line), f)) {
+            if (line[0] == '#') continue;
+            unsigned id = 0, flags = 0, fd[11] = {0};
+            int n = sscanf(line, "%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u",
+                           &id, &flags, &fd[0], &fd[1], &fd[2], &fd[3], &fd[4], &fd[5], &fd[6], &fd[7], &fd[8], &fd[9], &fd[10]);
+            if (n < 2) continue;
+            std::vector<int> v;
+            for (int k = 0; k < 11; ++k) if (fd[k]) v.push_back(static_cast<int>(fd[k]));
+            comp[id] = std::move(v);
+        }
+        fclose(f);
+    } else { fprintf(stderr, "cannot read composites: %s\n", comp_path); return 2; }
+
+    Labels labels; std::string err;
+    if (!labels.load(labels_path, &err)) { fprintf(stderr, "labels load error: %s\n", err.c_str()); return 2; }
+
+    FILE* af = fopen(armors_path, "rb");
+    if (!af) { fprintf(stderr, "cannot read armors: %s\n", armors_path); return 2; }
+    char line[512];
+    int armors = 0, no_comp = 0, labeled = 0;
+    while (fgets(line, sizeof(line), af)) {
+        if (line[0] == '#') continue;
+        char* fields[7] = {0}; int nf = 0;
+        for (char* t = strtok(line, "\t\r\n"); t && nf < 7; t = strtok(nullptr, "\t\r\n")) fields[nf++] = t;
+        if (nf < 7) continue;
+        uint32_t mfid = static_cast<uint32_t>(strtoul(fields[0], nullptr, 10));
+        ++armors;
+        auto it = comp.find(mfid);
+        if (it == comp.end()) { ++no_comp; continue; }
+        for (int fid : it->second) {
+            auto ht = hash_type.find(fid);
+            if (ht == hash_type.end() || ht->second != FFNA_Type2) continue; // only geometry sub-models
+            Label l;
+            l.name = fields[2];
+            l.category = "armor";
+            l.source = "armor-join";
+            l.tags = { fields[3], fields[4], fields[5], "dyeable" }; // profession, slot, campaign
+            labels.set(Labels::hash_key(fid), std::move(l));
+            ++labeled;
+        }
+    }
+    fclose(af);
+    if (!labels.save(labels_path)) { fprintf(stderr, "cannot write %s\n", labels_path); return 2; }
+    printf("tag-armor: %d armors (%d without a loaded composite) -> %d sub-model hashes labeled -> %s (%zu labels total)\n",
+           armors, no_comp, labeled, labels_path, labels.size());
+    return 0;
+}
+
 static int cmd_label(int argc, char** argv, int start) {
     // start: <labels.json> <key> <name> [flags]
     if (argc < start + 3) { usage(); return 1; }
@@ -538,12 +600,16 @@ int main(int argc, char** argv) {
         return cmd_show(argv[2], argv[3], lp);
     }
     if (cmd == "label") return cmd_label(argc, argv, 2);
+    if (cmd == "tag-armor") {
+        if (argc < 6) { usage(); return 1; }
+        return cmd_tag_armor(argv[2], argv[3], argv[4], argv[5]);
+    }
 
     const char* datpath = nullptr;
     bool bare = (cmd != "info" && cmd != "census" && cmd != "extract" && cmd != "obj" &&
                  cmd != "scan" && cmd != "tex" && cmd != "texscan" && cmd != "objtex" &&
                  cmd != "index" && cmd != "search" && cmd != "show" && cmd != "label" &&
-                 cmd != "armor");
+                 cmd != "armor" && cmd != "tag-armor");
     if (bare) { cmd = "census"; datpath = argv[1]; }
     else if (argc >= 3) { datpath = argv[2]; }
     if (!datpath) { usage(); return 1; }

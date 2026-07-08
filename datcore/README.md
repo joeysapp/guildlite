@@ -31,14 +31,31 @@ datcli scan    <dat> [limit]               model geometry coverage (0xFA0 parse 
 datcli texscan <dat> [limit]               texture decode coverage (native vs asm-needed)
 datcli index   <dat> [out.tsv] [limit]     build the searchable catalog (~42s full)
 datcli search  <catalog.tsv> [filters]     --type T --min-tris N --max-tris N --dim N
-                                           --fmt C --hash H --limit N --labels F --name Q
+                                           --fmt C --hash H --limit N --labels F --name Q --dyeable
 datcli show    <catalog.tsv> <mft|hash:N|murmur:HEX> [--labels labels.json]
 datcli label   <labels.json> <hash:N|N|murmur:HEX> <name> [--category C] [--tag T]...
+datcli tag-armor <armors.tsv> <composites.tsv> <catalog.tsv> <labels.json>  (bulk armor names)
 datcli extract <dat> <sel> <out>           write one decompressed entry to disk
 datcli obj     <dat> <sel> <out.obj>       FFNA-2 model -> Wavefront OBJ (High LOD)
 datcli tex     <dat> <sel> <out.png>       ATEX/ATTX texture -> PNG
 datcli objtex  <dat> <sel> <outdir>        model + its textures -> OBJ + MTL + PNG bundle
+datcli armor   <dat> <composites.tsv> <model_file_id> <outdir> [--gray]  (composite armor)
 ```
+
+## Armor / items — the composite bridge (`composites.tsv`)
+
+A dyeable armor/item model does NOT reference its detailed texture in its own FFNA
+refs (those are a shared env-map + grayscale dye-mask + an empty runtime dye slot).
+The real textures are reached via GW's composite table: `model_file_id -> file_ids[11]`
+(sub-models + textures). That table is game memory, so the injector's `edit composites`
+verb dumps it once to `composites.tsv` (its `file_ids` are the same id-space as catalog
+`hash`). Then, all offline:
+- **`datcli armor`** exports a full armor (male+female sub-models + their real textures,
+  `--gray` for a desaturated dye stand-in; final dye colors are runtime).
+- **`datcli tag-armor`** joins `data/armors.tsv` (1,583 GWToolbox armor names) x
+  `composites.tsv` x catalog -> `labels.json`: every armor sub-model hash named with its
+  armor + `category:armor` + profession/slot/campaign/dyeable tags. `search --dyeable`
+  finds all dye-slot models (armor + dyeable weapons) with no extra inputs.
 
 ## Catalog (`Gw.dat.catalog.tsv`)
 
