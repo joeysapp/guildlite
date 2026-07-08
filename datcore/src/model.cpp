@@ -23,7 +23,8 @@ bool parse_model(const uint8_t* data, size_t size, Model& out) {
         fprintf(stderr, "[dbg] parsed_ok=%d riff_chunks=%zu models=%zu chunk_ids=[",
                 mf.parsed_correctly, mf.riff_chunks.size(), mf.geometry_chunk.models.size());
         for (auto& kv : mf.riff_chunks) fprintf(stderr, "0x%X ", kv.first);
-        fprintf(stderr, "]\n");
+        fprintf(stderr, "] tex_parsed=%d texfilenames=%zu\n",
+                mf.textures_parsed_correctly, mf.texture_filenames_chunk.texture_filenames.size());
         for (size_t i = 0; i < mf.geometry_chunk.models.size(); ++i) {
             const auto& g = mf.geometry_chunk.models[i];
             fprintf(stderr, "[dbg]   model[%zu] verts=%zu idx=%zu (n0=%u n1=%u n2=%u) fvf=0x%X\n",
@@ -59,6 +60,8 @@ bool parse_model(const uint8_t* data, size_t size, Model& out) {
 
         out.submeshes.push_back(std::move(sm));
     }
+    for (const auto& tf : mf.texture_filenames_chunk.texture_filenames)
+        out.texture_refs.push_back({tf.id0, tf.id1});
     return !out.submeshes.empty();
 }
 
@@ -86,6 +89,44 @@ bool write_obj(const Model& m, const std::string& path) {
             uint32_t a = sm.indices[i] + vbase;
             uint32_t b = sm.indices[i + 1] + vbase;
             uint32_t c = sm.indices[i + 2] + vbase;
+            if (sm.has_uv0 && sm.has_normals)
+                fprintf(f, "f %u/%u/%u %u/%u/%u %u/%u/%u\n", a, a, a, c, c, c, b, b, b);
+            else if (sm.has_uv0)
+                fprintf(f, "f %u/%u %u/%u %u/%u\n", a, a, c, c, b, b);
+            else if (sm.has_normals)
+                fprintf(f, "f %u//%u %u//%u %u//%u\n", a, a, c, c, b, b);
+            else
+                fprintf(f, "f %u %u %u\n", a, c, b);
+        }
+        vbase += static_cast<uint32_t>(sm.positions.size());
+    }
+    fclose(f);
+    return true;
+}
+
+bool write_obj_textured(const Model& m, const std::string& obj_path,
+                        const std::string& mtllib_basename,
+                        const std::vector<int>& submesh_material) {
+    FILE* f = fopen(obj_path.c_str(), "wb");
+    if (!f) return false;
+    fprintf(f, "# Guild Wars model, exported by datcore (FFNA type-2, High LOD, textured)\n");
+    if (!mtllib_basename.empty()) fprintf(f, "mtllib %s\n", mtllib_basename.c_str());
+
+    uint32_t vbase = 1;
+    for (size_t s = 0; s < m.submeshes.size(); ++s) {
+        const Submesh& sm = m.submeshes[s];
+        fprintf(f, "o submesh_%zu\n", s);
+        for (const auto& p : sm.positions) fprintf(f, "v %.6f %.6f %.6f\n", p.x, p.y, p.z);
+        if (sm.has_uv0)
+            for (const auto& t : sm.uv0) fprintf(f, "vt %.6f %.6f\n", t.u, 1.0f - t.v);
+        if (sm.has_normals)
+            for (const auto& n : sm.normals) fprintf(f, "vn %.6f %.6f %.6f\n", n.x, n.y, n.z);
+
+        const int mat = (s < submesh_material.size()) ? submesh_material[s] : -1;
+        if (mat >= 0) fprintf(f, "usemtl mat%d\n", mat);
+
+        for (size_t i = 0; i + 2 < sm.indices.size(); i += 3) {
+            uint32_t a = sm.indices[i] + vbase, b = sm.indices[i + 1] + vbase, c = sm.indices[i + 2] + vbase;
             if (sm.has_uv0 && sm.has_normals)
                 fprintf(f, "f %u/%u/%u %u/%u/%u %u/%u/%u\n", a, a, a, c, c, c, b, b, b);
             else if (sm.has_uv0)

@@ -1,8 +1,8 @@
 file(REMOVE_RECURSE
+  "/Users/zooey/etc/git/guildlite/datcore/bin/datcli"
+  "/Users/zooey/etc/git/guildlite/datcore/bin/datcli.pdb"
   "CMakeFiles/datcli.dir/tools/datcli.cpp.o"
   "CMakeFiles/datcli.dir/tools/datcli.cpp.o.d"
-  "datcli"
-  "datcli.pdb"
 )
 
 # Per-language clean rules from dependency scanning.

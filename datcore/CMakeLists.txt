@@ -12,6 +12,10 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# datcli lands in bin/ (bin/<config>/ on multi-config MSVC) so the Windows build
+# pipeline (build_remote.ps1, gwtb/bin/$config) picks up datcli.exe to deploy.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+
 add_library(datcore STATIC
   src/dat.cpp
   src/xentax.cpp

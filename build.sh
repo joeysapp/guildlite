@@ -99,6 +99,7 @@ while [ $# -gt 0 ]; do
         --no-deploy)     NO_DEPLOY="1";            shift ;;
         --launcher|--exe) KIND="launcher";         shift ;;
         --guildlite)     KIND="guildlite";         shift ;;
+        --datcore)       KIND="datcore";           shift ;;
         --install-dir)   INSTALL_DIR="$2"; shift 2 ;;
         --doctor)        DOCTOR_ONLY="1";          shift ;;
         --attach)        ATTACH="$2";     shift 2 ;;

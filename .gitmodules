@@ -1,7 +1,7 @@
-[submodule "GWToolboxpp"]
+[submodule "third_party/GWToolboxpp"]
 	path = third_party/GWToolboxpp
 	url = https://github.com/joeysapp/GWToolboxpp.git
-[submodule "modelmod"]
+[submodule "third_party/ModelMod"]
 	path = third_party/ModelMod
 	url = https://github.com/jmquigs/modelmod
 [submodule "third_party/imgui"]

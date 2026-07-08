@@ -24,7 +24,8 @@ static void usage() {
             "  datcli info    <dat>\n"
             "  datcli census  <dat> [limit]     (limit 0 = all entries)\n"
             "  datcli extract <dat> <index> <outfile>\n"
-            "  datcli obj     <dat> <index> <outfile.obj>\n");
+            "  datcli obj     <dat> <index> <outfile.obj>\n"
+            "  datcli objtex  <dat> <index> <outdir>       model + textures (OBJ+MTL+PNG)\n");
 }
 
 static int cmd_tex(Dat& dat, size_t index, const char* out) {
@@ -191,13 +192,74 @@ static int cmd_extract(Dat& dat, size_t index, const char* out) {
     return 0;
 }
 
+static int cmd_objtex(Dat& dat, size_t index, const char* outdir) {
+    if (index >= dat.num_files()) { fprintf(stderr, "index out of range\n"); return 2; }
+    std::vector<uint8_t> blob = dat.read_file(index, true);
+    if (dat.mft()[index].type != FFNA_Type2) {
+        fprintf(stderr, "entry %zu is %s, not a model\n", index, type_to_string(dat.mft()[index].type));
+        return 2;
+    }
+    Model m;
+    if (!parse_model(blob.data(), blob.size(), m)) { fprintf(stderr, "entry %zu: no geometry\n", index); return 2; }
+
+    char stem[64];
+    snprintf(stem, sizeof(stem), "model_%zu", index);
+    const std::string base = std::string(outdir) + "/" + stem;
+
+    // Resolve + decode each referenced texture -> PNG. Material k = k-th texture
+    // that decoded OK. (Real per-submesh texture binding lived in GetMesh, which
+    // the parser port drops; see below for the crude submesh->material mapping.)
+    std::string mtl_body;
+    std::vector<int> mats; // material indices in texref order
+    int num_mat = 0, partial = 0;
+    for (const auto& ref : m.texture_refs) {
+        int midx = dat.index_for_fileref(ref.id0, ref.id1);
+        if (getenv("DATCORE_DEBUG"))
+            fprintf(stderr, "[objtex] texref(%u,%u) -> mft %d\n", ref.id0, ref.id1, midx);
+        if (midx < 0) continue;
+        std::vector<uint8_t> tb = dat.read_file(static_cast<size_t>(midx), true);
+        Texture tex;
+        if (!decode_texture(tb.data(), tb.size(), tex)) continue;
+        char png[96];
+        snprintf(png, sizeof(png), "%s_tex%d.png", stem, num_mat);
+        if (!write_png(tex, (std::string(outdir) + "/" + png).c_str())) continue;
+        char mat[256];
+        snprintf(mat, sizeof(mat), "newmtl mat%d\nKd 1 1 1\nmap_Kd %s\n%s", num_mat, png,
+                 tex.needed_asm ? "# partial decode (asm stub — run on Windows for full fidelity)\n" : "");
+        mtl_body += mat;
+        mats.push_back(num_mat);
+        if (tex.needed_asm) ++partial;
+        ++num_mat;
+    }
+
+    // Crude submesh->material assignment: pair 1:1 where possible, else material 0.
+    std::vector<int> submesh_mat(m.submeshes.size(), -1);
+    for (size_t s = 0; s < m.submeshes.size() && !mats.empty(); ++s)
+        submesh_mat[s] = mats[s < mats.size() ? s : 0];
+
+    if (num_mat > 0) {
+        FILE* mf = fopen((base + ".mtl").c_str(), "wb");
+        if (mf) { fputs(mtl_body.c_str(), mf); fclose(mf); }
+    }
+    const std::string mtllib = num_mat > 0 ? (std::string(stem) + ".mtl") : "";
+    if (!write_obj_textured(m, base + ".obj", mtllib, submesh_mat)) {
+        fprintf(stderr, "failed to write %s.obj\n", base.c_str()); return 2;
+    }
+
+    printf("entry %zu -> %s.obj\n", index, base.c_str());
+    printf("  submeshes=%zu texrefs=%zu textures_decoded=%d%s\n",
+           m.submeshes.size(), m.texture_refs.size(), num_mat,
+           partial ? " (some partial — asm stub)" : "");
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) { usage(); return 1; }
 
     std::string cmd = argv[1];
     const char* datpath = nullptr;
     bool bare = (cmd != "info" && cmd != "census" && cmd != "extract" && cmd != "obj" &&
-                 cmd != "scan" && cmd != "tex" && cmd != "texscan");
+                 cmd != "scan" && cmd != "tex" && cmd != "texscan" && cmd != "objtex");
     if (bare) { cmd = "census"; datpath = argv[1]; }
     else if (argc >= 3) { datpath = argv[2]; }
     if (!datpath) { usage(); return 1; }
@@ -221,6 +283,10 @@ int main(int argc, char** argv) {
     if (cmd == "obj") {
         if (argc < 5) { usage(); return 1; }
         return cmd_obj(dat, strtoull(argv[3], nullptr, 10), argv[4]);
+    }
+    if (cmd == "objtex") {
+        if (argc < 5) { usage(); return 1; }
+        return cmd_objtex(dat, strtoull(argv[3], nullptr, 10), argv[4]);
     }
     if (cmd == "scan") {
         size_t limit = 40000;
