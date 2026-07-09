@@ -500,6 +500,7 @@ class Renderer:
 
     def _setup_materials(self):
         classes = self._blend_classes()
+        self._additive_images = set()
         n_add = n_op = 0
         for mat in bpy.data.materials:
             if not mat.use_nodes or mat.node_tree is None:
@@ -548,6 +549,8 @@ class Renderer:
                     if hasattr(mat, attr):
                         try: setattr(mat, attr, val)
                         except Exception: pass
+                if getattr(img_node, 'image', None) is not None:
+                    self._additive_images.add(img_node.image)
                 n_add += 1
             else:
                 # opaque: strip the bogus opacity link, render solid
@@ -585,6 +588,135 @@ class Renderer:
 
         bpy.ops.render.render(write_still=True)
         print(f"\n[Renderer] engine:\t{scene.render.engine}\n[Renderer] outfile:\t{out_path}")
+
+    # ------------------------------------------------------------------
+    # glTF / GLB export. Emits a single self-contained .glb (geometry + UVs +
+    # normals + embedded textures + GW-correct materials) with the capture's
+    # pose / scene / timing / skeleton manifest carried in glTF `extras` so an
+    # external viewer (three.js) can read it from `gltf.scene.userData`.
+    def _gltf_extras(self):
+        """Curate the sidecar capture .json into a metadata blob for glTF extras."""
+        import json
+        jp = Path(self.obj_path).with_suffix('.json')
+        if not jp.exists():
+            return None
+        try:
+            data = json.loads(jp.read_text())
+        except Exception:
+            return None
+        subj = data.get('subject', {}) or {}
+        # Keep the whole manifest but drop the giant per-draw probe register dumps
+        # from the flat convenience view (they stay available under 'probe').
+        manifest = {
+            'tool': data.get('tool'), 'version': data.get('version'),
+            'timestamp': data.get('timestamp'), 'scope': data.get('scope'),
+            'counts': {k: data.get(k) for k in
+                       ('draws_captured', 'vertices', 'triangles', 'unique_textures')},
+            'subject': subj,
+            'pose': {
+                'model_state': subj.get('model_state'),
+                'animation_id': subj.get('animation_id'),
+                'animation_code': subj.get('animation_code'),
+                'animation_type': subj.get('animation_type'),
+                'animation_speed': subj.get('animation_speed'),
+            },
+            'scene': {
+                'map_id': subj.get('map_id'),
+                'instance_type': subj.get('instance_type'),
+                'instance_name': subj.get('instance_name'),
+                'pos': [subj.get('pos_x'), subj.get('pos_y'), subj.get('pos_z')],
+                'rotation': subj.get('rotation'),
+            },
+            'chunks': data.get('chunks'),   # per-draw blend/texture/aabb (for re-materialise)
+            'probe': data.get('probe'),     # vertex-shader constant / bone palette (for re-rig)
+            'notes': {k: data.get(k) for k in ('pose_note', 'probe_note') if data.get(k)},
+        }
+        return manifest
+
+    def _bake_effect_alpha(self):
+        """glTF PBR expresses opacity only as baseColorTexture.alpha * factor -- it cannot
+        carry the luminance->alpha node graph we use for additive effects at render time.
+        So for effect images bake the luminance key straight into the image's alpha channel
+        (RGB/emissive untouched). GW effect textures ship a meaningless all-255 alpha, so
+        this is non-destructive, and these images are used only by additive materials."""
+        imgs = getattr(self, '_additive_images', None)
+        if not imgs:
+            return
+        try:
+            import numpy as np
+        except Exception:
+            np = None
+        lo, hi = 0.03, 0.32   # matches the render-path MapRange: black -> clear, colour -> solid
+        for img in imgs:
+            try:
+                w, h = img.size
+                n = w * h
+                if n == 0:
+                    continue
+                if np is not None:
+                    px = np.empty(n * 4, dtype=np.float32)
+                    img.pixels.foreach_get(px)
+                    px = px.reshape(-1, 4)
+                    lum = 0.299 * px[:, 0] + 0.587 * px[:, 1] + 0.114 * px[:, 2]
+                    px[:, 3] = np.clip((lum - lo) / (hi - lo), 0.0, 1.0)
+                    img.pixels.foreach_set(px.reshape(-1))
+                else:
+                    px = list(img.pixels)
+                    for i in range(n):
+                        lum = 0.299 * px[i*4] + 0.587 * px[i*4+1] + 0.114 * px[i*4+2]
+                        px[i*4+3] = min(1.0, max(0.0, (lum - lo) / (hi - lo)))
+                    img.pixels[:] = px
+                img.update()
+                print(f"[glTF] baked luminance alpha into effect image {img.name}")
+            except Exception as e:
+                print(f"[glTF] alpha bake skipped for {getattr(img,'name','?')}: {e}")
+
+    def export_gltf(self, out_path, overrides):
+        scene = bpy.context.scene
+        self._setup_materials()
+        self._bake_effect_alpha()
+
+        manifest = self._gltf_extras()
+        if manifest is not None:
+            import json
+            # Blender custom props -> glTF extras when export_extras=True. Store the
+            # manifest as one compact JSON string (robust across nested types) plus a
+            # couple of flat keys for convenience.
+            blob = json.dumps(manifest, separators=(',', ':'))
+            scene['guildlite_manifest'] = blob
+            scene['guildlite_tool'] = manifest.get('tool') or 'guildlite'
+            subj = manifest.get('subject') or {}
+            for o in bpy.context.scene.objects:
+                if o.type == 'MESH':
+                    o['guildlite_manifest'] = blob
+            print(f"[glTF] manifest attached ({len(blob)} bytes of extras)")
+
+        # Y-up: our OBJ is authored Y-up (ObjWriter RemapUp), Blender imports to Z-up,
+        # export_yup converts back to glTF's Y-up so the model stands correct in three.js.
+        kwargs = dict(
+            filepath=out_path,
+            export_format='GLB',
+            export_texcoords=True,
+            export_normals=True,
+            export_materials='EXPORT',
+            export_yup=True,
+            use_selection=False,
+            export_extras=True,
+        )
+        try:
+            kwargs['export_image_format'] = 'AUTO'   # embed textures (PNG/JPEG) in the .glb
+        except Exception:
+            pass
+        # Blender rev-to-rev renames some flags; retry without the optional ones.
+        try:
+            bpy.ops.export_scene.gltf(**kwargs)
+        except TypeError:
+            for opt in ('export_extras', 'export_image_format', 'export_yup'):
+                kwargs.pop(opt, None)
+            bpy.ops.export_scene.gltf(**kwargs)
+        import os
+        size = os.path.getsize(out_path) if os.path.exists(out_path) else 0
+        print(f"\n[glTF] outfile:\t{out_path}\n[glTF] size:\t{size} bytes")
 
     def animate(self, template_name, out_path, overrides):
         template = TEMPLATES.get(template_name, TEMPLATES["orbit-sun"])
@@ -763,9 +895,13 @@ def parser():
     a.add_argument("--format", choices=['mp4', 'webm', 'gif'], default='mp4', help="Output format (webm and gif support transparency and auto-looping in many platforms)")
     a.add_argument("--orbit-radius", type=float, default=2.0, help="Radius multiplier for orbit animations (default: 2.0)")
 
+    # gltf
+    g = sp.add_parser("gltf", parents=[shared_args], help="Export a self-contained .glb (objtex + GW-correct materials + pose/scene manifest in extras) for three.js")
+    g.add_argument("obj", help="Path to .obj file")
+
     # templates
     sp.add_parser("templates", help="List available templates")
-    
+
     return p
 
 
@@ -793,7 +929,7 @@ def main():
             print(f"{k:<15} {v.engine:<20} {v.default_frame:<10} {v.light_rig:<15}")
         return
 
-    if args.cmd in ("render", "batch", "animate"):
+    if args.cmd in ("render", "batch", "animate", "gltf"):
         if 'bpy' not in sys.modules:
             print("Error: Must run inside Blender.")
             sys.exit(1)
@@ -844,7 +980,19 @@ def main():
             print(f"  {args.obj}\n > {out_path}")
             print(f"[Template]: {args.template}")
             Renderer(args.obj).render(args.template, out_path, overrides)
-            
+
+        elif args.cmd == "gltf":
+            if args.output:
+                out_p = Path(args.output)
+                if out_p.is_dir() or args.output.endswith('/'):
+                    out_path = str(out_p / Path(args.obj).with_suffix(".glb").name)
+                else:
+                    out_path = str(out_p)
+            else:
+                out_path = str(Path(args.obj).with_suffix(".glb"))
+            print(f"  {args.obj}\n > {out_path}")
+            Renderer(args.obj).export_gltf(out_path, overrides)
+
         elif args.cmd == "animate":
             overrides['fps'] = args.fps
             overrides['time'] = args.time
