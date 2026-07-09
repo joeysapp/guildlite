@@ -40,6 +40,9 @@ namespace {
         {"fog on|off",            "toggle world fog"},
         {"Save / Go (Viewpoints)","store / recall a framing (4 slots)"},
     };
+    const Entry kCommands[] = {
+        {"/chest  (alias /xunlai)", "open Xunlai storage in a town/outpost -- type in chat, click below, control file, or SSH"},
+    };
     const Entry kExporter[] = {
         {"capture",            "export the current scene -> OBJ + MTL + textures"},
         {"capture-dry",        "diagnostics only, writes no file"},
@@ -64,7 +67,7 @@ namespace {
         {"edit weapons/costumes",   "weapon redraw + costume/festival-hat tables (signature-scanned)"},
         {"camera roll / orbit",     "roll the free camera; orbit a selected agent"},
         {"dolly / path record",     "keyframed flythrough capture + playback"},
-        {"/chest",                  "Xunlai storage anywhere  (GWCA OpenXunlaiWindow)"},
+        {"/chest saved-view",       "cached read-only Xunlai view outside towns (account-inventory groundwork)"},
         {"multi-Gw.exe targeting",  "drive / reload independent clients"},
     };
 
@@ -109,6 +112,10 @@ void Info::Draw()
         ImGui::TextDisabled("Keys work in-game; verbs work from the panel, the control file, or the macOS console.");
 
         if (ImGui::CollapsingHeader("Available now", ImGuiTreeNodeFlags_DefaultOpen)) {
+            Rows("Commands (chat / SSH)", kCommands,  IM_ARRAYSIZE(kCommands),    false);
+            if (ImGui::Button("Open Xunlai chest")) Overlay::Command("chest");
+            ImGui::SameLine();
+            ImGui::TextDisabled("or type /chest in chat");
             Rows("Model editor",        kEditor,      IM_ARRAYSIZE(kEditor),      false);
             Rows("Model exporter",      kExporter,    IM_ARRAYSIZE(kExporter),    false);
             Rows("Free camera - keys",  kFreecamKeys, IM_ARRAYSIZE(kFreecamKeys), false);

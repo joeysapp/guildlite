@@ -1,0 +1,21 @@
+# Guildlite materials
+newmtl mat_target_pn4_map248_20260708_190333_tex0
+# guildlite_blend opaque
+Ka 0.02 0.02 0.02
+Kd 1.0 1.0 1.0
+Ks 0.30 0.30 0.30
+Ns 24.0
+d 1.0
+illum 2
+map_Kd target_pn4_map248_20260708-190333_tex0.tga
+
+newmtl mat_target_pn4_map248_20260708_190333_tex1
+# guildlite_blend opaque
+Ka 0.02 0.02 0.02
+Kd 1.0 1.0 1.0
+Ks 0.30 0.30 0.30
+Ns 24.0
+d 1.0
+illum 2
+map_Kd target_pn4_map248_20260708-190333_tex1.tga
+

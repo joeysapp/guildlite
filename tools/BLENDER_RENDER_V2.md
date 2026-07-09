@@ -256,6 +256,46 @@ Generate optional HTML catalog for browsing exported assets.
 
 ------------------------------------------------------------------------
 
+# Phase 13 --- GW material fidelity + glTF export  (✅ shipped)
+
+## GW-correct materials (fixes near-invisible armour + black effect panels)
+
+The `.obj` importer wires a texture's alpha channel into Principled `Alpha`, but **GW does not
+use diffuse alpha as opacity** on character draws — it is a gloss/spec/layer mask (the pixel
+shader outputs ~1.0; the SRCALPHA blend is only edge AA). Proof from the captures: 72% of a
+skirt's sampled texels are `alpha == 0`, yet it is solid dark armour in-game. Feeding that alpha
+to alpha-hashing turned solid armour into a near-invisible ghost (the "transparent skirt / hair /
+cape" bug). Conversely, effect draws (flames, auras) are **additive** (`dest_blend == D3DBLEND_ONE`)
+where black adds nothing and must read as transparent — their alpha channel is a meaningless 255,
+so the black exported as a solid panel (the "black in flame should not render" bug).
+
+`Renderer._setup_materials()` recovers the intent per material from the sidecar capture `.json`
+(authored blend state per draw) and rebuilds the node graph:
+
+| class    | signal                              | material |
+|----------|-------------------------------------|----------|
+| opaque   | not additive                        | ignore texture alpha, render solid |
+| additive | `dest_blend == ONE` or `is_effect`  | emissive; black keyed transparent by a luminance ramp |
+
+Additive-dominant models (fire elementals, spirits) auto-default to a **dark background** unless
+`-bg` is passed, because additive art only reads over darkness. The exporter (`ObjWriter.cpp`)
+now emits the same classes directly into the `.mtl` (opaque = no `map_d`; additive = `_fx`
+emissive), so fresh raw exports are correct in any viewer.
+
+## `gltf` mode --- self-contained `.glb` for three.js
+
+```bash
+blender --background --python tools/blender_render.py -- gltf model.obj -o model.glb
+```
+
+Emits one `.glb`: geometry + UVs + normals + **embedded textures** + the GW-correct materials
+above + the capture's pose / scene / timing / skeleton manifest in glTF `extras`. Because glTF
+PBR can only express opacity as `baseColorTexture.alpha`, the additive luminance key is **baked
+into the image alpha at export** so a stock `GLTFLoader` renders flames correctly with no custom
+shader. Loading guide + manifest schema: **`tools/THREEJS.md`**.
+
+------------------------------------------------------------------------
+
 # Guiding Principles
 
 1.  Templates over conditionals.

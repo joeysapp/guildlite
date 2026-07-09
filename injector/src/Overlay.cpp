@@ -4,6 +4,7 @@
 #include "Freecam.h"
 #include "Editor.h"
 #include "Info.h"
+#include "Commands.h"
 #include "Game.h"
 #include "Log.h"
 
@@ -185,6 +186,7 @@ namespace {
         if (s_firstCall) { s_firstCall = false; GL_DLLLOG("hkEndScene: FIRST call, device=%p", static_cast<void*>(dev)); }
         if (!g_unload) {
             EnsureImGui(dev);
+            Commands::Tick();   // one-time in-game /command registration once GWCA is ready
 
             if (KeyPressed(VK_F9))                    Screenshot::Request();
             if (KeyPressed(VK_INSERT))                g_showDemo = !g_showDemo;
@@ -228,6 +230,7 @@ namespace {
     {
         if (g_tornDown) return;
         g_tornDown = true;
+        Commands::Shutdown();          // detach in-game /command hooks so a core hot-reload can't call freed code
         Freecam::Shutdown();           // re-lock the camera so an unload never strands the player detached
         Editor::Shutdown();            // save the character/state library (does NOT auto-revert live edits)
         Exporter::Shutdown();          // save settings + remove the DIP capture hook + release texture refs
@@ -296,6 +299,9 @@ void Overlay::Command(const char* verb)
         Editor::Command(verb + 7);
     else if (v == "controls" || v == "help" || v == "info")
         Info::WindowVisible() = !Info::WindowVisible();
+    // Command interface (chest/xunlai/...): same verbs the in-game chat box registers, so SSH
+    // and chat share one implementation. Dispatch returns false for verbs it does not own.
+    else if (Commands::Dispatch(verb)) {}
     // Everything else (set/target/profile/...) is forwarded to the exporter, which
     // tokenises and handles it. Keeps new control verbs a one-file change in Exporter.
     else Exporter::Command(verb);
@@ -323,6 +329,7 @@ void Overlay::Install(HMODULE self, IDirect3DDevice9* device, bool selfUnload)
     Exporter::Init();   // load persisted settings (engine self-init; GWCA is brought up by the entry)
     Freecam::Init();
     Editor::Init();     // load saved character looks + global states
+    Commands::Init();   // command interface; in-game /commands register lazily once GWCA is ready
 
     if (selfUnload) {
         g_unloadEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);

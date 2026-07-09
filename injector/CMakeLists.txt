@@ -62,6 +62,7 @@ set(GUILDLITE_ENGINE
     src/Editor.cpp
     src/AppearanceApply.cpp
     src/Info.cpp
+    src/Commands.cpp
     src/Capture.cpp
     src/ObjWriter.cpp
     src/TextureExport.cpp

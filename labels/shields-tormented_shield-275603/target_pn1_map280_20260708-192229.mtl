@@ -1,0 +1,12 @@
+# Guildlite materials
+newmtl mat_target_pn1_map280_20260708_192229_tex0_fx
+# guildlite_blend additive
+Ka 0 0 0
+Kd 0 0 0
+Ks 0 0 0
+Ke 1 1 1
+d 1.0
+illum 1
+map_Kd target_pn1_map280_20260708-192229_tex0.tga
+map_Ke target_pn1_map280_20260708-192229_tex0.tga
+

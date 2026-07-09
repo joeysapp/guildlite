@@ -1,0 +1,11 @@
+# Guildlite materials
+newmtl mat_target_pn30_map248_20260708_191103_tex0
+# guildlite_blend opaque
+Ka 0.02 0.02 0.02
+Kd 1.0 1.0 1.0
+Ks 0.30 0.30 0.30
+Ns 24.0
+d 1.0
+illum 2
+map_Kd target_pn30_map248_20260708-191103_tex0.tga
+

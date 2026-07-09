@@ -32,8 +32,8 @@
  - Prevent list order from jumping constantly while at bottom of list while trying to disable/select. Have a timing buffer/gray-out "unseen-leaving-list" entries perhaps, it moves quite often currently
 - [ ] Any use for -lodfull flag for Gw.exe:
 > "Instructs the client to use the highest level of "LOD" (level of detail). 3D assets will be rendered instead of 2D "imposters". There can still be some "popping" as some art assets move into and out of the edges of the view or a bump in the terrain." 
-- [ ] (HIGH) Handle transparent textures on export - unclear why some models have nearly-invisible pieces of armor (Could be missing solid pieces / multiple submeshes? Are we surfacing and exporting all subtextures properly in the picker interface?)
-- [ ] (MEDIUM) Export models as a `gltf/glb` for animation and scene information to be consumed by Blender and other projects (`topic-get`, threejs)
+- [x] (HIGH) Handle transparent textures on export — SOLVED. Not a missing mask/submesh: DXT decode is correct and all subtextures ARE surfaced. GW never uses diffuse alpha as opacity on character draws (it is a gloss/spec mask; the SRCALPHA blend is edge-AA only — 72% of a skirt's texels are alpha=0 yet it is solid in-game), and effects are ADDITIVE (dest=ONE, black=transparent) with a meaningless 255 alpha. Fixed by classifying each draw opaque-vs-additive from the captured blend state: opaque ignores texture alpha; additive becomes emissive with a luminance-keyed alpha. Fixed in `blender_render.py` (`_setup_materials`, existing exports) AND `ObjWriter.cpp` (raw `.mtl`, fresh exports). Verified: skirt/hair/cape solid, elemental flame keyed. See [[model-export-transparency-blend-classes]].
+- [x] (MEDIUM) Export models as a `gltf/glb` — `blender_render.py gltf` emits a self-contained `.glb` (objtex embedded + GW-correct materials + pose/scene/timing/skeleton manifest in glTF extras). Verified round-trip through a stock glTF importer (what three.js sees). Loader guide + manifest schema: `tools/THREEJS.md`. (Pose is baked into vertex positions; `probe[]` bone palette carried for future re-rig; multi-frame animation needs multi-frame capture.)
 - [ ] (HIGH BUT COMPLEX) Other character/model picking and exporting
   — **Needs work.** Must stand own character against a wall (or no other textures in view) to export, but works reliably.
   - Unclear how best to do this - e.g. isolation render or bone proximity, etc.
@@ -63,10 +63,10 @@ Goal: A new 'Editor' panel that allows users to edit their character's visual ap
 ---
 
 # In-Game Extensions / Surfaces
-### [ ] (HIGH) Commands (in-game chat, Terminal/SSH controls to Guildlite/control)
+### [~] (HIGH) Commands (in-game chat, Terminal/SSH controls to Guildlite/control)
 *Goal: Provide the following list of MVP commands in-game and over SSH. Catalog thoroughly in both CLI tool help/docs AND in-game `Info` panel:*
- - (HIGH) /chest - Opens interactive Xunlai chest in town/outpost, opens saved Xunlai state to view but not edit anywhere else. GWToolboxpp proivdes via OpenXunlaiChest, improve and build intelligently e.g. in Guildlite settings/state for cross-character or account inventory features in the future
- - (?) Why do we not already surface commands to the in-game client?
+ - [x] (HIGH) /chest - Opens interactive Xunlai chest in town/outpost. Built as a unified command interface (`injector/src/Commands.{h,cpp}`) that dispatches the SAME verbs three ways: the in-game chat box (`GW::Chat::CreateCommand` → `/chest`, `/xunlai`), the control file / SSH (`Overlay::Command` → `Commands::Dispatch`), and an Info-panel button. Runs on the game thread; gated by `CanAccessXunlaiChest()`; toggles open/closed; clean deregister on hot-reload. Adding a command = one row in the `kCommands` table. Cross-character/account "saved Xunlai view" outside towns left as documented future work.
+ - [x] Commands ARE now surfaced to the in-game client — this was the missing `GW::Chat::CreateCommand` registration; the injector never called it before `Commands.cpp`.
  - (!) Investigate commands to use and extend: https://wiki.guildwars.com/wiki/{Special_command,Emote,Command_line_arguments}
 
 ### [ ] (MEDIUM) Investigate TexMod/gMod Integration
