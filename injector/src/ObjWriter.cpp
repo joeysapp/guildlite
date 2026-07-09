@@ -66,22 +66,35 @@ namespace ObjWriter {
         const bool want_normal = cfg.export_normals;
         const bool want_tex = cfg.export_textures && cfg.detail == DetailLevel::Advanced;
 
-        // Material identity is (texture, blend-mode), NOT texture alone: GW reuses one
-        // texture atlas for both an opaque draw (its alpha is a GLOSS mask, ignored in-game)
-        // and an alpha-blended cutout draw (its alpha IS opacity). Keying by texture alone
-        // forces a single material to serve both, so map_d (opacity) bleeds onto the opaque
-        // body and renders it invisible. Splitting by blend-mode keeps the opaque piece solid
-        // while the cutout piece still clips. '_a' names the alpha-blended variant.
-        struct MatDef { std::string texture_file; bool alpha_blend; };
-        auto material_name = [](const std::string& tex, bool blend) {
-            return MaterialName(tex) + (blend ? "_a" : "");
+        // Material identity is (texture, blend-CLASS), not texture alone, and the class
+        // is Opaque or Additive -- NOT "alpha-blended => texture alpha is opacity".
+        //
+        // GW never uses a diffuse texture's alpha as framebuffer opacity on character
+        // draws: for OPAQUE and SRCALPHA/INVSRCALPHA armour/hair/skirt draws the alpha
+        // is a gloss/spec/layer mask (the pixel shader outputs ~1.0; the blend is only
+        // edge AA). Proof: 72% of a skirt's sampled texels are alpha==0 yet it is solid
+        // dark armour in-game. So emitting map_d there turned solid armour into a ghost.
+        // Only ADDITIVE effect draws (is_effect: DEST=ONE/INVSRCCOLOR -- flames, auras)
+        // are see-through, and there the transparency is "black adds nothing", which the
+        // opaque alpha channel cannot express anyway. So: opaque draws get a plain solid
+        // material (no map_d); effect draws get an emissive material ('_fx') whose black
+        // is keyed transparent downstream (blender_render / the glTF exporter use the
+        // sidecar .json). This also collapses the old redundant opaque/'_a' pair.
+        enum class BlendClass { Opaque, Additive };
+        auto classify = [](const MeshChunk& c) {
+            return c.is_effect ? BlendClass::Additive : BlendClass::Opaque;
         };
+        auto material_name = [](const std::string& tex, BlendClass cls) {
+            return MaterialName(tex) + (cls == BlendClass::Additive ? "_fx" : "");
+        };
+        struct MatDef { std::string texture_file; BlendClass cls; };
         std::map<std::string, MatDef> materials; // material name -> definition
         if (want_tex) {
             for (const auto& c : chunks) {
                 if (c.texture_file.empty()) continue;
-                materials.emplace(material_name(c.texture_file, c.alpha_blend),
-                                  MatDef{c.texture_file, c.alpha_blend});
+                const BlendClass cls = classify(c);
+                materials.emplace(material_name(c.texture_file, cls),
+                                  MatDef{c.texture_file, cls});
             }
         }
 
@@ -127,7 +140,7 @@ namespace ObjWriter {
 
             out << "o object_" << c.draw_index << "\n";
             if (want_tex && !c.texture_file.empty()) {
-                out << "usemtl " << material_name(c.texture_file, c.alpha_blend) << "\n";
+                out << "usemtl " << material_name(c.texture_file, classify(c)) << "\n";
             }
 
             for (size_t i = 0; i < nverts; ++i) {
@@ -195,18 +208,30 @@ namespace ObjWriter {
                 mtl << "# Guildlite materials\n";
                 for (const auto& [name, def] : materials) {
                     mtl << "newmtl " << name << "\n";
-                    mtl << "Ka 0.02 0.02 0.02\n";
-                    mtl << "Kd 1.0 1.0 1.0\n";     // white base so the texture shows unmodulated
-                    mtl << "Ks 0.30 0.30 0.30\n";  // modest spec so lit renders read as 3D, not flat
-                    mtl << "Ns 24.0\n";
-                    mtl << "d 1.0\n";
-                    mtl << "illum 2\n";
-                    mtl << "map_Kd " << def.texture_file << "\n";
-                    // Alpha is opacity ONLY for alpha-blended cutout draws (hair, capes, sheer
-                    // skirts). An opaque draw sharing this atlas gets its own map_d-free
-                    // material (keyed by blend-mode above), so it stays solid.
-                    if (def.alpha_blend) {
-                        mtl << "map_d " << def.texture_file << "\n";
+                    if (def.cls == BlendClass::Additive) {
+                        // GW draws this additively (flame/aura/glow): black adds nothing and
+                        // must read as transparent. Emit it unlit+emissive; the black is keyed
+                        // out by luminance downstream (blender_render / glTF read the .json).
+                        mtl << "# guildlite_blend additive\n";
+                        mtl << "Ka 0 0 0\n";
+                        mtl << "Kd 0 0 0\n";           // unlit: colour comes from emission
+                        mtl << "Ks 0 0 0\n";
+                        mtl << "Ke 1 1 1\n";           // emissive scale; map_Ke supplies colour
+                        mtl << "d 1.0\n";
+                        mtl << "illum 1\n";
+                        mtl << "map_Kd " << def.texture_file << "\n";
+                        mtl << "map_Ke " << def.texture_file << "\n";
+                    } else {
+                        // Opaque: the diffuse alpha here is a gloss/layer mask, NOT opacity,
+                        // so no map_d -- the piece renders solid (armour, hair, skirt, body).
+                        mtl << "# guildlite_blend opaque\n";
+                        mtl << "Ka 0.02 0.02 0.02\n";
+                        mtl << "Kd 1.0 1.0 1.0\n";     // white base so the texture shows unmodulated
+                        mtl << "Ks 0.30 0.30 0.30\n";  // modest spec so lit renders read as 3D, not flat
+                        mtl << "Ns 24.0\n";
+                        mtl << "d 1.0\n";
+                        mtl << "illum 2\n";
+                        mtl << "map_Kd " << def.texture_file << "\n";
                     }
                     mtl << "\n";
                 }

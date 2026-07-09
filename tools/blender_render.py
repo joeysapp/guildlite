@@ -482,7 +482,9 @@ class Renderer:
 
     def _class_for(self, matname, classes):
         base = matname[4:] if matname.startswith('mat_') else matname
-        if base.endswith('_a'):          # '_a' = the alpha-blended variant of a shared atlas
+        if base.endswith('_fx'):         # new exporter: additive-effect variant
+            base = base[:-3]
+        elif base.endswith('_a'):        # legacy exporter: alpha-blended variant of a shared atlas
             base = base[:-2]
         return classes.get(base, 'opaque')
 
