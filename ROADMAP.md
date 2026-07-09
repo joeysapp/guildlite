@@ -1,146 +1,115 @@
-## INJECTION ROADMAP in PHASES
-- [x] Injector: Init, ImGui base and info (overlay), screenshots via backbuffers (dev superpower over ssh)
-- [x] Exporter: Port the 6 files, write the 4 glue modules, wire the control panel. Runs standalone. → `injector/src/{Capture,ObjWriter,TextureExport,GameState,GuildliteConfig}` + `{Game,Settings,Exporter,Overlay}`.
-- [x] Dev Loop: stub + reloadable core + control file — iterate from the Mac over SSH with visual verification, no re-injection. → `guildlite-stub.dll` + `guildlite-core.dll`, control file at `Documents\guildlite\control`. **macOS Metal console shipped** (`gui/`, `./build.sh --macos`). See INJECTOR.md.
-- [ ] Fun Features: Model extraction, character editor, free camera, in-game commands e.g. /chest /npcs, TexMod, shader editor .. macOS, shared-state, Prop Hunt, etc.
+# Guildlite - Roadmap
+## Checklist for All Builds
+- [ ] **Continually review and improve core functionality and UX**
+ - Fundamental Ease of Use
+ - Understandability of Features
+ - Core Reliability and User Experiences
+ - Network Control Reliability
+- [ ] **All tools and options set and read a global state***
+- [ ] **All tools accessible via toolbar**
+- [ ] **All builds verified via `control` of running Guildlites**
 
-# BUILD
+# Fundamental
+### [~] `datcore` Interface in both CLI and  Guildlite
+*Goal #1: Parse the DAT directly, so assets don't depend on active game state.*
+*Goal #2: A cross-platform DAT browser for export/search (`datcli`) and in-game tooling/fun*
+*Proposed: A reusable DAT Imgui element to navigate through DAT information, allowing for things like:*
+ - Browse for weapons, armors (Usable in `Editor` in the Equipment)
+ - Browse for NPCs, objects (Usable in `Editor` in the Transmog)
+ - Interact with local labels.json, identify models in-game and write out labels and notes for capture over SSH
+ - **TODO**: Research practicality of loading in target model_ids and iteratively pulling out data from a live client - e.g. rendering posed/bound models in game
 
-### [~] Advanced Model Extraction
-*Textures, components, animation/skeleton info.*
-- [x] Texture extractor to PNG/**TGA** → `TextureExport.{h,cpp}`, dependency-free: software DXT1/3/5 + `StretchRect` readback. Reads live bound textures, not the DAT.
-- [x] UV coordinates + `.mtl` generation paired with extracted textures.
-- [x] **ModelMod reference investigation** → `MODELMOD-FINDINGS.md`. Verdict: it uses our identical `DrawIndexedPrimitive` snapshot mechanism (no DAT path to leapfrog); the leverage is *select-a-draw vs filter-a-scene* + preserving the skinning substrate we were discarding.
-- [x] **Skin-weight substrate** — capture + export GW's per-vertex bone indices (packed in a D3DCOLOR beta) as OBJ `#vbld` lines + manifest `weighted`. Verified: 30+ bones, real skeleton.
-- [~] **Pick mode** — interactive select-one-draw with in-game highlight. 
-- [x] **Missing armor/robe — ROOT-CAUSED + fixed (it was NEVER a depth-test issue).** GW draws the  dress/skirt and some armor as meshes it does **not flag as skinned**, so `require_skinned` dropped  them and pick "Skinned only" hid them — the long-standing "coherent character, missing armor"  symptom. Fix: `clean-full` no longer uses `require_skinned` (it size-gates scenery instead); "Skinned only" now warns it hides non-skinned pieces. Misleading depth-test "armor fix" claims removed.
-- [~] **Non-skinned world-space re-seating** — those non-skinned pieces are baked into **world  space** (skinned meshes are bind-pose-local at the origin), so a raw grab scattered them ~7000u from the body and the export rendered as a speck. Now re-seated onto the body via `local = Rz(-facing)·(world - agent_pos)` from the GWCA snapshot (`Exporter::AlignWorldSpaceChunks`). Result: a **complete, correctly-oriented** character. Caveat below (#pose).
-- [~] **Pose reconstruction (`pose_to_live`) — prototyped + baked in.** Closes the "close, not exact" gap: poses the bind body forward into the LIVE frame from the **bone palette** so GW's live-pose non-skinned armor lines up. **Palette layout solved + self-calibrating**: per-draw, bone `k` → VS registers `c(base+3k)` as `[3x3|t]`; `base` found by scanning for the bone whose translation == the agent's GWCA pos (`Exporter::PoseChunks`). Rigid single-bone: `world_v =
-  BoneMatrix[bone]·bind_v`. Verified: reconstructs a coherent live-pose body. Remaining: confirm every skinned chunk poses once all draws are probed (`kProbeMaxSamples` now 64); See**Rig/pose** for the full-skeleton/animation extension.
-- [~] **Whole-character grouping (`pick target`)** — built, but bone-palette-calibration-bound (0 on map 280); gated behind isolation self-calibration.
-- [~] Armor/weapon systems: per-slot equipment, `model_file_id`s, dyes → manifest (identity only; per-slot **geometry** gating is DAT work / -image work).
-- [~] Character state / skeleton / animation structures: model/animation **state ids** + equipment identity via GWCA → manifest. Per-vertex bone binding now exported (`#vbld`); true skeletal/frame export is future.
+# Tools
+### [~] (HIGH) `Extractor`
+*Export model textures, components, animation and skeleton information with in-game poses and vertex positions exporteed.*
+- [x] Pose reconstruction — poses the bind body forward into the LIVE frame from the bone palette
+- [~] Character bindable skeleton / model / textures / skin composites, armor, weapon, hair composites
+ - **MASSIVE PROGRESS MADE.** All character exports, if manually isolated/picked, export as expected.
+ - Works as snapshot for some of the above, needs `gltf / glb` work to unify exported content
+ - Export complete rig/pose the captured character - exact assembly + animation (#pose)
+- [ ] (MEDIUM) Improve picker list of textures:
+ - Ensure cross-character, app-wide disabling is reliable (having to often re-disable some textures, not sure if duplicates or not)
+ - Prevent list order from jumping constantly while at bottom of list while trying to disable/select. Have a timing buffer/gray-out "unseen-leaving-list" entries perhaps, it moves quite often currently
+- [ ] Any use for -lodfull flag for Gw.exe:
+> "Instructs the client to use the highest level of "LOD" (level of detail). 3D assets will be rendered instead of 2D "imposters". There can still be some "popping" as some art assets move into and out of the edges of the view or a bump in the terrain." 
+- [ ] (HIGH) Handle transparent textures on export - unclear why some models have nearly-invisible pieces of armor (Could be missing solid pieces / multiple submeshes? Are we surfacing and exporting all subtextures properly in the picker interface?)
+- [ ] (MEDIUM) Export models as a `gltf/glb` for animation and scene information to be consumed by Blender and other projects (`topic-get`, threejs)
+- [ ] (HIGH BUT COMPLEX) Other character/model picking and exporting
+  — **Needs work.** Must stand own character against a wall (or no other textures in view) to export, but works reliably.
+  - Unclear how best to do this - e.g. isolation render or bone proximity, etc.
+  - Improving the picker UX/UI e.g. hovering over a character highlighting entries in the picker list (and not jumping around) would be a massive win and would count as a build 
+- [ ] (MEDIUM) Complete texture handling, in-game systems handling 
+ - Armor/weapon/skin-color/hair-color composition
 
-### [~] Rig/pose the captured character - exact assembly + animation (#pose)
-*Goal: make the re-seated non-skinned pieces line up EXACTLY, and unlock posed/animated export.* The one gap left in the "one button → complete character" path: we export the skinned body in **bind pose** while GW's non-skinned pieces (dress/skirt/armor) are baked in the **live** pose, so the rigid re-seating (`AlignWorldSpaceChunks`) gets root + facing right but limb-level pose is "close, not exact". Two regimes seen 2026-07-06:
-* **Root-attached single garment (dress/skirt)** — the rigid re-seat seats it well; symmetric, so a residual facing error is invisible. This is the "close" MVP working as intended.
-* **Multi-bone limb armor (pauldrons/greaves)** — GW packs plates for *several bones* (both shoulders, arms, legs) into ONE non-skinned draw, each baked at its own limb's live position. A single rigid transform brings the chunk *near* the body but CANNOT seat each plate — confirmed: no whole-chunk rotation seats them. This one genuinely needs per-bone placement (below), not a rotation tweak. The raw material to close it is already captured:
-* `#vbld` — per-vertex bone indices + weights (the mesh→bone binding), exported today.
-* The bone **palette** (per-agent bone transforms) — dumpable to the manifest via Probe (VS constants). Remaining work is assembly: reconstruct the bone transforms from the palette, then either (a) **pose the bind-pose body forward** into the live frame so it matches the non-skinned pieces, or (b) build areal skeleton + skinning so the export can be re-posed/animated in a DCC tool. Nobody in the ModelMod reference got here; we're better positioned (GWCA gives the world transform). Cheap near-term step: document how to hand-rig `#vbld` + palette in Blender for a one-off posed render.
-*Reference: Visual review of posing seems to be somewhat unreliable from AI confirmation - several false positives have been spotted. One character (male assassin) was stitched together perfectly, but other professions/genders have multiple broken connections saying that we may need a thorough checklist and manual review of results.*
-*Consider: Extend the blender rendering tool with savable poses and animations such as male-assassin-dance-snapshot-N / npc-cast-animation-N, etc.*
+### [~] (MEDIUM) `Editor`
+Goal: A new 'Editor' panel that allows users to edit their character's visual appearance comprehensively.
+- [x] Transmog — whole-model swap into any NPC.
+- [x] Scale — emulated `AgentScale` packet (1..255%). Often requires two transformers.
+- [x] Equipment + dye — per-slot spoof of `equip->items[slot]` (model_file_id + dye) then the  `EquipItem`/`RemoveItem` vtable to redraw. Dye is robust (recolour real gear)
+- [ ] (HIGH) Model browser, searcher, picker as described by `datcore` Imgui interface
+ - Likely imports and uses datcore?
+ - Populated from the client's live DAT, not just in-memory information
+ - Global `GetNPCArray()` / GetObjects / etc.
+- [ ] **Non-functional**: Profession / Sex — direct `AgentLiving` field writes. Investigate uses for this / ways to trick Gw into repainting models. 
+ - IDEA: What about loading in dummy models that we can target? That would still be useful.
+- [x] UI/UX: Apply/revert, save/load, global states, targetting works in-game and over SSH
 
-### [~] Client-Side Free Camera
+### [~] (LOW) `Freecam`
 *Goal: Break the client renderer away from character/skeleton and fly the camera around the rendered map.*
-*Fix: Needs ability to lock character / hotkeys to intercept character movements as camera control also controls character currently.*
-*Fix: Needs ability to respect chatbox focus - typing in chatbox while in freecam mode moves the camera. Chat should take priority.*
-*Improvements: FOV, Roll camera, orbit a target, record/dolly a path and movement that can be saved and replayed (with labels.)*
+*- [ ] Fix: Needs ability to lock character / hotkeys to intercept character movements as camera control also controls character currently.*
+*- [ ] Fix: Needs ability to respect chatbox focus - typing in chatbox while in freecam mode moves the camera. Chat should take priority.*
+*- [ ] Todo: FOV, Roll camera, orbit a target, record/dolly a path and movement that can be saved and replayed (with labels.)*
 
-### [ ] Direct DAT Asset Reading
-*Goal: Parse the DAT directly, so assets don't depend on active game state.*
-* [x] Likely requires running -image to download all assets prior: COMPLETE, entire game has been downloaded. 
-* Asset loader to locate/read `model_file_id` records from `Gw.dat`.
-* Reference GWToolbox's Armory window - it successfully renders thumbnails and selects all armors for all professions and genders in the game.
-* Generalize this data load-in to allow for browsing/selection/actions over many/all types of data in Guild Wars, such as: Armors, Weapons, NPCs (Monsters, Heroes, Friendly e.g. Xunlai, Story characters), Game Objects (Skinned and non-skinned.)
-* Expand the exporter to output models extracted directly from the DAT. UI/UX review needed.
+---
 
-### [ ] Model/Texture/Area/NPC/Character/../Any Browser & Search UI for Guildlite
-*Goal: Interactive library of models/textures/etc. - anything in game that could be served through a list usefully, usable for multiple panels and planned tools.*
-* ImGui Model Browser with search; categorize DAT contents (Objects, Armor, Items, Animations, Models, Terrain); connect to the asset loader + exporter (search "Chaos Axe" -> export).
-* Immediately usable in the Model Editor as model_id browser to transmog to
-* Text labels vs. wireframe/thumbnail preview; MVP likely searchable text WITH an empty placement image/wireframe.
-* Animations/pose selector in Character Editor
-* Below is a list of known NPC,model_id,existing_label,desc encountered:
-```
-#285,model 153069,warrior
-- Monster, fire djinn with floating animation. Likely attack animation? In Great Temple of Balthazar (GTOB)
+# In-Game Extensions / Surfaces
+### [ ] (HIGH) Commands (in-game chat, Terminal/SSH controls to Guildlite/control)
+*Goal: Provide the following list of MVP commands in-game and over SSH. Catalog thoroughly in both CLI tool help/docs AND in-game `Info` panel:*
+ - (HIGH) /chest - Opens interactive Xunlai chest in town/outpost, opens saved Xunlai state to view but not edit anywhere else. GWToolboxpp proivdes via OpenXunlaiChest, improve and build intelligently e.g. in Guildlite settings/state for cross-character or account inventory features in the future
+ - (?) Why do we not already surface commands to the in-game client?
+ - (!) Investigate commands to use and extend: https://wiki.guildwars.com/wiki/{Special_command,Emote,Command_line_arguments}
 
-#1197-1199: Signposts
-#1197,model 350208,Warrior
-#1198,model 350209,Warrior
-#1199,model 350210,Warrior
+### [ ] (MEDIUM) Investigate TexMod/gMod Integration
+*Goal: Load in existing texture modifications (Cartography) and ideate future creative capabilities, e.g. actively editing textures programatically, upscaling textures with AI, creating variants and mash-ups.*
+*Reference: gMod is the modern ancestor to Texmod. The end goal for Guildlite is to be as lightweight/independent of external tooling as possible - reference implementation but look to improve and reduce mem/cruft.*
 
-#5xxx-7xxx: Heros with all armors
-#6025,model 161906,Ritualist
-- Hero, Xandra, default armor
-#6026,model 161906,Ritualist
-- Hero, Xandra
-#6027,model 161906,Ritualist
-- Hero, Xandra
-```
+### [ ] (MEDIUM) Investigate and Catalog In-Game Surfaces Thoroughly
+*Goal: Look at what the game provides wholesale and look where it can be meaningfully improved/extended; we can likely save time using prior work and vanilla features..*
+*References: https://wiki.guildwars.com/wiki/{Hero_flag,Dye#Usage,Movement_controls,Hair,_and_Indeed,_Everything_Stylist,Reconnect_after_disconnect}*
+- e.g. Click-to-navigate on World Map (within zone / across zones), Optimized hero flagging during fights and pre/post encounters, Movement controls and all keyboard/mouse controls surfaced by Guildlite in-game and over SSH
 
-### [~] Targeting Functionality & UI for Guildlite
-*Goal: A reliable and expected UI/UX for features and tools that (can) rely on a "target" in-game, knowing:*
-- GWToolbox provides a /target command, described in Chat Commands build item
-- Model Exporter picker and target logic relies on targetting but there is no way for us to target in-game, therefore we have not been able to A/B test
-
-### [~] Model Editor (MVP 1 built — client-side appearance editor)
-*Goal: A new 'Editor' panel that allows users to edit their character's visual appearance comprehensively.*
-**[~] MVP 1 SHIPPED** → `injector/src/{Editor,AppearanceApply,EditorConfig}` + the third Guildlite tool `[Editor]` in the toolbar. Investigation of GWToolbox's **Armory** (`ArmoryWindow.cpp`) + **TransmoModule**. Done: both mechanisms ported. The Editor **writes** appearance (mirror of the Exporter's read); all game-memory/vtable/packet writes are marshalled onto GW's game thread (`GW::GameThread::Enqueue`), and `AppearanceApply` is the one auditable place they live (the read/write split, like GameState/AppearanceApply):
-- [x] **Transmog** — whole-model swap into any NPC via emulated `AgentModel`/`NpcGeneralStats`/`NPCModelFile` StoC packets (GWToolbox's proven path, NOT a raw `transmog_npc_id` write). NPC **picker list** from the client-global `GetNPCArray()` (id + model + profession per row).
-- [x] **Scale** — emulated `AgentScale` packet (1..255%). Live 2026-07-07: scale ALONE doesn't visibly resize (GW only re-applies scale on a model reload), **but paired with a Transmog it works — CONFIRMED 255% + transmog #285 rendered a giant.** So the reliable combo is transmog+scale; standalone scale is
-  the field-set only (noted in-panel).
-- [x] **Equipment + dye** — per-slot spoof of `equip->items[slot]` (model_file_id + dye) then the  `EquipItem`/`RemoveItem` vtable to redraw. Dye is robust (recolour real gear); model swap reuses the slot's real item type (experimental); weapons/costumes are the known-fragile bits (planned).
-- [x] **Profession / Sex** — direct `AgentLiving` field writes (experimental: many models don't re-skin live from these — the reliable look-change path is transmog/equipment; called out honestly in-panel).
-- [x] **Apply / Revert** — a pre-edit snapshot per agent restores the true look; **Revert all**.
-- [x] **Savable/loadable Character configs** with labels (persisted `editor.json` via glaze).
-- [x] **Global states** — named looks bound to a **target set** (Self / Target / All players / All NPCs) with **enable + priority**; several enabled at once, applied low-priority-first so the highest wins a contested field ("All players as X", "Self as Y" compose). One-shot over agents present now.
-- [x] **Shared targeting** — Source = Player/Target (mirrors the Exporter); every edit + state works over SSH via `edit ...` control verbs (apply/revert/transmog/scale/slot/save/load/states), so it is A/B-drivable from the Mac even without an in-game /target.
-*Honest gaps (planned): edits are CLIENT-SIDE and reset on zone (no auto-reapply yet — re-Apply after a map change); NPC names are still encoded (picker shows ids); weapon redraw + costume/festival-hat tables need the
-signature-scanned game funcs; hair/face/skin-colour and true **geometry (transform matrices) / custom textures** are DAT/-image-era work (see Direct DAT Asset Reading + TexMod)*
-
-### [~] Review Submodule References for Completed Work and Capabilities
-*Goal: Use existing work in reference while building out Guildlite, submodules described selectively below as they are added/removed:*
-- [x] ModelMod: Export/import models into games
-- [x] GWToolbox: Uses GWCA for similar QOL capabilities and features
-- [ ] TexMod/gMod: Loads in custom textures
-- [ ] GWDatBrowser
- - [ ] GuildWarsMapBrowser - References GWDatBrowser specifically: AtexAsm.h/cpp, AtexReader.h/cpp, GWUnpacker.h/cpp, xentax.h/cpp
-- Projects by @ldufr
- - [ ] Headquarter: Unclear. Bot framework?
- - [ ] OpenTyria: Server for Gw.exe, run Guild Wars completely locally
- - [ ] nexus: Run multiple Guild Wars off a single Gw.exe (Improvement over GWLauncher?)
-
-### [ ] Novel Rendering Features and Techniques
+### [ ] (LOW) Rendering
 *Goal: Review Guildlite layer and any opportunities for novel/clever rendering features, ideas such as:*
 - Warping of geometry (Linear -> fisheye, spherical geometry, animated e.g. Minecraft Acid Shaders, scaling targeted objects making personal character larger/smaller etc.)
 - Visual shaders (Atmosphere, fog, additional effects)
 - Importing custom objects
 
-### [ ] Chat Commands - [Investigate GWToolbox Chat commands (/chest , /target , ...)]
-*Goal: Mimic GWToolbox's chat /chest command (OpenXunlai..), determine its relevance in building a "safe" (aka not immediately bannable/detectable) command like it.*
-*Background: GWToolbox provides the /chest command freely as a widely-used and installed tool with no consequence; can we build on this with our planned list of NPCs in outpost/zone feature?*
-*Related: Clickable outpost NPC list -> dialog/UI, extending Xunlai to e.g. merchants/rune traders/dye traders. Unclear if Xunlai is only position-independent NPC interaction.*
-*UI: All non-tool (e.g. in-game, non-Guildlite) commands must be documented in the controls/command UI section*
-*Related: /target [name] allowing programmatic targetting of NPCs, players and even items on the ground. Provided by GWToolbox except items.*
-_**IMPORTANT**: The more GWCA/in-game commands we surface in chat commands - we also gain access to via network controls, e.g. we have no way to target self currently. A /target command would allow us to target specific things over ssh for A/B dev._
-_**IMPORTANT**: Review GWToolbox commands, propose/implement/reference legitimately useful commands but do not wholesale implement all - GWTB is known for cruft and features without a functional use. Future goals such as template/team loading can be investigated in due time._
-_**IMPORTANT**: All commands must be documented in `Info` panel._
+---
 
-### [ ] Investigate TexMod/gMod Integration
-*Goal: Load in existing texture modifications.*
-*Concession: In looking at existing code, determine if worth integrating vs. simplifying/optimizing ourselves and providing it as a simple tool, e.g. 'Textures' panel with load-in tools, options and improved functionality gMod does not offer. Likely our own tool under Editor or a new `Textures` panel?*
+# Research
+### [~] Investigate Submodule References for Completed Work and Capabilities
+*Goal: Use existing work in reference while building out Guildlite, submodules described selectively below as they are added/removed:*
+- [ ] TexMod/gMod: Loads in custom textures
+- [ ] Projects by @ldufr
+ - [ ] OpenTyria: Server for Gw.exe, run Guild Wars completely locally. Interesting!
+ - [ ] nexus: Run multiple Guild Wars off a single Gw.exe (Improvement over GWLauncher?) Interesting! 
+ - [ ] Headquarter: Unclear. Bot framework? Low interest I suppose but I do thing automating some things is legal
+- [x] GuildWarsMapBrowser (Modern usage of GWDatBrowser) 
+- [x] ModelMod: Export/import models into games
+- [x] GWToolbox: Uses GWCA for similar QOL capabilities and features 
 
-### [ ] Review Practicality of macOS - Gw.exe
+### [ ] Investigate Practicality of macOS - Gw.exe
 *Goal: Document practicality and options of reliably running Guild Wars on macOS with the lowest amount of dependencies/extra installs.*
 *Draft Prior Knowledge: Wine/Rosetta/VMWare emulation, Parallels/macOS/Other dual booting*
 *Draft Ideas: Lightweight, native running of Gw.exe VS. Entire rewrite of game engine*
  - Question: Can we lift *some* of the DX9 out to Metal/other and write the parts we can't? What is the MVP here?
  - Question: In getting an MVP - look at all the bot/external work. There are headless clients running bot farms (known of), surely a macOS client is doable
 
-## [~] Guildlite
-*Goal: Continually review and improve core functionality for development and usage, such as:*
- - Fundamental Ease of Use
- - Understandability of Features
- - Core Reliability and User Experiences
- - Network Control Reliability
-*Multi-Gw.exe targetting to drive and reload independent clients*
-*UI: Surface all tools and options with saved/loadable state*
- - [x] Guildlite toolbar toggleable all tools
-
 ---
 
-## FUTURE IDEAS
+# Future Ideas
+### Multiple Guild Wars / Guildlites Running and Controllable
+*Goal: Use a single Gw.exe (ref: third_party/nexus) for multiple clients and injected clients, all targetable and controllable over SSH as usual*
 
 ### Shared State & Mini-Games
 *Goal: Network plugin state for collaborative/fun features.*
@@ -155,4 +124,3 @@ _**IMPORTANT**: All commands must be documented in `Info` panel._
 
 ### Future Research
 * The new iOS/iPad Guild Wars app — possible entry points (e.g. injecting into the app).
-</content>
