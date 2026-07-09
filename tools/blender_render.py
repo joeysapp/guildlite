@@ -254,10 +254,35 @@ class Renderer:
         self.center = (self.mn + self.mx) * 0.5
         self.size = self.mx - self.mn
         self.maxdim = max(self.size.x, self.size.y, self.size.z) or 1.0
+        self._effect_dominant = self._compute_effect_dominant()
+
+    def _compute_effect_dominant(self):
+        """True when most of the mesh is additive (flames/auras). Such models are
+        drawn to add light over the dark game world; on a light backdrop they wash
+        out, so we default them to a dark background unless the user overrides -bg."""
+        import json
+        jp = Path(self.obj_path).with_suffix('.json')
+        if not jp.exists():
+            return False
+        try:
+            data = json.loads(jp.read_text())
+        except Exception:
+            return False
+        add = tot = 0
+        for c in data.get('chunks', []):
+            t = int(c.get('triangles', 0) or 0)
+            tot += t
+            if (c.get('dest_blend') == self.D3DBLEND_ONE) or bool(c.get('is_effect')):
+                add += t
+        return tot > 0 and add >= 0.6 * tot
 
     def _resolve_config(self, template, overrides):
         frame = overrides.get('frame') if overrides.get('frame') and overrides.get('frame') != 'auto' else template.default_frame
         bg = overrides.get('background') or template.background
+        # Additive-dominant models (fire elementals, spirits) only read on a dark
+        # backdrop; default them there unless the caller passed an explicit -bg.
+        if 'background' not in overrides and getattr(self, '_effect_dominant', False):
+            bg = (0.05, 0.05, 0.07, 1.0)
         passes = overrides.get('passes', 'beauty')
         return {
             'distance': overrides.get('distance') if overrides.get('distance') is not None else template.distance,
@@ -408,6 +433,129 @@ class Renderer:
                     if rl.outputs.get('AO'):
                         tree.links.new(rl.outputs.get('AO'), file_out.inputs[p])
 
+    # ------------------------------------------------------------------
+    # GW-aware material fixup.
+    #
+    # Guild Wars reuses a diffuse texture's ALPHA channel as a spec/gloss/layer
+    # mask on OPAQUE character draws (armor, skirts, hair). It is NOT framebuffer
+    # opacity: the pixel shader outputs ~1.0 and the blend is SRCALPHA/INVSRCALPHA
+    # only for edge AA. Proof from the captures: 72.6% of a skirt's sampled texels
+    # are alpha==0 yet it is solid dark armor in-game. So importing map_d as the
+    # Principled Alpha (which the .obj importer does) + alpha-hashing turns solid
+    # armor into a near-invisible ghost -- the exact "transparent skirt/hair/cape".
+    #
+    # Effects (flames, auras, glows) are the opposite: GW draws them ADDITIVELY
+    # (dest_blend == D3DBLEND_ONE), where black adds nothing and so must read as
+    # transparent. Their alpha channel is a meaningless 255, so map_d cannot key
+    # out the black -- the "black in flame should not render" bug.
+    #
+    # We recover the intent per material from the sidecar capture .json (authored
+    # blend state per draw) and rebuild the node graph:
+    #   opaque   -> ignore the texture alpha, render solid
+    #   additive -> emissive, black keyed transparent via a luminance alpha
+    D3DBLEND_ONE = 2
+
+    def _blend_classes(self):
+        """Map sanitized texture stem -> 'opaque'|'additive' from the capture json."""
+        import json, re
+        classes = {}
+        jp = Path(self.obj_path).with_suffix('.json')
+        if not jp.exists():
+            return classes
+        try:
+            data = json.loads(jp.read_text())
+        except Exception:
+            return classes
+        san = lambda s: re.sub(r'[^0-9A-Za-z_]', '_', s)
+        for c in data.get('chunks', []):
+            tf = c.get('texture_file', '')
+            if not tf:
+                continue
+            stem = san(Path(tf).stem)
+            additive = (c.get('dest_blend') == self.D3DBLEND_ONE) or bool(c.get('is_effect'))
+            # additive wins if ANY draw sharing the texture is additive
+            if classes.get(stem) == 'additive' or additive:
+                classes[stem] = 'additive'
+            else:
+                classes.setdefault(stem, 'opaque')
+        return classes
+
+    def _class_for(self, matname, classes):
+        base = matname[4:] if matname.startswith('mat_') else matname
+        if base.endswith('_a'):          # '_a' = the alpha-blended variant of a shared atlas
+            base = base[:-2]
+        return classes.get(base, 'opaque')
+
+    @staticmethod
+    def _set_render_method(mat, blended):
+        # Blender 4.2+/5.0 EEVEE-Next uses surface_render_method; older uses blend_method.
+        if hasattr(mat, 'surface_render_method'):
+            try: mat.surface_render_method = 'BLENDED' if blended else 'DITHERED'
+            except Exception: pass
+        if hasattr(mat, 'blend_method'):
+            try: mat.blend_method = 'BLEND' if blended else 'OPAQUE'
+            except Exception: pass
+
+    def _setup_materials(self):
+        classes = self._blend_classes()
+        n_add = n_op = 0
+        for mat in bpy.data.materials:
+            if not mat.use_nodes or mat.node_tree is None:
+                continue
+            nt = mat.node_tree
+            bsdf = nt.nodes.get("Principled BSDF")
+            if bsdf is None:
+                continue
+            bc = bsdf.inputs.get('Base Color')
+            alpha_in = bsdf.inputs.get('Alpha')
+            img_node = None
+            if bc is not None and bc.is_linked:
+                img_node = bc.links[0].from_node
+            if img_node is None or img_node.type != 'TEX_IMAGE':
+                img_node = next((n for n in nt.nodes if n.type == 'TEX_IMAGE'), img_node)
+
+            cls = self._class_for(mat.name, classes)
+
+            if cls == 'additive' and img_node is not None:
+                emis = bsdf.inputs.get('Emission Color') or bsdf.inputs.get('Emission')
+                if emis is not None:
+                    try: nt.links.new(img_node.outputs['Color'], emis)
+                    except Exception: pass
+                if 'Emission Strength' in bsdf.inputs:
+                    bsdf.inputs['Emission Strength'].default_value = 1.5
+                if bc is not None:
+                    for l in list(bc.links): nt.links.remove(l)
+                    bc.default_value = (0.0, 0.0, 0.0, 1.0)
+                if alpha_in is not None:
+                    for l in list(alpha_in.links): nt.links.remove(l)
+                    # alpha = sharpened luminance: true black (the additive void) keys
+                    # fully transparent, but any lit colour (flame, lava body) ramps to
+                    # solid fast so it does not wash out. Map 0.03..0.32 -> 0..1 clamped.
+                    bw = nt.nodes.new('ShaderNodeRGBToBW')
+                    nt.links.new(img_node.outputs['Color'], bw.inputs['Color'])
+                    mr = nt.nodes.new('ShaderNodeMapRange')
+                    mr.clamp = True
+                    mr.inputs['From Min'].default_value = 0.03
+                    mr.inputs['From Max'].default_value = 0.32
+                    mr.inputs['To Min'].default_value = 0.0
+                    mr.inputs['To Max'].default_value = 1.0
+                    nt.links.new(bw.outputs['Val'], mr.inputs['Value'])
+                    nt.links.new(mr.outputs['Result'], alpha_in)
+                self._set_render_method(mat, blended=True)
+                for attr, val in (('shadow_method', 'NONE'), ('use_transparent_shadow', False)):
+                    if hasattr(mat, attr):
+                        try: setattr(mat, attr, val)
+                        except Exception: pass
+                n_add += 1
+            else:
+                # opaque: strip the bogus opacity link, render solid
+                if alpha_in is not None:
+                    for l in list(alpha_in.links): nt.links.remove(l)
+                    alpha_in.default_value = 1.0
+                self._set_render_method(mat, blended=False)
+                n_op += 1
+        print(f"[Materials] opaque={n_op} additive={n_add} (classes={len(classes)} from json)")
+
     def render(self, template_name, out_path, overrides):
         template = TEMPLATES.get(template_name, TEMPLATES["diagnostic"])
         resolved = self._resolve_config(template, overrides)
@@ -431,11 +579,7 @@ class Renderer:
         self._setup_wireframe(template)
         self._setup_passes(resolved, out_path)
 
-        for m in bpy.data.materials:
-            try: m.surface_render_method = 'DITHERED'
-            except Exception:
-                try: m.blend_method = 'HASHED'
-                except Exception: pass
+        self._setup_materials()
 
         bpy.ops.render.render(write_still=True)
         print(f"\n[Renderer] engine:\t{scene.render.engine}\n[Renderer] outfile:\t{out_path}")
@@ -459,7 +603,8 @@ class Renderer:
         
         self._setup_overlays(resolved)
         self._setup_wireframe(template)
-        
+        self._setup_materials()
+
         fps = overrides.get('fps', 30)
         duration_ms = overrides.get('time', 1000)
         total_frames = int((duration_ms / 1000.0) * fps)
